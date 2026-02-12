@@ -1,6 +1,9 @@
 FROM node:22-slim AS base
 WORKDIR /app
 
+# Prisma needs OpenSSL at runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
