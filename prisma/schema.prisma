@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   @default("learner") // "admin" | "learner"
+  displayName  String   @map("display_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  attempts         LearnerAttempt[]
+  sectionProgress  LearnerSectionProgress[]
+
+  @@map("users")
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  title       String
+  titleEs     String   @map("title_es")
+  description String?
+  sortOrder   Int      @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  modules          Module[]
+  sectionVocabulary SectionVocabulary[]
+  learnerProgress  LearnerSectionProgress[]
+
+  @@map("sections")
+}
+
+model Module {
+  id        String  @id @default(cuid())
+  sectionId String  @map("section_id")
+  type      String  // "introduction" | "practice" | "test"
+  content   Json?   // JSON for intro reading context
+
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  LearnerAttempt[]
+
+  @@unique([sectionId, type])
+  @@map("modules")
+}
+
+model Vocabulary {
+  id              String  @id @default(cuid())
+  word            String
+  partOfSpeech    String  @map("part_of_speech")
+  definitionEs    String  @map("definition_es")
+  exampleSentence String  @map("example_sentence")
+  phoneticIpa     String? @map("phonetic_ipa")
+  stressedSyllable String? @map("stressed_syllable")
+  audioUrl        String? @map("audio_url")
+
+  sectionVocabulary SectionVocabulary[]
+  questions         Question[]
+
+  @@map("vocabulary")
+}
+
+model SectionVocabulary {
+  id           String @id @default(cuid())
+  sectionId    String @map("section_id")
+  vocabularyId String @map("vocabulary_id")
+  sortOrder    Int    @map("sort_order")
+
+  section    Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  vocabulary Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, vocabularyId])
+  @@map("section_vocabulary")
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  moduleId      String  @map("module_id")
+  vocabularyId  String? @map("vocabulary_id")
+  type          String  // "multiple_choice" | "fill_blank" | "matching" | "phonetics"
+  prompt        String
+  correctAnswer String? @map("correct_answer")
+  sortOrder     Int     @map("sort_order")
+
+  module     Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  vocabulary Vocabulary? @relation(fields: [vocabularyId], references: [id], onDelete: SetNull)
+  options    QuestionOption[]
+  answers    LearnerAnswer[]
+
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  optionText String  @map("option_text")
+  isCorrect  Boolean @default(false) @map("is_correct")
+  sortOrder  Int     @map("sort_order")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  LearnerAnswer[]
+
+  @@map("question_options")
+}
+
+model LearnerAttempt {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  moduleId    String    @map("module_id")
+  score       Float?
+  passed      Boolean?
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module  Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  answers LearnerAnswer[]
+
+  @@map("learner_attempts")
+}
+
+model LearnerAnswer {
+  id               String  @id @default(cuid())
+  attemptId        String  @map("attempt_id")
+  questionId       String  @map("question_id")
+  selectedOptionId String? @map("selected_option_id")
+  answerText       String? @map("answer_text")
+  isCorrect        Boolean @map("is_correct")
+
+  attempt        LearnerAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@map("learner_answers")
+}
+
+model LearnerSectionProgress {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  sectionId         String    @map("section_id")
+  introCompleted    Boolean   @default(false) @map("intro_completed")
+  practiceCompleted Boolean   @default(false) @map("practice_completed")
+  testScore         Float?    @map("test_score")
+  testPassed        Boolean   @default(false) @map("test_passed")
+  unlocked          Boolean   @default(false)
+  unlockedAt        DateTime? @map("unlocked_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sectionId])
+  @@map("learner_section_progress")
+}
