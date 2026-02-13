@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GripVertical,
-  ChevronRight,
   Pencil,
+  Eye,
   BookOpen,
   Sparkles,
   Loader2,
@@ -100,14 +100,16 @@ function SortableSectionCard({
       <Link
         href={`/admin/sections/${section.id}`}
         className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        title="Edit"
       >
         <Pencil className="w-4 h-4" />
       </Link>
       <Link
-        href={`/admin/sections/${section.id}`}
-        className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        href={`/admin/preview/${section.id}`}
+        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1"
+        title="Preview"
       >
-        <ChevronRight className="w-4 h-4" />
+        <Eye className="w-4 h-4" />
       </Link>
     </div>
   );
@@ -151,7 +153,7 @@ export default function AdminDashboard() {
 
   // AI generation form
   const [topic, setTopic] = useState("");
-  const [wordCount, setWordCount] = useState(5);
+  const [wordCount, setWordCount] = useState("5");
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState("");
   const [genError, setGenError] = useState("");
@@ -218,7 +220,7 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/sections/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, wordCount }),
+        body: JSON.stringify({ topic, wordCount: parseInt(wordCount, 10) || 5 }),
       });
 
       const data = await res.json();
@@ -231,7 +233,7 @@ export default function AdminDashboard() {
       }
 
       setTopic("");
-      setWordCount(5);
+      setWordCount("5");
       setShowCreate(false);
       setGenProgress("");
       router.push(`/admin/sections/${data.sectionId}`);
@@ -363,23 +365,27 @@ export default function AdminDashboard() {
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Number of vocabulary words
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={3}
-                  max={15}
-                  value={wordCount}
-                  onChange={(e) => setWordCount(Number(e.target.value))}
-                  className="flex-1 accent-purple-600"
-                  disabled={generating}
-                />
-                <span className="text-lg font-bold text-purple-600 w-8 text-center">
-                  {wordCount}
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                This will generate ~{wordCount * 2} practice questions and ~
-                {Math.ceil(wordCount * 1.5)} test questions (including phonetics)
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={wordCount}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setWordCount(raw);
+                }}
+                onBlur={() => {
+                  let v = parseInt(wordCount, 10);
+                  if (isNaN(v) || v < 1) v = 1;
+                  if (v > 20) v = 20;
+                  setWordCount(String(v));
+                }}
+                className="w-16 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white [appearance:textfield]"
+                disabled={generating}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                This will generate {Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and{" "}
+                {Math.min(20, Math.max(10, Math.round(10 + (((parseInt(wordCount, 10) || 0) - 5) / 15) * 10)))} test questions
               </p>
             </div>
 
