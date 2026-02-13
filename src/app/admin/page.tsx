@@ -33,8 +33,6 @@ export default function AdminAreasPage() {
 
   // Create form
   const [name, setName] = useState("");
-  const [nameEs, setNameEs] = useState("");
-  const [description, setDescription] = useState("");
 
   // Edit modal
   const [editArea, setEditArea] = useState<Area | null>(null);
@@ -65,7 +63,7 @@ export default function AdminAreasPage() {
       const res = await fetch("/api/admin/areas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, nameEs, description: description || null }),
+        body: JSON.stringify({ name }),
       });
 
       if (!res.ok) {
@@ -77,8 +75,6 @@ export default function AdminAreasPage() {
       }
 
       setName("");
-      setNameEs("");
-      setDescription("");
       setShowCreate(false);
       setCreateProgress("");
       setCreating(false);
@@ -250,13 +246,14 @@ export default function AdminAreasPage() {
             </h4>
           </div>
           <p className="text-xs text-gray-500 mb-4">
-            An icon will be automatically matched based on the area name.
+            Just enter the name — the Spanish translation, description, and
+            icon are generated automatically.
           </p>
 
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Name (English)
+                Area Name
               </label>
               <input
                 type="text"
@@ -265,33 +262,6 @@ export default function AdminAreasPage() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                 required
-                disabled={creating}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Name (Spanish)
-              </label>
-              <input
-                type="text"
-                placeholder='e.g. "Ingeniería", "Salud", "Negocios"'
-                value={nameEs}
-                onChange={(e) => setNameEs(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                required
-                disabled={creating}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Description (optional)
-              </label>
-              <input
-                type="text"
-                placeholder="Brief description of this area"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                 disabled={creating}
               />
             </div>
