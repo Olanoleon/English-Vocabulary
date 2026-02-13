@@ -84,16 +84,19 @@ INTRODUCTION READING:
 - Wrap each vocabulary word with double asterisks like **word** so it can be highlighted
 - The passage should read like a natural story or scenario, not a list of definitions
 
-PRACTICE QUESTIONS (generate at least as many questions as vocabulary words, ~2 per word, but NEVER more than 20 total):
+PRACTICE QUESTIONS:
+- You MUST generate the exact number of practice questions specified in the user prompt under "Required practice questions". This is a hard requirement — do NOT generate fewer.
 - Focus on WORD DEFINITIONS — do NOT reference the reading passage
-- Mix of three styles:
+- Every vocabulary word MUST appear in at least one practice question (either as the subject of a definition question, or as the correct answer in a reverse/fill_blank question)
+- Mix of three styles (distribute evenly):
   1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors from other Spanish words that could be confused)
   2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list (1 correct, 3 other words from this unit)
   3. "fill_blank": A standalone generic sentence (NOT from the reading passage) where the vocabulary word fits naturally. Set correct_answer to the word.
 - All options arrays must have exactly 4 items for multiple_choice, 0 items for fill_blank
 - IMPORTANT: fill_blank sentences must be original and independent from the intro reading text
 
-TEST QUESTIONS (generate at least as many questions as vocabulary words, ~1.5 per word, but NEVER more than 10 total):
+TEST QUESTIONS:
+- You MUST generate the exact number of test questions specified in the user prompt under "Required test questions". This is a hard requirement — do NOT generate fewer.
 - Mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
 - multiple_choice and fill_blank: same definition-focused rules as practice (NOT referencing the reading)
@@ -207,10 +210,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate required question counts (at least 1 per word, capped)
+    const practiceCount = Math.min(wordCount * 2, 20);
+    const testCount = Math.min(Math.max(wordCount, Math.ceil(wordCount * 1.5)), 10);
+
     // Call OpenAI (using fetch directly to avoid IDE proxy interception)
     const content = await callOpenAI(
       SYSTEM_PROMPT,
-      `Generate a complete vocabulary section for the topic: "${topic}"\nNumber of vocabulary words: ${wordCount}\n\nReturn the JSON object now.`
+      `Generate a complete vocabulary section for the topic: "${topic}"
+Number of vocabulary words: ${wordCount}
+Required practice questions: exactly ${practiceCount} (this is mandatory — every word must appear in at least one question)
+Required test questions: exactly ${testCount} (this is mandatory)
+
+Return the JSON object now.`
     );
 
     if (!content) {
@@ -242,6 +254,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "AI response is missing required fields. Please try again." },
         { status: 502 }
+      );
+    }
+
+    // Log if OpenAI under-generated (helps debugging)
+    const actualPractice = generated.practiceQuestions?.length || 0;
+    const actualTest = generated.testQuestions?.length || 0;
+    if (actualPractice < practiceCount) {
+      console.warn(
+        `OpenAI under-generated practice questions: got ${actualPractice}, expected ${practiceCount}`
+      );
+    }
+    if (actualTest < testCount) {
+      console.warn(
+        `OpenAI under-generated test questions: got ${actualTest}, expected ${testCount}`
       );
     }
 
