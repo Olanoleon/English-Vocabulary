@@ -151,7 +151,7 @@ export default function AdminDashboard() {
 
   // AI generation form
   const [topic, setTopic] = useState("");
-  const [wordCount, setWordCount] = useState(5);
+  const [wordCount, setWordCount] = useState("5");
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState("");
   const [genError, setGenError] = useState("");
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/sections/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, wordCount }),
+        body: JSON.stringify({ topic, wordCount: parseInt(wordCount, 10) || 5 }),
       });
 
       const data = await res.json();
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
       }
 
       setTopic("");
-      setWordCount(5);
+      setWordCount("5");
       setShowCreate(false);
       setGenProgress("");
       router.push(`/admin/sections/${data.sectionId}`);
@@ -364,21 +364,26 @@ export default function AdminDashboard() {
                 Number of vocabulary words
               </label>
               <input
-                type="number"
-                min={1}
-                max={20}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={wordCount}
-                onChange={(e) => setWordCount(Number(e.target.value) || 0)}
-                onBlur={() => {
-                  if (wordCount < 1) setWordCount(1);
-                  if (wordCount > 20) setWordCount(20);
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setWordCount(raw);
                 }}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                onBlur={() => {
+                  let v = parseInt(wordCount, 10);
+                  if (isNaN(v) || v < 1) v = 1;
+                  if (v > 20) v = 20;
+                  setWordCount(String(v));
+                }}
+                className="w-16 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white [appearance:textfield]"
                 disabled={generating}
               />
               <p className="text-[10px] text-gray-400 mt-1">
-                This will generate ~{Math.min(wordCount * 2, 20)} practice questions and ~
-                {Math.min(Math.ceil(wordCount * 1.5), 10)} test questions (max 30 total)
+                This will generate ~{Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and ~
+                {Math.min(Math.ceil((parseInt(wordCount, 10) || 0) * 1.5), 10)} test questions
               </p>
             </div>
 
