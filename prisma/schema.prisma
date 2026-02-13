@@ -20,6 +20,9 @@ model User {
   nextPaymentDue DateTime? @map("next_payment_due")
   lastPaymentDate DateTime? @map("last_payment_date")
 
+  // Access control: null = auto (follows payment), "enabled" = force allow, "disabled" = force block
+  accessOverride String?  @map("access_override")
+
   attempts         LearnerAttempt[]
   sectionProgress  LearnerSectionProgress[]
   payments         Payment[]
