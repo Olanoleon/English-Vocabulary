@@ -20,4 +20,5 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
 # ONE-TIME: force-reset DB for schema migration, then seed. Revert after deploy.
-CMD npx prisma db push --skip-generate --force-reset --accept-data-loss && npx prisma db seed ; npm start
+# ONE-TIME: force-reset DB for schema migration, then seed. Revert after deploy.
+CMD npx prisma db push --force-reset --accept-data-loss && npx prisma db seed ; npm start
