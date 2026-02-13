@@ -17,6 +17,7 @@ interface VocabWord {
 interface SectionData {
   id: string;
   title: string;
+  titleEs: string;
   modules: {
     id: string;
     type: string;
@@ -118,7 +119,7 @@ export default function IntroductionPage({
         </button>
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">{section.title}</h1>
-          <p className="text-xs text-gray-400">Introduction</p>
+          <p className="text-xs text-gray-400">{section.titleEs} · Introduction</p>
         </div>
       </div>
 

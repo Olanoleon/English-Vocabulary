@@ -1,247 +1,132 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  GripVertical,
-  Pencil,
-  Eye,
-  BookOpen,
-  Sparkles,
+  Plus,
   Loader2,
+  Pencil,
+  Trash2,
+  Eye,
+  X,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
-interface Section {
+interface Area {
   id: string;
-  title: string;
-  titleEs: string;
-  sortOrder: number;
+  name: string;
+  nameEs: string;
+  description: string | null;
+  imageUrl: string | null;
   isActive: boolean;
-  _count: { sectionVocabulary: number };
+  _count: { sections: number };
 }
 
-// ─── Sortable Section Card ───────────────────────────────────────────────────
-
-function SortableSectionCard({
-  section,
-  index,
-}: {
-  section: Section;
-  index: number;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: section.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "bg-white border rounded-xl p-4 flex items-center gap-3",
-        section.isActive ? "border-gray-200" : "border-gray-100 opacity-60",
-        isDragging && "opacity-40 shadow-lg scale-[1.02]"
-      )}
-    >
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="w-5 h-5" />
-      </button>
-
-      {/* Unit Number */}
-      <div className="bg-primary-100 text-primary-700 rounded-lg w-10 h-10 flex items-center justify-center text-sm font-bold flex-shrink-0">
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-gray-500 truncate">
-          {section.titleEs} &middot; {section._count.sectionVocabulary} Terms
-        </p>
-      </div>
-
-      {/* Actions */}
-      <Link
-        href={`/admin/sections/${section.id}`}
-        className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-        title="Edit"
-      >
-        <Pencil className="w-4 h-4" />
-      </Link>
-      <Link
-        href={`/admin/preview/${section.id}`}
-        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1"
-        title="Preview"
-      >
-        <Eye className="w-4 h-4" />
-      </Link>
-    </div>
-  );
-}
-
-// ─── Drag Overlay Card (floating preview while dragging) ─────────────────────
-
-function DragOverlayCard({
-  section,
-  index,
-}: {
-  section: Section;
-  index: number;
-}) {
-  return (
-    <div className="bg-white border-2 border-primary-400 rounded-xl p-4 flex items-center gap-3 shadow-xl rotate-1 scale-[1.03]">
-      <div className="p-1 -ml-1 text-primary-500">
-        <GripVertical className="w-5 h-5" />
-      </div>
-      <div className="bg-primary-100 text-primary-700 rounded-lg w-10 h-10 flex items-center justify-center text-sm font-bold flex-shrink-0">
-        {String(index + 1).padStart(2, "0")}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-gray-500 truncate">
-          {section.titleEs} &middot; {section._count.sectionVocabulary} Terms
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Dashboard ──────────────────────────────────────────────────────────
-
-export default function AdminDashboard() {
-  const router = useRouter();
-  const [sections, setSections] = useState<Section[]>([]);
+export default function AdminAreasPage() {
+  const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createProgress, setCreateProgress] = useState("");
+  const [createError, setCreateError] = useState("");
 
-  // AI generation form
-  const [topic, setTopic] = useState("");
-  const [wordCount, setWordCount] = useState("5");
-  const [generating, setGenerating] = useState(false);
-  const [genProgress, setGenProgress] = useState("");
-  const [genError, setGenError] = useState("");
+  // Create form
+  const [name, setName] = useState("");
 
-  // Sensors with activation distance so taps/clicks still work
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: { distance: 8 },
-  });
-  const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 200, tolerance: 6 },
-  });
-  const sensors = useSensors(pointerSensor, touchSensor);
+  // Delete confirmation
+  const [deleteArea, setDeleteArea] = useState<Area | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Edit modal
+  const [editArea, setEditArea] = useState<Area | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNameEs, setEditNameEs] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchSections();
+    fetchAreas();
   }, []);
 
-  async function fetchSections() {
-    const res = await fetch("/api/admin/sections");
+  async function fetchAreas() {
+    const res = await fetch("/api/admin/areas");
     if (res.ok) {
-      setSections(await res.json());
+      setAreas(await res.json());
     }
     setLoading(false);
   }
 
-  const persistOrder = useCallback(async (newSections: Section[]) => {
-    await fetch("/api/admin/sections/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds: newSections.map((s) => s.id) }),
-    });
-  }, []);
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string);
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = sections.findIndex((s) => s.id === active.id);
-    const newIndex = sections.findIndex((s) => s.id === over.id);
-    const reordered = arrayMove(sections, oldIndex, newIndex);
-    setSections(reordered);
-    persistOrder(reordered);
-  }
-
-  async function generateSection(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    setGenerating(true);
-    setGenError("");
-    setGenProgress("Sending topic to AI...");
+    setCreating(true);
+    setCreateError("");
+    setCreateProgress("Creating area...");
 
     try {
-      setTimeout(() => {
-        if (generating) setGenProgress("AI is crafting vocabulary and questions...");
-      }, 2000);
-      setTimeout(() => {
-        if (generating) setGenProgress("Almost done — saving to database...");
-      }, 8000);
-
-      const res = await fetch("/api/admin/sections/generate", {
+      const res = await fetch("/api/admin/areas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, wordCount: parseInt(wordCount, 10) || 5 }),
+        body: JSON.stringify({ name }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        setGenError(data.error || "Generation failed. Please try again.");
-        setGenerating(false);
-        setGenProgress("");
+        const data = await res.json();
+        setCreateError(data.error || "Failed to create area");
+        setCreating(false);
+        setCreateProgress("");
         return;
       }
 
-      setTopic("");
-      setWordCount("5");
+      setName("");
       setShowCreate(false);
-      setGenProgress("");
-      router.push(`/admin/sections/${data.sectionId}`);
+      setCreateProgress("");
+      setCreating(false);
+      fetchAreas();
     } catch {
-      setGenError("Connection error. Please try again.");
-      setGenerating(false);
-      setGenProgress("");
+      setCreateError("Connection error. Please try again.");
+      setCreating(false);
+      setCreateProgress("");
     }
+  }
+
+  function openEdit(area: Area) {
+    setEditArea(area);
+    setEditName(area.name);
+    setEditNameEs(area.nameEs);
+    setEditDesc(area.description || "");
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editArea) return;
+    setSaving(true);
+
+    const res = await fetch(`/api/admin/areas/${editArea.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        nameEs: editNameEs,
+        description: editDesc || null,
+        isActive: editArea.isActive,
+      }),
+    });
+
+    if (res.ok) {
+      setEditArea(null);
+      fetchAreas();
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete() {
+    if (!deleteArea) return;
+    setDeleting(true);
+    await fetch(`/api/admin/areas/${deleteArea.id}`, { method: "DELETE" });
+    setDeleteArea(null);
+    setDeleting(false);
+    fetchAreas();
   }
 
   if (loading) {
@@ -252,20 +137,15 @@ export default function AdminDashboard() {
     );
   }
 
-  const activeSection = activeId
-    ? sections.find((s) => s.id === activeId)
-    : null;
-  const activeIndex = activeId
-    ? sections.findIndex((s) => s.id === activeId)
-    : -1;
-
   return (
     <div className="px-4 py-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Unit Management</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Areas of Knowledge
+        </h2>
         <p className="text-sm text-gray-500 mt-1">
-          Manage vocabulary sections and content
+          Organize vocabulary units by subject area
         </p>
       </div>
 
@@ -273,159 +153,161 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-primary-50 rounded-xl p-4">
           <p className="text-xs font-medium text-primary-600 uppercase">
-            Active Units
+            Active Areas
           </p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {sections.filter((s) => s.isActive).length}
+            {areas.filter((a) => a.isActive).length}
           </p>
         </div>
         <div className="bg-primary-50 rounded-xl p-4">
           <p className="text-xs font-medium text-primary-600 uppercase">
-            Total Terms
+            Total Units
           </p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {sections.reduce((sum, s) => sum + s._count.sectionVocabulary, 0)}
+            {areas.reduce((sum, a) => sum + a._count.sections, 0)}
           </p>
         </div>
       </div>
 
-      {/* Sections List */}
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Curriculum Units</h3>
-        {sections.length > 1 && (
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-            Drag to reorder
-          </span>
-        )}
+      {/* Area Cards */}
+      <div className="space-y-3 mb-4">
+        {areas.map((area) => (
+          <div
+            key={area.id}
+            className={cn(
+              "bg-white border rounded-xl p-4 transition-all",
+              area.isActive ? "border-gray-200" : "border-gray-100 opacity-60"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              {/* Emoji Icon */}
+              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+                {area.imageUrl || "📘"}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">
+                  {area.name}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {area.nameEs} &middot; {area._count.sections}{" "}
+                  {area._count.sections === 1 ? "unit" : "units"}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <button
+                onClick={() => openEdit(area)}
+                className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                title="Edit"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setDeleteArea(area)}
+                className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <Link
+                href={`/admin/areas/${area.id}`}
+                className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                See Area
+              </Link>
+            </div>
+
+            {area.description && (
+              <p className="text-xs text-gray-400 mt-2 ml-15 truncate">
+                {area.description}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={sections.map((s) => s.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-3">
-            {sections.map((section, index) => (
-              <SortableSectionCard
-                key={section.id}
-                section={section}
-                index={index}
-              />
-            ))}
-          </div>
-        </SortableContext>
+      {areas.length === 0 && !showCreate && (
+        <div className="text-center py-12">
+          <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">
+            No areas yet. Create your first one!
+          </p>
+        </div>
+      )}
 
-        <DragOverlay dropAnimation={null}>
-          {activeSection ? (
-            <DragOverlayCard section={activeSection} index={activeIndex} />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-
-      {/* AI Generate Section */}
+      {/* Create Form */}
       {showCreate ? (
         <form
-          onSubmit={generateSection}
+          onSubmit={handleCreate}
           className="mt-4 border border-purple-200 rounded-xl p-4 bg-gradient-to-br from-purple-50 to-primary-50 animate-scale-in"
         >
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-5 h-5 text-purple-600" />
+            <Plus className="w-5 h-5 text-purple-600" />
             <h4 className="font-semibold text-gray-900">
-              Generate New Unit with AI
+              Create New Area of Knowledge
             </h4>
           </div>
           <p className="text-xs text-gray-500 mb-4">
-            Enter a topic and the number of words. AI will generate vocabulary,
-            a reading passage, practice questions, and a full test — all ready
-            for you to review and edit.
+            Just enter the name — the Spanish translation, description, and
+            icon are generated automatically.
           </p>
 
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Topic
+                Area Name
               </label>
               <input
                 type="text"
-                placeholder='e.g. "At the Airport", "Job Interview", "Cooking"'
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+                placeholder='e.g. "Engineering", "Healthcare", "Business"'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                 required
-                disabled={generating}
+                disabled={creating}
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Number of vocabulary words
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={wordCount}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "");
-                  setWordCount(raw);
-                }}
-                onBlur={() => {
-                  let v = parseInt(wordCount, 10);
-                  if (isNaN(v) || v < 1) v = 1;
-                  if (v > 20) v = 20;
-                  setWordCount(String(v));
-                }}
-                className="w-16 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white [appearance:textfield]"
-                disabled={generating}
-              />
-              <p className="text-[10px] text-gray-400 mt-1">
-                This will generate {Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and{" "}
-                {Math.min(20, Math.max(10, Math.round(10 + (((parseInt(wordCount, 10) || 0) - 5) / 15) * 10)))} test questions
-              </p>
-            </div>
-
-            {genError && (
+            {createError && (
               <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs animate-scale-in">
-                {genError}
+                {createError}
               </div>
             )}
 
-            {generating && genProgress && (
+            {creating && createProgress && (
               <div className="bg-purple-100 text-purple-700 px-3 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
                 <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                <span>{genProgress}</span>
+                <span>{createProgress}</span>
               </div>
             )}
 
             <div className="flex gap-2">
               <button
                 type="submit"
-                disabled={generating}
+                disabled={creating}
                 className="flex-1 bg-purple-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
               >
-                {generating ? (
+                {creating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Generating...
+                    Creating...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    Generate with AI
+                    <Plus className="w-4 h-4" />
+                    Create Area
                   </>
                 )}
               </button>
-              {!generating && (
+              {!creating && (
                 <button
                   type="button"
                   onClick={() => {
                     setShowCreate(false);
-                    setGenError("");
+                    setCreateError("");
                   }}
                   className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
                 >
@@ -440,15 +322,126 @@ export default function AdminDashboard() {
           onClick={() => setShowCreate(true)}
           className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all"
         >
-          <Sparkles className="w-5 h-5" />
-          Generate New Unit with AI
+          <Plus className="w-5 h-5" />
+          Create New Area
         </button>
       )}
 
-      {sections.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No units yet. Generate your first one!</p>
+      {/* Edit Modal */}
+      {editArea && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={handleEdit}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">Edit Area</h3>
+              <button
+                type="button"
+                onClick={() => setEditArea(null)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Name (English)
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Name (Spanish)
+                </label>
+                <input
+                  type="text"
+                  value={editNameEs}
+                  onChange={(e) => setEditNameEs(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditArea(null)}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteArea && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-bold text-gray-900">Delete Area</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-1">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteArea.name}</span>?
+            </p>
+            <p className="text-xs text-red-500 mb-4">
+              This will permanently delete the area and all{" "}
+              {deleteArea._count.sections}{" "}
+              {deleteArea._count.sections === 1 ? "unit" : "units"} inside it.
+              This action cannot be undone.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Deleting..." : "Delete Area"}
+              </button>
+              <button
+                onClick={() => setDeleteArea(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

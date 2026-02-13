@@ -30,6 +30,7 @@ interface Question {
 interface SectionData {
   id: string;
   title: string;
+  titleEs: string;
   modules: {
     id: string;
     type: string;
@@ -159,7 +160,10 @@ export default function TestPage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
+          <div>
+            <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
+            <p className="text-xs text-gray-400">{section.titleEs}</p>
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center">
@@ -295,7 +299,10 @@ export default function TestPage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
+          <div>
+            <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
+            <p className="text-xs text-gray-400">{section.titleEs}</p>
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
@@ -347,7 +354,7 @@ export default function TestPage({
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
           <p className="text-xs text-gray-400">
-            Question {currentIndex + 1} of {questions.length}
+            {section.titleEs} · Question {currentIndex + 1} of {questions.length}
           </p>
         </div>
       </div>
