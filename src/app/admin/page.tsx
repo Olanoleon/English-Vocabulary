@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GripVertical,
-  ChevronRight,
   Pencil,
+  Eye,
   BookOpen,
   Sparkles,
   Loader2,
@@ -100,14 +100,16 @@ function SortableSectionCard({
       <Link
         href={`/admin/sections/${section.id}`}
         className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        title="Edit"
       >
         <Pencil className="w-4 h-4" />
       </Link>
       <Link
-        href={`/admin/sections/${section.id}`}
-        className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        href={`/admin/preview/${section.id}`}
+        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1"
+        title="Preview"
       >
-        <ChevronRight className="w-4 h-4" />
+        <Eye className="w-4 h-4" />
       </Link>
     </div>
   );
@@ -382,8 +384,8 @@ export default function AdminDashboard() {
                 disabled={generating}
               />
               <p className="text-[10px] text-gray-400 mt-1">
-                This will generate ~{Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and ~
-                {Math.min(Math.ceil((parseInt(wordCount, 10) || 0) * 1.5), 10)} test questions
+                This will generate {Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and{" "}
+                {Math.min(20, Math.max(10, Math.round(10 + (((parseInt(wordCount, 10) || 0) - 5) / 15) * 10)))} test questions
               </p>
             </div>
 
