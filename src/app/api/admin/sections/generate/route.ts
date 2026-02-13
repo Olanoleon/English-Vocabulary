@@ -85,16 +85,23 @@ INTRODUCTION READING:
 - The passage should read like a natural story or scenario, not a list of definitions
 
 PRACTICE QUESTIONS (~2 per vocabulary word):
-- Mix of "multiple_choice" and "fill_blank" types
-- multiple_choice: ask what the English word means, with 4 Spanish options (1 correct, 3 plausible distractors)
-- fill_blank: provide a sentence with a blank where the vocabulary word fits. Set correct_answer to the word.
+- Focus on WORD DEFINITIONS — do NOT reference the reading passage
+- Mix of three styles:
+  1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors from other Spanish words that could be confused)
+  2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list (1 correct, 3 other words from this unit)
+  3. "fill_blank": A standalone generic sentence (NOT from the reading passage) where the vocabulary word fits naturally. Set correct_answer to the word.
 - All options arrays must have exactly 4 items for multiple_choice, 0 items for fill_blank
+- IMPORTANT: fill_blank sentences must be original and independent from the intro reading text
 
 TEST QUESTIONS (~1.5 per vocabulary word):
 - Mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
-- phonetics questions: "Which syllable is stressed in 'X'?" or "Which word rhymes with 'X'?" — always 4 options, 1 correct
-- Vary the question styles so the test feels comprehensive
+- multiple_choice and fill_blank: same definition-focused rules as practice (NOT referencing the reading)
+- phonetics questions must use a MIX of these three styles (vary them, do not repeat the same style):
+  1. IPA Reading: "Which word is pronounced /IPA/?" with 4 English word options (1 correct, 3 distractors). Tests IPA literacy.
+  2. Sound Matching: "Which word has the same vowel sound as the 'X' in 'word'?" with 4 word options. Target sounds that are difficult for Spanish speakers (e.g., short i vs long ee, schwa, th sounds).
+  3. Odd One Out: "Which word does NOT rhyme with the others?" with 4 words (3 that rhyme, 1 that doesn't). Tests sound discrimination.
+- NEVER ask "Which syllable is stressed in...?" — use the three phonetics styles above instead
 
 JSON STRUCTURE (follow exactly):
 {
@@ -116,13 +123,24 @@ JSON STRUCTURE (follow exactly):
   "practiceQuestions": [
     {
       "type": "multiple_choice",
-      "prompt": "What does 'example' mean?",
+      "prompt": "What is the definition of 'example'?",
       "correctAnswer": null,
       "options": [
-        {"optionText": "Ejemplo", "isCorrect": true},
-        {"optionText": "Examen", "isCorrect": false},
-        {"optionText": "Excusa", "isCorrect": false},
-        {"optionText": "Éxito", "isCorrect": false}
+        {"optionText": "Ejemplo, muestra", "isCorrect": true},
+        {"optionText": "Examen, prueba", "isCorrect": false},
+        {"optionText": "Excusa, pretexto", "isCorrect": false},
+        {"optionText": "Éxito, logro", "isCorrect": false}
+      ]
+    },
+    {
+      "type": "multiple_choice",
+      "prompt": "Which English word means 'ejemplo, muestra'?",
+      "correctAnswer": null,
+      "options": [
+        {"optionText": "example", "isCorrect": true},
+        {"optionText": "exercise", "isCorrect": false},
+        {"optionText": "excuse", "isCorrect": false},
+        {"optionText": "exchange", "isCorrect": false}
       ]
     },
     {
@@ -135,13 +153,35 @@ JSON STRUCTURE (follow exactly):
   "testQuestions": [
     {
       "type": "phonetics",
-      "prompt": "Which syllable is stressed in 'example'?",
+      "prompt": "Which word is pronounced /ɪɡˈzæmpəl/?",
       "correctAnswer": null,
       "options": [
-        {"optionText": "EX-am-ple", "isCorrect": false},
-        {"optionText": "ex-AM-ple", "isCorrect": true},
-        {"optionText": "ex-am-PLE", "isCorrect": false},
-        {"optionText": "All equally", "isCorrect": false}
+        {"optionText": "example", "isCorrect": true},
+        {"optionText": "examine", "isCorrect": false},
+        {"optionText": "exempt", "isCorrect": false},
+        {"optionText": "exile", "isCorrect": false}
+      ]
+    },
+    {
+      "type": "phonetics",
+      "prompt": "Which word has the same vowel sound as the 'a' in 'example'?",
+      "correctAnswer": null,
+      "options": [
+        {"optionText": "hand", "isCorrect": true},
+        {"optionText": "name", "isCorrect": false},
+        {"optionText": "father", "isCorrect": false},
+        {"optionText": "water", "isCorrect": false}
+      ]
+    },
+    {
+      "type": "phonetics",
+      "prompt": "Which word does NOT rhyme with the others?",
+      "correctAnswer": null,
+      "options": [
+        {"optionText": "sample", "isCorrect": false},
+        {"optionText": "trample", "isCorrect": false},
+        {"optionText": "simple", "isCorrect": true},
+        {"optionText": "ample", "isCorrect": false}
       ]
     }
   ]
