@@ -18,8 +18,8 @@ const EMOJI_MAP: [string[], string][] = [
   [["philosophy", "think", "ethics", "logic", "wisdom"], "🤔"],
 
   // Professional Fields
-  [["engineer", "mechanical", "gear", "machine", "manufacturing"], "⚙️"],
-  [["software", "programming", "code", "developer", "computer", "tech", "digital"], "💻"],
+  [["mechanical engineering", "engineer", "mechanical", "gear", "machine", "manufacturing"], "⚙️"],
+  [["software engineering", "software", "programming", "code", "developer", "computer", "tech", "digital"], "💻"],
   [["data", "analytics", "statistics", "database"], "📊"],
   [["architect", "blueprint", "building", "construct", "structure"], "🏗️"],
   [["electric", "electron", "circuit", "energy", "power", "voltage"], "⚡"],
