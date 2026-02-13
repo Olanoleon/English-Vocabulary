@@ -162,7 +162,7 @@ export default function TestPage({
           </button>
           <div>
             <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
-            <p className="text-xs text-gray-400">{section.titleEs}</p>
+            {section?.titleEs && <p className="text-xs text-gray-400">{section.titleEs}</p>}
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
