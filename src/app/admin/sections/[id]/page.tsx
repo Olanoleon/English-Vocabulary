@@ -55,6 +55,7 @@ interface SectionDetail {
   titleEs: string;
   description: string;
   isActive: boolean;
+  areaId: string;
   modules: Module[];
   sectionVocabulary: { id: string; vocabulary: Vocabulary }[];
 }
@@ -233,7 +234,7 @@ export default function SectionEditorPage({
   async function deleteSection() {
     if (!confirm("Delete this entire unit and all its content? This cannot be undone.")) return;
     await fetch(`/api/admin/sections/${id}`, { method: "DELETE" });
-    router.push("/admin");
+    router.push(`/admin/areas/${section?.areaId}`);
   }
 
   if (loading) {
@@ -259,7 +260,7 @@ export default function SectionEditorPage({
       {/* Back + Title */}
       <div className="flex items-center gap-3 mb-4">
         <button
-          onClick={() => router.push("/admin")}
+          onClick={() => router.push(`/admin/areas/${section?.areaId}`)}
           className="p-2 -ml-2 text-gray-400 hover:text-gray-600 rounded-lg"
         >
           <ArrowLeft className="w-5 h-5" />
