@@ -3,6 +3,8 @@ import { getIronSession } from "iron-session";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { SessionData, sessionOptions } from "@/lib/auth";
+import { createVerificationCode } from "@/lib/verification";
+import { sendVerificationCode } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +36,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Admin: require email verification ──────────────────────────────
+    if (user.role === "admin") {
+      const code = createVerificationCode(
+        user.id,
+        user.username,
+        user.displayName
+      );
+
+      try {
+        await sendVerificationCode(code);
+      } catch {
+        return NextResponse.json(
+          { error: "Failed to send verification email. Try again." },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        requireVerification: true,
+        userId: user.id,
+      });
+    }
+
+    // ── Learner: log in immediately ────────────────────────────────────
     const response = NextResponse.json({
       success: true,
       role: user.role,
