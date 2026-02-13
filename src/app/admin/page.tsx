@@ -34,6 +34,10 @@ export default function AdminAreasPage() {
   // Create form
   const [name, setName] = useState("");
 
+  // Delete confirmation
+  const [deleteArea, setDeleteArea] = useState<Area | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Edit modal
   const [editArea, setEditArea] = useState<Area | null>(null);
   const [editName, setEditName] = useState("");
@@ -116,11 +120,12 @@ export default function AdminAreasPage() {
     setSaving(false);
   }
 
-  async function handleDelete(areaId: string) {
-    if (!confirm("Delete this area and all its units? This cannot be undone."))
-      return;
-
-    await fetch(`/api/admin/areas/${areaId}`, { method: "DELETE" });
+  async function handleDelete() {
+    if (!deleteArea) return;
+    setDeleting(true);
+    await fetch(`/api/admin/areas/${deleteArea.id}`, { method: "DELETE" });
+    setDeleteArea(null);
+    setDeleting(false);
     fetchAreas();
   }
 
@@ -200,7 +205,7 @@ export default function AdminAreasPage() {
                 <Pencil className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handleDelete(area.id)}
+                onClick={() => setDeleteArea(area)}
                 className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 title="Delete"
               >
@@ -395,6 +400,48 @@ export default function AdminAreasPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteArea && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-bold text-gray-900">Delete Area</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-1">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteArea.name}</span>?
+            </p>
+            <p className="text-xs text-red-500 mb-4">
+              This will permanently delete the area and all{" "}
+              {deleteArea._count.sections}{" "}
+              {deleteArea._count.sections === 1 ? "unit" : "units"} inside it.
+              This action cannot be undone.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Deleting..." : "Delete Area"}
+              </button>
+              <button
+                onClick={() => setDeleteArea(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
