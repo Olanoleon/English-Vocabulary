@@ -50,6 +50,7 @@ interface SectionData {
   title: string;
   titleEs: string;
   description: string | null;
+  areaId: string;
   modules: Module[];
   sectionVocabulary: { vocabulary: VocabWord }[];
 }
@@ -315,7 +316,7 @@ export default function UnitPreviewPage({
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
         <button
-          onClick={() => router.push("/admin")}
+          onClick={() => router.push(`/admin/areas/${section.areaId}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-5 h-5" />
