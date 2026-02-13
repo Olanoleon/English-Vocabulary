@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-/* eslint-disable @next/next/no-img-element */
-import { FolderOpen, ChevronRight, BookOpen } from "lucide-react";
+import { ChevronRight, BookOpen } from "lucide-react";
 
 interface Area {
   id: string;
@@ -71,17 +70,9 @@ export default function LearningAreasPage() {
             className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-primary-300 hover:shadow-sm transition-all"
           >
             <div className="flex items-center gap-4">
-              {/* Logo */}
-              <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {area.imageUrl ? (
-                  <img
-                    src={area.imageUrl}
-                    alt={area.name}
-                    className="w-14 h-14 object-cover rounded-xl"
-                  />
-                ) : (
-                  <FolderOpen className="w-7 h-7 text-primary-400" />
-                )}
+              {/* Emoji Icon */}
+              <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-3xl">
+                {area.imageUrl || "📘"}
               </div>
 
               {/* Info */}

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  FolderOpen,
   Plus,
   Loader2,
   Pencil,
@@ -13,7 +12,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-/* eslint-disable @next/next/no-img-element */
 
 interface Area {
   id: string;
@@ -61,7 +59,7 @@ export default function AdminAreasPage() {
     e.preventDefault();
     setCreating(true);
     setCreateError("");
-    setCreateProgress("Creating area and generating logo...");
+    setCreateProgress("Creating area...");
 
     try {
       const res = await fetch("/api/admin/areas", {
@@ -181,17 +179,9 @@ export default function AdminAreasPage() {
             )}
           >
             <div className="flex items-center gap-3">
-              {/* Logo */}
-              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {area.imageUrl ? (
-                  <img
-                    src={area.imageUrl}
-                    alt={area.name}
-                    className="w-12 h-12 object-cover rounded-xl"
-                  />
-                ) : (
-                  <FolderOpen className="w-6 h-6 text-primary-400" />
-                )}
+              {/* Emoji Icon */}
+              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+                {area.imageUrl || "📘"}
               </div>
 
               {/* Info */}
@@ -260,8 +250,7 @@ export default function AdminAreasPage() {
             </h4>
           </div>
           <p className="text-xs text-gray-500 mb-4">
-            An AI-generated logo will be created automatically based on the area
-            name.
+            An icon will be automatically matched based on the area name.
           </p>
 
           <div className="space-y-3">

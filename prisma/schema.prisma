@@ -49,7 +49,7 @@ model Area {
   name        String
   nameEs      String   @map("name_es")
   description String?
-  imageUrl    String?  @map("image_url") @db.Text
+  imageUrl    String?  @map("image_url")
   sortOrder   Int      @map("sort_order")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -64,7 +64,7 @@ model Section {
   title       String
   titleEs     String   @map("title_es")
   description String?
-  imageUrl    String?  @map("image_url") @db.Text
+  imageUrl    String?  @map("image_url")
   sortOrder   Int      @map("sort_order")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")

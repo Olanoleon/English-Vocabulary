@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-/* eslint-disable @next/next/no-img-element */
 import {
   ArrowLeft,
   GripVertical,
@@ -12,7 +11,6 @@ import {
   BookOpen,
   Sparkles,
   Loader2,
-  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -94,17 +92,9 @@ function SortableSectionCard({
         <GripVertical className="w-5 h-5" />
       </button>
 
-      {/* Unit Logo or Number */}
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden bg-primary-100 text-primary-700">
-        {section.imageUrl ? (
-          <img
-            src={section.imageUrl}
-            alt={section.title}
-            className="w-10 h-10 object-cover rounded-lg"
-          />
-        ) : (
-          String(index + 1).padStart(2, "0")
-        )}
+      {/* Unit Emoji or Number */}
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary-100 text-xl">
+        {section.imageUrl || String(index + 1).padStart(2, "0")}
       </div>
 
       {/* Info */}
@@ -247,12 +237,8 @@ export default function AreaUnitsPage({
       }, 2000);
       setTimeout(() => {
         if (generating)
-          setGenProgress("Generating unit logo...");
-      }, 8000);
-      setTimeout(() => {
-        if (generating)
           setGenProgress("Almost done — saving to database...");
-      }, 14000);
+      }, 8000);
 
       const res = await fetch("/api/admin/sections/generate", {
         method: "POST",
@@ -318,16 +304,8 @@ export default function AreaUnitsPage({
           All Areas
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-            {area.imageUrl ? (
-              <img
-                src={area.imageUrl}
-                alt={area.name}
-                className="w-10 h-10 object-cover rounded-xl"
-              />
-            ) : (
-              <FolderOpen className="w-5 h-5 text-primary-400" />
-            )}
+          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+            {area.imageUrl || "📘"}
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{area.name}</h2>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { generateLogo } from "@/lib/logo";
+import { matchEmoji } from "@/lib/logo";
 
 export async function GET() {
   try {
@@ -41,15 +41,15 @@ export async function POST(request: NextRequest) {
     });
     const sortOrder = (lastArea?.sortOrder ?? 0) + 1;
 
-    // Generate AI logo (non-blocking — area is created even if logo fails)
-    const imageUrl = await generateLogo(name);
+    // Match an emoji icon based on the area name
+    const emoji = matchEmoji(name);
 
     const area = await prisma.area.create({
       data: {
         name,
         nameEs,
         description: description || null,
-        imageUrl,
+        imageUrl: emoji,
         sortOrder,
       },
       include: {

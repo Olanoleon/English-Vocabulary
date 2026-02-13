@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { generateLogo } from "@/lib/logo";
+import { matchEmoji } from "@/lib/logo";
 
 function getOpenAIKey(): string {
   // Read .env file directly to bypass Cursor IDE env caching
@@ -281,8 +281,8 @@ Return the JSON object now.`
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
 
-    // Generate AI logo for the unit
-    const imageUrl = await generateLogo(generated.title);
+    // Match an emoji icon based on the unit title
+    const imageUrl = matchEmoji(generated.title);
 
     // Create everything in the database
     // 1. Create section with modules

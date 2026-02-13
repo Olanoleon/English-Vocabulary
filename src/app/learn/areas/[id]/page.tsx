@@ -3,7 +3,6 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-/* eslint-disable @next/next/no-img-element */
 import {
   ArrowLeft,
   Lock,
@@ -125,15 +124,9 @@ export default function AreaLearningPathPage({
         </button>
         {area ? (
           <div className="flex items-center gap-3">
-            {area.imageUrl && (
-              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-                <img
-                  src={area.imageUrl}
-                  alt={area.name}
-                  className="w-10 h-10 object-cover"
-                />
-              </div>
-            )}
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+              {area.imageUrl || "📘"}
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{area.name}</h1>
               <p className="text-xs text-gray-400">{area.nameEs}</p>
@@ -227,12 +220,8 @@ export default function AreaLearningPathPage({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {section.imageUrl && (
-                          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                            <img
-                              src={section.imageUrl}
-                              alt={section.title}
-                              className="w-8 h-8 object-cover"
-                            />
+                          <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-lg">
+                            {section.imageUrl}
                           </div>
                         )}
                         <div>
