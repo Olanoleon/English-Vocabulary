@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, BarChart3, User, LogOut } from "lucide-react";
@@ -17,6 +18,20 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
 
   // Don't show nav on section detail/module pages
   const showNav = pathname === "/learn" || pathname === "/learn/stats" || pathname === "/learn/profile";
+
+  // Check access on every navigation (skip for /learn/blocked itself)
+  useEffect(() => {
+    if (pathname === "/learn/blocked") return;
+
+    fetch("/api/learn/access")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.hasAccess) {
+          router.push("/learn/blocked");
+        }
+      })
+      .catch(() => {});
+  }, [pathname, router]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
