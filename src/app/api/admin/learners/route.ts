@@ -14,6 +14,9 @@ export async function GET() {
         username: true,
         displayName: true,
         createdAt: true,
+        monthlyRate: true,
+        nextPaymentDue: true,
+        accessOverride: true,
         sectionProgress: {
           select: {
             sectionId: true,
@@ -25,7 +28,39 @@ export async function GET() {
         },
       },
     });
-    return NextResponse.json(learners);
+
+    // Compute effective access status for each learner
+    const now = new Date();
+    const result = learners.map((learner) => {
+      let paymentStatus: "free_trial" | "settled" | "past_due";
+      if (learner.monthlyRate === 0) {
+        paymentStatus = "free_trial";
+      } else if (learner.nextPaymentDue && new Date(learner.nextPaymentDue) >= now) {
+        paymentStatus = "settled";
+      } else {
+        paymentStatus = "past_due";
+      }
+
+      let hasAccess: boolean;
+      let accessReason: string;
+      if (learner.accessOverride === "disabled") {
+        hasAccess = false;
+        accessReason = "Disabled by admin";
+      } else if (learner.accessOverride === "enabled") {
+        hasAccess = true;
+        accessReason = "Enabled by admin";
+      } else if (paymentStatus === "past_due") {
+        hasAccess = false;
+        accessReason = "Payment overdue";
+      } else {
+        hasAccess = true;
+        accessReason = paymentStatus === "free_trial" ? "Free trial" : "Payment up to date";
+      }
+
+      return { ...learner, paymentStatus, hasAccess, accessReason };
+    });
+
+    return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
     if (message === "Unauthorized" || message === "Forbidden") {
