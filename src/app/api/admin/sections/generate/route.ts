@@ -84,7 +84,7 @@ INTRODUCTION READING:
 - Wrap each vocabulary word with double asterisks like **word** so it can be highlighted
 - The passage should read like a natural story or scenario, not a list of definitions
 
-PRACTICE QUESTIONS (~2 per vocabulary word):
+PRACTICE QUESTIONS (~3 per vocabulary word, NEVER fewer than the number of vocabulary words):
 - Focus on WORD DEFINITIONS — do NOT reference the reading passage
 - Mix of three styles:
   1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors from other Spanish words that could be confused)
@@ -93,7 +93,7 @@ PRACTICE QUESTIONS (~2 per vocabulary word):
 - All options arrays must have exactly 4 items for multiple_choice, 0 items for fill_blank
 - IMPORTANT: fill_blank sentences must be original and independent from the intro reading text
 
-TEST QUESTIONS (~1.5 per vocabulary word):
+TEST QUESTIONS (~2 per vocabulary word, NEVER fewer than the number of vocabulary words):
 - Mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
 - multiple_choice and fill_blank: same definition-focused rules as practice (NOT referencing the reading)

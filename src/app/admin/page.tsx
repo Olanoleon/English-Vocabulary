@@ -363,23 +363,21 @@ export default function AdminDashboard() {
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Number of vocabulary words
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={3}
-                  max={15}
-                  value={wordCount}
-                  onChange={(e) => setWordCount(Number(e.target.value))}
-                  className="flex-1 accent-purple-600"
-                  disabled={generating}
-                />
-                <span className="text-lg font-bold text-purple-600 w-8 text-center">
-                  {wordCount}
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                This will generate ~{wordCount * 2} practice questions and ~
-                {Math.ceil(wordCount * 1.5)} test questions (including phonetics)
+              <input
+                type="number"
+                min={3}
+                max={15}
+                value={wordCount}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (v >= 1 && v <= 20) setWordCount(v);
+                }}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                disabled={generating}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                This will generate ~{wordCount * 3} practice questions and ~
+                {wordCount * 2} test questions (including phonetics)
               </p>
             </div>
 
