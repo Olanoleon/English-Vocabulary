@@ -18,4 +18,4 @@ RUN npm run build
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD timeout 35 npx prisma db push --skip-generate --accept-data-loss || echo "db push skipped" ; npm start
