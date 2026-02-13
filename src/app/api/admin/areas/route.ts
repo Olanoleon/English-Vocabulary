@@ -79,7 +79,8 @@ export async function GET() {
     if (message === "Unauthorized" || message === "Forbidden") {
       return NextResponse.json({ error: message }, { status: 403 });
     }
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("List areas error:", error);
+    return NextResponse.json({ error: `Failed to load areas: ${message}` }, { status: 500 });
   }
 }
 
@@ -143,6 +144,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 403 });
     }
     console.error("Create area error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Failed to create area: ${message}` },
+      { status: 500 }
+    );
   }
 }
