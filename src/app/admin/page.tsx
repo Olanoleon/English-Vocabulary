@@ -376,8 +376,8 @@ export default function AdminDashboard() {
                 disabled={generating}
               />
               <p className="text-[10px] text-gray-400 mt-1">
-                This will generate ~{wordCount * 3} practice questions and ~
-                {wordCount * 2} test questions (including phonetics)
+                This will generate ~{Math.min(wordCount * 2, 20)} practice questions and ~
+                {Math.min(Math.ceil(wordCount * 1.5), 10)} test questions (max 30 total)
               </p>
             </div>
 
