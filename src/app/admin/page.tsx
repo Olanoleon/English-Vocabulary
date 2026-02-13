@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GripVertical,
-  ChevronRight,
   Pencil,
+  Eye,
   BookOpen,
   Sparkles,
   Loader2,
@@ -100,14 +100,16 @@ function SortableSectionCard({
       <Link
         href={`/admin/sections/${section.id}`}
         className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        title="Edit"
       >
         <Pencil className="w-4 h-4" />
       </Link>
       <Link
-        href={`/admin/sections/${section.id}`}
-        className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+        href={`/admin/preview/${section.id}`}
+        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1"
+        title="Preview"
       >
-        <ChevronRight className="w-4 h-4" />
+        <Eye className="w-4 h-4" />
       </Link>
     </div>
   );
