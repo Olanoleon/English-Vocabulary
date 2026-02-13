@@ -22,6 +22,7 @@ interface Question {
 interface SectionData {
   id: string;
   title: string;
+  titleEs: string;
   modules: {
     id: string;
     type: string;
@@ -142,7 +143,10 @@ export default function PracticePage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-gray-900 text-sm">Practice</h1>
+          <div>
+            <h1 className="font-bold text-gray-900 text-sm">Practice</h1>
+            <p className="text-xs text-gray-400">{section.titleEs}</p>
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center">
@@ -227,7 +231,7 @@ export default function PracticePage({
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Practice</h1>
           <p className="text-xs text-gray-400">
-            {currentIndex + 1} / {questions.length}
+            {section.titleEs} · {currentIndex + 1} / {questions.length}
           </p>
         </div>
       </div>

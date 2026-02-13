@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
+    const { searchParams } = new URL(request.url);
+    const areaId = searchParams.get("areaId");
+
     const sections = await prisma.section.findMany({
+      where: areaId ? { areaId } : undefined,
       orderBy: { sortOrder: "asc" },
       include: {
         _count: {
@@ -30,14 +34,15 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json();
-    const { title, titleEs, description } = body;
+    const { title, titleEs, description, areaId } = body;
 
-    if (!title || !titleEs) {
-      return NextResponse.json({ error: "Title and Spanish title are required" }, { status: 400 });
+    if (!title || !titleEs || !areaId) {
+      return NextResponse.json({ error: "Title, Spanish title, and area ID are required" }, { status: 400 });
     }
 
-    // Get next sort order
+    // Get next sort order within area
     const lastSection = await prisma.section.findFirst({
+      where: { areaId },
       orderBy: { sortOrder: "desc" },
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
         titleEs,
         description: description || "",
         sortOrder,
+        areaId,
         modules: {
           create: [
             { type: "introduction", content: { readingText: "", readingTitle: "" } },

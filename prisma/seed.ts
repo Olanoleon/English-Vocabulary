@@ -37,6 +37,17 @@ async function main() {
   });
   console.log("Learner user created:", learner.username);
 
+  // Create a default Area of Knowledge
+  const generalArea = await prisma.area.create({
+    data: {
+      name: "General English",
+      nameEs: "Inglés General",
+      description: "Everyday vocabulary for common situations",
+      sortOrder: 1,
+    },
+  });
+  console.log("Area created:", generalArea.name);
+
   // Create Section 1: Daily Life
   const section1 = await prisma.section.create({
     data: {
@@ -44,6 +55,7 @@ async function main() {
       titleEs: "Vida Cotidiana",
       description: "Essential vocabulary for everyday situations",
       sortOrder: 1,
+      areaId: generalArea.id,
       modules: {
         create: [
           {
@@ -308,6 +320,7 @@ async function main() {
       titleEs: "Comer Fuera",
       description: "Vocabulary for restaurants and food",
       sortOrder: 2,
+      areaId: generalArea.id,
       modules: {
         create: [
           {

@@ -6,7 +6,7 @@ import { LayoutGrid, Users, LogOut, Settings, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/admin", label: "Units", icon: LayoutGrid },
+  { href: "/admin", label: "Areas", icon: LayoutGrid },
   { href: "/admin/learners", label: "Learners", icon: Users },
   { href: "/admin/payments", label: "Payments", icon: DollarSign },
   { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -48,8 +48,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-30">
         <div className="max-w-lg mx-auto flex">
           {navItems.map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== "/admin" && pathname.startsWith(item.href));
+            const isActive =
+              item.href === "/admin"
+                ? pathname === "/admin" || pathname.startsWith("/admin/areas") || pathname.startsWith("/admin/preview")
+                : pathname.startsWith(item.href);
             const Icon = item.icon;
             return (
               <Link

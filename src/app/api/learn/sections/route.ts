@@ -1,13 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const areaId = searchParams.get("areaId");
 
     const sections = await prisma.section.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(areaId ? { areaId } : {}),
+      },
       orderBy: { sortOrder: "asc" },
       include: {
         _count: { select: { sectionVocabulary: true } },
@@ -27,6 +32,7 @@ export async function GET() {
         titleEs: section.titleEs,
         description: section.description,
         sortOrder: section.sortOrder,
+        imageUrl: section.imageUrl,
         wordCount: section._count.sectionVocabulary,
         modules: section.modules,
         progress: progress
