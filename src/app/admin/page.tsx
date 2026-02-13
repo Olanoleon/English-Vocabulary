@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   Eye,
+  EyeOff,
   X,
   BookOpen,
 } from "lucide-react";
@@ -120,6 +121,20 @@ export default function AdminAreasPage() {
     setSaving(false);
   }
 
+  async function toggleVisibility(area: Area) {
+    await fetch(`/api/admin/areas/${area.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: area.name,
+        nameEs: area.nameEs,
+        description: area.description,
+        isActive: !area.isActive,
+      }),
+    });
+    fetchAreas();
+  }
+
   async function handleDelete() {
     if (!deleteArea) return;
     setDeleting(true);
@@ -197,6 +212,18 @@ export default function AdminAreasPage() {
               </div>
 
               {/* Actions */}
+              <button
+                onClick={() => toggleVisibility(area)}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  area.isActive
+                    ? "text-green-500 hover:text-green-700 hover:bg-green-50"
+                    : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
+                )}
+                title={area.isActive ? "Visible to learners — click to hide" : "Hidden from learners — click to show"}
+              >
+                {area.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
               <button
                 onClick={() => openEdit(area)}
                 className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
