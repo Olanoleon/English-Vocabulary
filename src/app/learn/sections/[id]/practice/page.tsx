@@ -346,32 +346,32 @@ export default function PracticePage({
               {isCorrect ? "Correct! Well done." : "Not quite. Keep practicing!"}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Bottom Action */}
-      <div className="px-4 py-4 border-t border-gray-100 bg-white">
-        {!revealed ? (
-          <button
-            onClick={checkAnswer}
-            disabled={
-              currentQuestion.type === "fill_blank"
-                ? !fillAnswer.trim()
-                : !selectedOption
-            }
-            className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Check Answer
-          </button>
-        ) : (
-          <button
-            onClick={nextQuestion}
-            className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
-          >
-            {currentIndex + 1 >= questions.length ? "Finish" : "Next"}
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        )}
+          {/* Action Button */}
+          <div className="mt-6">
+            {!revealed ? (
+              <button
+                onClick={checkAnswer}
+                disabled={
+                  currentQuestion.type === "fill_blank"
+                    ? !fillAnswer.trim()
+                    : !selectedOption
+                }
+                className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Check Answer
+              </button>
+            ) : (
+              <button
+                onClick={nextQuestion}
+                className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
+              >
+                {currentIndex + 1 >= questions.length ? "Finish" : "Next"}
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
