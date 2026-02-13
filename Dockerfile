@@ -19,6 +19,4 @@ RUN npm run build
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-# ONE-TIME: force-reset DB for schema migration, then seed. Revert after deploy.
-# ONE-TIME: force-reset DB for schema migration, then seed. Revert after deploy.
-CMD npx prisma db push --force-reset --accept-data-loss && npx prisma db seed ; npm start
+CMD timeout 35 npx prisma db push --accept-data-loss || echo "db push skipped" ; npm start
