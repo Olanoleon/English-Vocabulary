@@ -1,11 +1,17 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const ADMIN_EMAIL = "olanoleon@gmail.com";
 
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
+
 export async function sendVerificationCode(code: string) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: "VocabPath <onboarding@resend.dev>",
     to: ADMIN_EMAIL,
     subject: `${code} — VocabPath Admin Verification`,
