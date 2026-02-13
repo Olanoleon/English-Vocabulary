@@ -44,14 +44,33 @@ model Payment {
   @@map("payments")
 }
 
+model Area {
+  id          String   @id @default(cuid())
+  name        String
+  nameEs      String   @map("name_es")
+  description String?
+  imageUrl    String?  @map("image_url") @db.Text
+  sortOrder   Int      @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  sections Section[]
+
+  @@map("areas")
+}
+
 model Section {
   id          String   @id @default(cuid())
   title       String
   titleEs     String   @map("title_es")
   description String?
+  imageUrl    String?  @map("image_url") @db.Text
   sortOrder   Int      @map("sort_order")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
+
+  areaId String @map("area_id")
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
   modules          Module[]
   sectionVocabulary SectionVocabulary[]

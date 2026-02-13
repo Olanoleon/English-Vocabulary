@@ -135,7 +135,10 @@ export default function SectionDetailPage({
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-bold text-gray-900 truncate">{section.title}</h1>
+        <div className="truncate">
+          <h1 className="font-bold text-gray-900 truncate">{section.title}</h1>
+          <p className="text-xs text-gray-400 truncate">{section.titleEs}</p>
+        </div>
         <button className="ml-auto p-1 text-gray-400">
           <Info className="w-5 h-5" />
         </button>

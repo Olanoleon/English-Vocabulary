@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { generateLogo } from "@/lib/logo";
 
 function getOpenAIKey(): string {
   // Read .env file directly to bypass Cursor IDE env caching
@@ -194,11 +195,11 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    const { topic, wordCount } = await request.json();
+    const { topic, wordCount, areaId } = await request.json();
 
-    if (!topic || !wordCount) {
+    if (!topic || !wordCount || !areaId) {
       return NextResponse.json(
-        { error: "Topic and word count are required" },
+        { error: "Topic, word count, and area ID are required" },
         { status: 400 }
       );
     }
@@ -273,11 +274,15 @@ Return the JSON object now.`
       );
     }
 
-    // Get next sort order
+    // Get next sort order within area
     const lastSection = await prisma.section.findFirst({
+      where: { areaId },
       orderBy: { sortOrder: "desc" },
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
+
+    // Generate AI logo for the unit
+    const imageUrl = await generateLogo(generated.title);
 
     // Create everything in the database
     // 1. Create section with modules
@@ -286,7 +291,9 @@ Return the JSON object now.`
         title: generated.title,
         titleEs: generated.titleEs,
         description: generated.description || "",
+        imageUrl,
         sortOrder,
+        areaId,
         modules: {
           create: [
             {
