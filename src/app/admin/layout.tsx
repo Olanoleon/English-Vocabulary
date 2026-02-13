@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Users, LogOut, Settings } from "lucide-react";
+import { LayoutGrid, Users, LogOut, Settings, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Units", icon: LayoutGrid },
   { href: "/admin/learners", label: "Learners", icon: Users },
+  { href: "/admin/payments", label: "Payments", icon: DollarSign },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

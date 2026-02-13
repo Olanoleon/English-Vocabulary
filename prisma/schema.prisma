@@ -15,10 +15,30 @@ model User {
   displayName  String   @map("display_name")
   createdAt    DateTime @default(now()) @map("created_at")
 
+  // Payment tracking
+  monthlyRate    Float     @default(0) @map("monthly_rate")
+  nextPaymentDue DateTime? @map("next_payment_due")
+  lastPaymentDate DateTime? @map("last_payment_date")
+
   attempts         LearnerAttempt[]
   sectionProgress  LearnerSectionProgress[]
+  payments         Payment[]
 
   @@map("users")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  amount    Float
+  paidAt    DateTime @default(now()) @map("paid_at")
+  note      String?
+  periodStart DateTime? @map("period_start")
+  periodEnd   DateTime? @map("period_end")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
 }
 
 model Section {
