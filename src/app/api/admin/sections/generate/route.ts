@@ -200,9 +200,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (wordCount < 3 || wordCount > 15) {
+    if (wordCount < 1 || wordCount > 20) {
       return NextResponse.json(
-        { error: "Word count must be between 3 and 15" },
+        { error: "Word count must be between 1 and 20" },
         { status: 400 }
       );
     }

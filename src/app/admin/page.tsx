@@ -365,12 +365,13 @@ export default function AdminDashboard() {
               </label>
               <input
                 type="number"
-                min={3}
-                max={15}
+                min={1}
+                max={20}
                 value={wordCount}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (v >= 1 && v <= 20) setWordCount(v);
+                onChange={(e) => setWordCount(Number(e.target.value) || 0)}
+                onBlur={() => {
+                  if (wordCount < 1) setWordCount(1);
+                  if (wordCount > 20) setWordCount(20);
                 }}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                 disabled={generating}
