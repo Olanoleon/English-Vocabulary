@@ -210,9 +210,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate required question counts (at least 1 per word, capped)
+    // Calculate required question counts
+    // Practice: 2 per word, capped at 20
+    // Test: linear scale — 5 words→10, 20 words→20, range [10, 20]
     const practiceCount = Math.min(wordCount * 2, 20);
-    const testCount = Math.min(Math.max(wordCount, Math.ceil(wordCount * 1.5)), 10);
+    const testCount = Math.min(20, Math.max(10, Math.round(10 + ((wordCount - 5) / 15) * 10)));
 
     // Call OpenAI (using fetch directly to avoid IDE proxy interception)
     const content = await callOpenAI(

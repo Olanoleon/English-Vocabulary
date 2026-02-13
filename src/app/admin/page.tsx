@@ -385,7 +385,7 @@ export default function AdminDashboard() {
               />
               <p className="text-[10px] text-gray-400 mt-1">
                 This will generate {Math.min((parseInt(wordCount, 10) || 0) * 2, 20)} practice and{" "}
-                {Math.min(Math.max(parseInt(wordCount, 10) || 0, Math.ceil((parseInt(wordCount, 10) || 0) * 1.5)), 10)} test questions
+                {Math.min(20, Math.max(10, Math.round(10 + (((parseInt(wordCount, 10) || 0) - 5) / 15) * 10)))} test questions
               </p>
             </div>
 
