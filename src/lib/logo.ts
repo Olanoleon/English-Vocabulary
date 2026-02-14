@@ -48,6 +48,7 @@ const EMOJI_MAP: [string[], string][] = [
   [["astronomy", "space", "star", "planet", "universe", "cosmos", "nasa"], "🌌"],
   [["environment", "ecology", "climate", "green", "sustain", "recycle"], "🌱"],
   [["bird", "parrot", "eagle", "owl", "penguin", "sparrow", "pigeon", "feather", "nest", "wing"], "🐦"],
+  [["horse", "cow", "pig", "sheep", "goat", "donkey", "deer", "rabbit", "lion", "tiger", "bear", "elephant", "giraffe", "zebra", "creature", "mammal", "land animal"], "🐴"],
   [["animal", "wildlife", "zoo", "fauna", "species", "veterinar"], "🐾"],
   [["plant", "garden", "flower", "botan", "flora", "tree", "forest"], "🌿"],
   [["fish", "salmon", "tuna", "trout", "shark", "whale", "dolphin", "aquarium", "fishing", "angler"], "🐟"],
