@@ -585,6 +585,294 @@ async function main() {
     },
   });
 
+  // Create second Area: Family & Relationships
+  const familyArea = await prisma.area.create({
+    data: {
+      name: "Family & Relationships",
+      nameEs: "Familia y Relaciones",
+      description: "Vocabulary about family, friends, and social bonds",
+      imageUrl: "👥",
+      sortOrder: 2,
+    },
+  });
+  console.log("Area created:", familyArea.name);
+
+  // Create Section: Basic Family Members
+  const familySection = await prisma.section.create({
+    data: {
+      title: "Basic Family Members",
+      titleEs: "Miembros Básicos de la Familia",
+      description: "Learn the names of close family members",
+      imageUrl: "👨‍👩‍👧‍👦",
+      sortOrder: 1,
+      areaId: familyArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "Meet the Johnsons",
+              readingText:
+                "The Johnson family is quite large. Mr. Johnson is the **father** of three children. His **wife**, Mrs. Johnson, works as a teacher. Their oldest **daughter**, Emily, is in college. Their **son**, Jake, plays soccer at school. The youngest is little Sophie, who loves her **grandmother** very much. Every Sunday, the whole family gathers at the **grandparents'** house for dinner.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
+      },
+    },
+    include: { modules: true },
+  });
+
+  const familyVocab = [
+    {
+      word: "father",
+      partOfSpeech: "noun",
+      definitionEs: "Padre, papá",
+      exampleSentence: "My father taught me how to ride a bike.",
+      phoneticIpa: "/ˈfɑːðər/",
+      stressedSyllable: "fa",
+    },
+    {
+      word: "wife",
+      partOfSpeech: "noun",
+      definitionEs: "Esposa",
+      exampleSentence: "He introduced his wife to the guests.",
+      phoneticIpa: "/waɪf/",
+      stressedSyllable: "wife",
+    },
+    {
+      word: "daughter",
+      partOfSpeech: "noun",
+      definitionEs: "Hija",
+      exampleSentence: "Their daughter graduated with honors.",
+      phoneticIpa: "/ˈdɔːtər/",
+      stressedSyllable: "daugh",
+    },
+    {
+      word: "son",
+      partOfSpeech: "noun",
+      definitionEs: "Hijo",
+      exampleSentence: "Their son wants to become an engineer.",
+      phoneticIpa: "/sʌn/",
+      stressedSyllable: "son",
+    },
+    {
+      word: "grandmother",
+      partOfSpeech: "noun",
+      definitionEs: "Abuela",
+      exampleSentence: "My grandmother tells the best stories.",
+      phoneticIpa: "/ˈɡrænˌmʌðər/",
+      stressedSyllable: "grand",
+    },
+  ];
+
+  for (let i = 0; i < familyVocab.length; i++) {
+    const v = familyVocab[i];
+    await prisma.vocabulary.create({
+      data: {
+        ...v,
+        sectionVocabulary: {
+          create: { sectionId: familySection.id, sortOrder: i + 1 },
+        },
+      },
+    });
+  }
+
+  const familyPracticeModule = familySection.modules.find((m) => m.type === "practice")!;
+  const familyTestModule = familySection.modules.find((m) => m.type === "test")!;
+
+  const familyPracticeQuestions = [
+    {
+      type: "multiple_choice",
+      prompt: 'What is the definition of "father"?',
+      sortOrder: 1,
+      options: [
+        { optionText: "Padre, papá", isCorrect: true },
+        { optionText: "Hermano mayor", isCorrect: false },
+        { optionText: "Tío paterno", isCorrect: false },
+        { optionText: "Abuelo", isCorrect: false },
+      ],
+    },
+    {
+      type: "multiple_choice",
+      prompt: 'Which English word means "esposa"?',
+      sortOrder: 2,
+      options: [
+        { optionText: "wife", isCorrect: true },
+        { optionText: "daughter", isCorrect: false },
+        { optionText: "grandmother", isCorrect: false },
+        { optionText: "son", isCorrect: false },
+      ],
+    },
+    {
+      type: "fill_blank",
+      prompt: "Their ___ Emily is studying medicine at university.",
+      correctAnswer: "daughter",
+      sortOrder: 3,
+      options: [],
+    },
+    {
+      type: "multiple_choice",
+      prompt: 'What is the definition of "son"?',
+      sortOrder: 4,
+      options: [
+        { optionText: "Hijo", isCorrect: true },
+        { optionText: "Sobrino", isCorrect: false },
+        { optionText: "Primo", isCorrect: false },
+        { optionText: "Padre", isCorrect: false },
+      ],
+    },
+    {
+      type: "multiple_choice",
+      prompt: 'Which English word means "abuela"?',
+      sortOrder: 5,
+      options: [
+        { optionText: "grandmother", isCorrect: true },
+        { optionText: "wife", isCorrect: false },
+        { optionText: "daughter", isCorrect: false },
+        { optionText: "father", isCorrect: false },
+      ],
+    },
+  ];
+
+  for (const q of familyPracticeQuestions) {
+    await prisma.question.create({
+      data: {
+        moduleId: familyPracticeModule.id,
+        type: q.type,
+        prompt: q.prompt,
+        correctAnswer: q.correctAnswer || null,
+        sortOrder: q.sortOrder,
+        options:
+          q.options.length > 0
+            ? {
+                create: q.options.map((o, idx) => ({
+                  optionText: o.optionText,
+                  isCorrect: o.isCorrect,
+                  sortOrder: idx + 1,
+                })),
+              }
+            : undefined,
+      },
+    });
+  }
+
+  const familyTestQuestions = [
+    {
+      type: "multiple_choice",
+      prompt: 'What is the definition of "wife"?',
+      sortOrder: 1,
+      options: [
+        { optionText: "Esposa", isCorrect: true },
+        { optionText: "Hermana", isCorrect: false },
+        { optionText: "Hija", isCorrect: false },
+        { optionText: "Madre", isCorrect: false },
+      ],
+    },
+    {
+      type: "fill_blank",
+      prompt: "My ___ always bakes cookies when we visit her.",
+      correctAnswer: "grandmother",
+      sortOrder: 2,
+      options: [],
+    },
+    {
+      type: "phonetics",
+      prompt: 'Which word is pronounced /ˈdɔːtər/?',
+      sortOrder: 3,
+      options: [
+        { optionText: "daughter", isCorrect: true },
+        { optionText: "doctor", isCorrect: false },
+        { optionText: "dollar", isCorrect: false },
+        { optionText: "darker", isCorrect: false },
+      ],
+    },
+    {
+      type: "multiple_choice",
+      prompt: 'Which English word means "hijo"?',
+      sortOrder: 4,
+      options: [
+        { optionText: "son", isCorrect: true },
+        { optionText: "father", isCorrect: false },
+        { optionText: "wife", isCorrect: false },
+        { optionText: "grandmother", isCorrect: false },
+      ],
+    },
+    {
+      type: "phonetics",
+      prompt: "Which word does NOT rhyme with the others?",
+      sortOrder: 5,
+      options: [
+        { optionText: "fun", isCorrect: false },
+        { optionText: "son", isCorrect: false },
+        { optionText: "run", isCorrect: false },
+        { optionText: "soon", isCorrect: true },
+      ],
+    },
+  ];
+
+  for (const q of familyTestQuestions) {
+    await prisma.question.create({
+      data: {
+        moduleId: familyTestModule.id,
+        type: q.type,
+        prompt: q.prompt,
+        correctAnswer: q.correctAnswer || null,
+        sortOrder: q.sortOrder,
+        options:
+          q.options.length > 0
+            ? {
+                create: q.options.map((o, idx) => ({
+                  optionText: o.optionText,
+                  isCorrect: o.isCorrect,
+                  sortOrder: idx + 1,
+                })),
+              }
+            : undefined,
+      },
+    });
+  }
+
+  // Unlock family section for learner
+  await prisma.learnerSectionProgress.upsert({
+    where: {
+      userId_sectionId: {
+        userId: learner.id,
+        sectionId: familySection.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: learner.id,
+      sectionId: familySection.id,
+      unlocked: true,
+      unlockedAt: new Date(),
+    },
+  });
+
+  // Seed recent completions to trigger "Hot Topic" on General English
+  const recentDates = [
+    new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+    new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+    new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+  ];
+
+  for (const date of recentDates) {
+    await prisma.learnerAttempt.create({
+      data: {
+        userId: learner.id,
+        moduleId: practiceModule1.id,
+        score: 80 + Math.floor(Math.random() * 20),
+        passed: true,
+        startedAt: date,
+        completedAt: date,
+      },
+    });
+  }
+  console.log("Seeded 4 recent completions for Hot Topic demo");
+
   console.log("Seed complete!");
   console.log("---");
   console.log("Admin login:   admin / admin123");
