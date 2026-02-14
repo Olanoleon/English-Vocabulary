@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, BookOpen } from "lucide-react";
+import { ChevronRight, BookOpen, Flame } from "lucide-react";
 
 interface Area {
   id: string;
@@ -11,6 +11,7 @@ interface Area {
   description: string | null;
   imageUrl: string | null;
   unitCount: number;
+  isHot: boolean;
 }
 
 export default function LearningAreasPage() {
@@ -67,11 +68,28 @@ export default function LearningAreasPage() {
           <Link
             key={area.id}
             href={`/learn/areas/${area.id}`}
-            className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-primary-300 hover:shadow-sm transition-all"
+            className={`block bg-white border rounded-xl p-4 hover:shadow-sm transition-all ${
+              area.isHot
+                ? "border-orange-300 ring-1 ring-orange-200 hover:border-orange-400"
+                : "border-gray-200 hover:border-primary-300"
+            }`}
           >
+            {area.isHot && (
+              <div className="flex items-center gap-1 mb-2">
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs font-semibold text-orange-600">
+                  Hot Topic
+                </span>
+                <span className="text-xs text-orange-400">
+                  — Trending this week
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-4">
               {/* Emoji Icon */}
-              <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-3xl">
+              <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 text-3xl ${
+                area.isHot ? "bg-orange-50" : "bg-primary-50"
+              }`}>
                 {area.imageUrl || "📘"}
               </div>
 
