@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -108,6 +110,11 @@ export default function SectionEditorPage({
   // Expanded question sections
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
+  // Regenerate questions
+  const [showRegenModal, setShowRegenModal] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState("");
+
   useEffect(() => {
     fetchSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +159,26 @@ export default function SectionEditorPage({
       fetchSection();
     }
     setSaving(false);
+  }
+
+  async function regenerateQuestions() {
+    setRegenerating(true);
+    setRegenError("");
+    try {
+      const res = await fetch(`/api/admin/sections/${id}/regenerate`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setShowRegenModal(false);
+        fetchSection();
+      } else {
+        const data = await res.json();
+        setRegenError(data.error || "Failed to regenerate questions");
+      }
+    } catch {
+      setRegenError("Connection error. Please try again.");
+    }
+    setRegenerating(false);
   }
 
   async function saveIntroContent() {
@@ -522,6 +549,15 @@ export default function SectionEditorPage({
       {/* Questions Tab */}
       {activeTab === "questions" && (
         <div>
+          {/* Regenerate Questions Button */}
+          <button
+            onClick={() => setShowRegenModal(true)}
+            className="w-full mb-4 flex items-center justify-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 py-2.5 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Regenerate All Questions
+          </button>
+
           {["practice", "test"].map((moduleType) => {
             const mod = section.modules.find((m) => m.type === moduleType);
             if (!mod) return null;
@@ -730,6 +766,64 @@ export default function SectionEditorPage({
               Add Question
             </button>
           )}
+        </div>
+      )}
+
+      {/* Regenerate Confirmation Modal */}
+      {showRegenModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <h3 className="font-bold text-gray-900">Regenerate Questions?</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-1">
+              This will use AI to generate entirely new practice and test questions based on the current vocabulary words.
+            </p>
+            <p className="text-xs text-amber-600 mb-4">
+              All existing questions will be replaced. Learner practice and test progress for this unit will be reset so they can retake with the new questions.
+            </p>
+
+            {regenError && (
+              <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs mb-3">
+                {regenError}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={regenerateQuestions}
+                disabled={regenerating}
+                className="flex-1 bg-amber-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+              >
+                {regenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Regenerate
+                  </>
+                )}
+              </button>
+              {!regenerating && (
+                <button
+                  onClick={() => {
+                    setShowRegenModal(false);
+                    setRegenError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
