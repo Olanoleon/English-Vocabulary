@@ -104,7 +104,13 @@ TEST QUESTIONS:
 - phonetics questions must use a MIX of these three styles (vary them, do not repeat the same style):
   1. IPA Reading: "Which word is pronounced /IPA/?" with 4 English word options (1 correct, 3 distractors). Tests IPA literacy.
   2. Sound Matching: "Which word has the same vowel sound as the 'X' in 'word'?" with 4 word options. Target sounds that are difficult for Spanish speakers (e.g., short i vs long ee, schwa, th sounds).
+     CRITICAL: Match by ACTUAL PHONETIC SOUND (IPA), NOT by spelling/letter. English letters often produce different sounds:
+     - "u" in "lunchbox" = /ʌ/ (matches "cup", "brush") — NOT "ruler" which is /uː/
+     - "o" in "come" = /ʌ/ — NOT the same as "o" in "home" /oʊ/
+     - "ea" in "head" = /ɛ/ — NOT the same as "ea" in "bead" /iː/
+     Always verify the IPA of both the source word and the correct answer match. All distractors must have clearly DIFFERENT vowel sounds.
   3. Odd One Out: "Which word does NOT rhyme with the others?" with 4 words (3 that rhyme, 1 that doesn't). Tests sound discrimination.
+     CRITICAL: Rhyming is about SOUND, not spelling. "cough" does NOT rhyme with "through" despite both ending in "-ough". Verify pronunciation of all 4 words.
 - NEVER ask "Which syllable is stressed in...?" — use the three phonetics styles above instead
 
 JSON STRUCTURE (follow exactly):
