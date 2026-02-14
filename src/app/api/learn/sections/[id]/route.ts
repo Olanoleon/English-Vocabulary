@@ -44,9 +44,9 @@ export async function GET(
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Check if this is the first section (always unlocked)
+    // Check if this is the first section in its area (always unlocked)
     const firstSection = await prisma.section.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, areaId: section.areaId },
       orderBy: { sortOrder: "asc" },
     });
 
