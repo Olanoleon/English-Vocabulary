@@ -5,10 +5,11 @@
 
 const EMOJI_MAP: [string[], string][] = [
   // Education & Learning
-  [["education", "school", "study", "learn", "academic", "university", "college"], "🎓"],
+  [["education", "study", "learn", "academic", "university", "college", "exam", "student"], "🎓"],
+  [["school", "classroom", "supply", "supplies", "item", "stationery", "pencil", "notebook", "backpack", "eraser"], "✏️"],
   [["book", "read", "literature", "library", "novel", "story"], "📚"],
   [["write", "writing", "essay", "pen", "author"], "✍️"],
-  [["language", "linguistics", "grammar", "vocabulary", "english", "spanish"], "🗣️"],
+  [["language", "linguistics", "grammar", "bilingual", "polyglot", "spanish", "french", "german"], "🗣️"],
   [["math", "mathematics", "calcul", "algebra", "geometry", "number"], "🔢"],
   [["science", "research", "experiment", "laboratory", "lab"], "🔬"],
   [["history", "ancient", "heritage", "past", "civilization"], "🏛️"],
@@ -63,7 +64,7 @@ const EMOJI_MAP: [string[], string][] = [
   [["shop", "store", "retail", "buy", "purchase", "mall"], "🛍️"],
   [["fashion", "cloth", "wear", "dress", "style", "outfit", "apparel"], "👗"],
   [["home", "house", "domestic", "household", "family", "furniture"], "🏠"],
-  [["daily", "routine", "everyday", "life", "general", "common", "basic"], "📅"],
+  [["daily", "routine", "everyday", "general", "common"], "📅"],
   [["sport", "exercise", "fitness", "gym", "athlet", "workout", "train"], "🏋️"],
   [["soccer", "football", "goal", "match", "league"], "⚽"],
   [["basketball", "court", "dunk", "nba"], "🏀"],
