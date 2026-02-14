@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -12,8 +12,27 @@ import {
   X,
   BookOpen,
   RefreshCw,
+  GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Area {
   id: string;
@@ -25,6 +44,139 @@ interface Area {
   _count: { sections: number };
 }
 
+// ─── Sortable Area Card ────────────────────────────────────────────────────────
+
+function SortableAreaCard({
+  area,
+  onToggleVisibility,
+  onEdit,
+  onDelete,
+}: {
+  area: Area;
+  onToggleVisibility: (area: Area) => void;
+  onEdit: (area: Area) => void;
+  onDelete: (area: Area) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: area.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "bg-white border rounded-xl p-4 transition-all",
+        area.isActive ? "border-gray-200" : "border-gray-100 opacity-60",
+        isDragging && "opacity-40 shadow-lg scale-[1.02]"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {/* Drag Handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+
+        {/* Emoji Icon */}
+        <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+          {area.imageUrl || "📘"}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 truncate">{area.name}</p>
+          <p className="text-xs text-gray-500 truncate">
+            {area.nameEs} &middot; {area._count.sections}{" "}
+            {area._count.sections === 1 ? "unit" : "units"}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <button
+          onClick={() => onToggleVisibility(area)}
+          className={cn(
+            "p-2 rounded-lg transition-colors",
+            area.isActive
+              ? "text-green-500 hover:text-green-700 hover:bg-green-50"
+              : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
+          )}
+          title={area.isActive ? "Visible to learners — click to hide" : "Hidden from learners — click to show"}
+        >
+          {area.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+        <button
+          onClick={() => onEdit(area)}
+          className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+          title="Edit"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onDelete(area)}
+          className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+        <Link
+          href={`/admin/areas/${area.id}`}
+          className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors flex items-center gap-1"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          See Area
+        </Link>
+      </div>
+
+      {area.description && (
+        <p className="text-xs text-gray-400 mt-2 ml-15 truncate">
+          {area.description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Drag Overlay Card ─────────────────────────────────────────────────────────
+
+function AreaDragOverlayCard({ area }: { area: Area }) {
+  return (
+    <div className="bg-white border-2 border-primary-400 rounded-xl p-4 shadow-xl rotate-1 scale-[1.03]">
+      <div className="flex items-center gap-3">
+        <div className="p-1 -ml-1 text-primary-500">
+          <GripVertical className="w-5 h-5" />
+        </div>
+        <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
+          {area.imageUrl || "📘"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 truncate">{area.name}</p>
+          <p className="text-xs text-gray-500 truncate">
+            {area.nameEs} &middot; {area._count.sections}{" "}
+            {area._count.sections === 1 ? "unit" : "units"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function AdminAreasPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +184,7 @@ export default function AdminAreasPage() {
   const [creating, setCreating] = useState(false);
   const [createProgress, setCreateProgress] = useState("");
   const [createError, setCreateError] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Create form
   const [name, setName] = useState("");
@@ -47,6 +200,14 @@ export default function AdminAreasPage() {
   const [editDesc, setEditDesc] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: { delay: 200, tolerance: 6 },
+  });
+  const sensors = useSensors(pointerSensor, touchSensor);
+
   useEffect(() => {
     fetchAreas();
   }, []);
@@ -57,6 +218,30 @@ export default function AdminAreasPage() {
       setAreas(await res.json());
     }
     setLoading(false);
+  }
+
+  const persistOrder = useCallback(async (newAreas: Area[]) => {
+    await fetch("/api/admin/areas/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: newAreas.map((a) => a.id) }),
+    });
+  }, []);
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = areas.findIndex((a) => a.id === active.id);
+    const newIndex = areas.findIndex((a) => a.id === over.id);
+    const reordered = arrayMove(areas, oldIndex, newIndex);
+    setAreas(reordered);
+    persistOrder(reordered);
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -206,77 +391,47 @@ export default function AdminAreasPage() {
         </div>
       </div>
 
-      {/* Area Cards */}
-      <div className="space-y-3 mb-4">
-        {areas.map((area) => (
-          <div
-            key={area.id}
-            className={cn(
-              "bg-white border rounded-xl p-4 transition-all",
-              area.isActive ? "border-gray-200" : "border-gray-100 opacity-60"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              {/* Emoji Icon */}
-              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
-                {area.imageUrl || "📘"}
-              </div>
+      {/* Area Cards Header */}
+      {areas.length > 1 && (
+        <div className="mb-2 flex items-center justify-end">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+            Drag to reorder
+          </span>
+        </div>
+      )}
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">
-                  {area.name}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {area.nameEs} &middot; {area._count.sections}{" "}
-                  {area._count.sections === 1 ? "unit" : "units"}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <button
-                onClick={() => toggleVisibility(area)}
-                className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  area.isActive
-                    ? "text-green-500 hover:text-green-700 hover:bg-green-50"
-                    : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
-                )}
-                title={area.isActive ? "Visible to learners — click to hide" : "Hidden from learners — click to show"}
-              >
-                {area.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={() => openEdit(area)}
-                className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-                title="Edit"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setDeleteArea(area)}
-                className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <Link
-                href={`/admin/areas/${area.id}`}
-                className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors flex items-center gap-1"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                See Area
-              </Link>
-            </div>
-
-            {area.description && (
-              <p className="text-xs text-gray-400 mt-2 ml-15 truncate">
-                {area.description}
-              </p>
-            )}
+      {/* Area Cards (sortable) */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={areas.map((a) => a.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-3 mb-4">
+            {areas.map((area) => (
+              <SortableAreaCard
+                key={area.id}
+                area={area}
+                onToggleVisibility={toggleVisibility}
+                onEdit={openEdit}
+                onDelete={setDeleteArea}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+
+        <DragOverlay dropAnimation={null}>
+          {activeId ? (
+            <AreaDragOverlayCard
+              area={areas.find((a) => a.id === activeId)!}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {areas.length === 0 && !showCreate && (
         <div className="text-center py-12">
