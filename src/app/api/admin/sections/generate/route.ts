@@ -355,9 +355,10 @@ Return the JSON object now.`
     if (Array.isArray(generated.practiceQuestions)) {
       for (let i = 0; i < generated.practiceQuestions.length; i++) {
         const q = generated.practiceQuestions[i];
-        const shuffledOptions = Array.isArray(q.options) && q.options.length > 0
-          ? shuffleArray(q.options)
-          : [];
+        const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
+          Array.isArray(q.options) && q.options.length > 0
+            ? shuffleArray(q.options)
+            : [];
         await prisma.question.create({
           data: {
             moduleId: practiceModule.id,
@@ -389,9 +390,10 @@ Return the JSON object now.`
     if (Array.isArray(generated.testQuestions)) {
       for (let i = 0; i < generated.testQuestions.length; i++) {
         const q = generated.testQuestions[i];
-        const shuffledOptions = Array.isArray(q.options) && q.options.length > 0
-          ? shuffleArray(q.options)
-          : [];
+        const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
+          Array.isArray(q.options) && q.options.length > 0
+            ? shuffleArray(q.options)
+            : [];
         await prisma.question.create({
           data: {
             moduleId: testModule.id,
