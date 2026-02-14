@@ -54,8 +54,10 @@ const EMOJI_MAP: [string[], string][] = [
   [["geology", "rock", "mineral", "earthquake", "volcano"], "🪨"],
 
   // Daily Life & Culture
-  [["food", "cook", "recipe", "kitchen", "meal", "chef", "culinar", "gastronom"], "🍳"],
-  [["restaurant", "dine", "dining", "eat", "menu", "waiter"], "🍽️"],
+  [["vegetable", "veggie", "fruit", "meat", "chicken", "beef", "pork", "fish", "seafood", "dish", "ingredient", "grocery", "groceries", "produce"], "🥗"],
+  [["food", "cook", "recipe", "kitchen", "meal", "chef", "culinar", "gastronom", "bake", "fry", "grill", "roast"], "🍳"],
+  [["utensil", "spoon", "fork", "knife", "cutlery", "cuttlery", "plate", "cup", "glass", "bowl", "pot", "pan", "shaker", "kitchenware", "tableware", "napkin", "tray"], "🍽️"],
+  [["restaurant", "dine", "dining", "eat", "menu", "waiter", "order", "reservation", "bistro", "cafe"], "🧑‍🍳"],
   [["travel", "trip", "tour", "vacation", "holiday", "journey", "adventure"], "✈️"],
   [["hotel", "accommodation", "lodging", "hostel", "resort"], "🏨"],
   [["airport", "flight", "airline", "boarding", "passport"], "🛫"],
