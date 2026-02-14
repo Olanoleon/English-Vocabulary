@@ -50,7 +50,8 @@ const EMOJI_MAP: [string[], string][] = [
   [["bird", "parrot", "eagle", "owl", "penguin", "sparrow", "pigeon", "feather", "nest", "wing"], "🐦"],
   [["animal", "wildlife", "zoo", "fauna", "species", "veterinar"], "🐾"],
   [["plant", "garden", "flower", "botan", "flora", "tree", "forest"], "🌿"],
-  [["ocean", "marine", "sea", "underwater", "aqua", "fish"], "🌊"],
+  [["fish", "salmon", "tuna", "trout", "shark", "whale", "dolphin", "aquarium", "fishing", "angler"], "🐟"],
+  [["ocean", "marine", "sea", "underwater", "aqua"], "🌊"],
   [["weather", "meteorolog", "storm", "rain", "forecast"], "🌤️"],
   [["geology", "rock", "mineral", "earthquake", "volcano"], "🪨"],
 
