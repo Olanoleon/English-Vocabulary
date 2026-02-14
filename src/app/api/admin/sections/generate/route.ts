@@ -3,6 +3,16 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { matchEmoji } from "@/lib/logo";
 
+/** Shuffle an array in place (Fisher-Yates) */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 function getOpenAIKey(): string {
   // Read .env file directly to bypass Cursor IDE env caching
   try {
@@ -345,6 +355,9 @@ Return the JSON object now.`
     if (Array.isArray(generated.practiceQuestions)) {
       for (let i = 0; i < generated.practiceQuestions.length; i++) {
         const q = generated.practiceQuestions[i];
+        const shuffledOptions = Array.isArray(q.options) && q.options.length > 0
+          ? shuffleArray(q.options)
+          : [];
         await prisma.question.create({
           data: {
             moduleId: practiceModule.id,
@@ -353,9 +366,9 @@ Return the JSON object now.`
             correctAnswer: q.correctAnswer || null,
             sortOrder: i + 1,
             options:
-              Array.isArray(q.options) && q.options.length > 0
+              shuffledOptions.length > 0
                 ? {
-                    create: q.options.map(
+                    create: shuffledOptions.map(
                       (
                         o: { optionText: string; isCorrect: boolean },
                         idx: number
@@ -376,6 +389,9 @@ Return the JSON object now.`
     if (Array.isArray(generated.testQuestions)) {
       for (let i = 0; i < generated.testQuestions.length; i++) {
         const q = generated.testQuestions[i];
+        const shuffledOptions = Array.isArray(q.options) && q.options.length > 0
+          ? shuffleArray(q.options)
+          : [];
         await prisma.question.create({
           data: {
             moduleId: testModule.id,
@@ -384,9 +400,9 @@ Return the JSON object now.`
             correctAnswer: q.correctAnswer || null,
             sortOrder: i + 1,
             options:
-              Array.isArray(q.options) && q.options.length > 0
+              shuffledOptions.length > 0
                 ? {
-                    create: q.options.map(
+                    create: shuffledOptions.map(
                       (
                         o: { optionText: string; isCorrect: boolean },
                         idx: number
