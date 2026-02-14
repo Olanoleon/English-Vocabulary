@@ -47,6 +47,7 @@ const EMOJI_MAP: [string[], string][] = [
   [["physics", "quantum", "relativity", "force", "gravity"], "🔭"],
   [["astronomy", "space", "star", "planet", "universe", "cosmos", "nasa"], "🌌"],
   [["environment", "ecology", "climate", "green", "sustain", "recycle"], "🌱"],
+  [["bird", "parrot", "eagle", "owl", "penguin", "sparrow", "pigeon", "feather", "nest", "wing"], "🐦"],
   [["animal", "wildlife", "zoo", "fauna", "species", "veterinar"], "🐾"],
   [["plant", "garden", "flower", "botan", "flora", "tree", "forest"], "🌿"],
   [["ocean", "marine", "sea", "underwater", "aqua", "fish"], "🌊"],
