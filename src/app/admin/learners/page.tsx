@@ -222,15 +222,81 @@ export default function LearnersPage() {
 
   return (
     <div className="px-4 py-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Learner Management
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          {learners.length} registered learner
-          {learners.length !== 1 ? "s" : ""}
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Learner Management
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {learners.length} registered learner
+            {learners.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {!showCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            title="Add New Learner"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        )}
       </div>
+
+      {/* Create Form */}
+      {showCreate && (
+        <form
+          onSubmit={createLearner}
+          className="mb-4 bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-scale-in"
+        >
+          <h4 className="font-semibold text-sm">New Learner Account</h4>
+          <input
+            type="text"
+            placeholder="Display name"
+            value={newDisplayName}
+            onChange={(e) => setNewDisplayName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            required
+          />
+          <input
+            type="text"
+            placeholder="Username"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            required
+            minLength={4}
+          />
+          {error && <p className="text-sm text-danger-500">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={creating}
+              className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+            >
+              {creating ? "Creating..." : "Create Account"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreate(false);
+                setError("");
+              }}
+              className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Access stats */}
       {learners.length > 0 && (
@@ -337,69 +403,6 @@ export default function LearnersPage() {
             No learners yet. Create your first one!
           </p>
         </div>
-      )}
-
-      {/* Create Form */}
-      {showCreate ? (
-        <form
-          onSubmit={createLearner}
-          className="mt-4 bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-scale-in"
-        >
-          <h4 className="font-semibold text-sm">New Learner Account</h4>
-          <input
-            type="text"
-            placeholder="Display name"
-            value={newDisplayName}
-            onChange={(e) => setNewDisplayName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Username"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-            required
-            minLength={4}
-          />
-          {error && <p className="text-sm text-danger-500">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={creating}
-              className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
-            >
-              {creating ? "Creating..." : "Create Account"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowCreate(false);
-                setError("");
-              }}
-              className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          onClick={() => setShowCreate(true)}
-          className="mt-4 w-full bg-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add New Learner
-        </button>
       )}
     </div>
   );
