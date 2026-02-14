@@ -96,24 +96,31 @@ INTRODUCTION READING:
 - The passage should read like a natural story or scenario, not a list of definitions
 
 PRACTICE QUESTIONS:
-- You MUST generate the exact number of practice questions specified in the user prompt under "Required practice questions". This is a hard requirement — do NOT generate fewer.
+- You MUST generate the exact number of regular practice questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
+- ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the practiceQuestions array.
 - Focus on WORD DEFINITIONS — do NOT reference the reading passage
-- Every vocabulary word MUST appear in at least one practice question (either as the subject of a definition question, or as the correct answer in a reverse/fill_blank question)
-- Mix of three styles (distribute evenly):
-  1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors from other Spanish words that could be confused)
-  2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list (1 correct, 3 other words from this unit)
-  3. "fill_blank": A standalone generic sentence (NOT from the reading passage) where the vocabulary word fits naturally. Set correct_answer to the word.
-- All options arrays must have exactly 4 items for multiple_choice, 0 items for fill_blank
+- Every vocabulary word MUST appear in at least one practice question (either as the subject of a definition question, or as the correct answer in a reverse/fill_blank/phonetics question)
+- Regular questions should be a mix of four styles:
+  1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors) — about 30%
+  2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list — about 30%
+  3. "fill_blank": A standalone generic sentence (NOT from the reading passage) where the vocabulary word fits naturally. Set correct_answer to the word. — about 25%
+  4. "phonetics": Pronunciation questions using styles from the PHONETICS RULES section below — about 15%
+- All options arrays must have exactly 4 items for multiple_choice and phonetics, 0 items for fill_blank and matching
 - IMPORTANT: fill_blank sentences must be original and independent from the intro reading text
 
 TEST QUESTIONS:
-- You MUST generate the exact number of test questions specified in the user prompt under "Required test questions". This is a hard requirement — do NOT generate fewer.
-- Mix of "multiple_choice", "fill_blank", and "phonetics" types
+- You MUST generate the exact number of regular test questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
+- ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the testQuestions array.
+- Regular questions: mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
 - multiple_choice and fill_blank: same definition-focused rules as practice (NOT referencing the reading)
-- phonetics questions must use a MIX of these three styles (vary them, do not repeat the same style):
+- Phonetics: follow PHONETICS RULES below
+- NEVER ask "Which syllable is stressed in...?" — use the phonetics styles below instead
+
+PHONETICS RULES (for both practice and test phonetics questions):
+- phonetics questions must use a MIX of these three styles (vary them, do not repeat the same style consecutively):
   1. IPA Reading: "Which word is pronounced /IPA/?" with 4 English word options (1 correct, 3 distractors). Tests IPA literacy.
-  2. Sound Matching: "Which word has the same vowel sound as the 'X' in 'word'?" with 4 word options. Target sounds that are difficult for Spanish speakers (e.g., short i vs long ee, schwa, th sounds).
+  2. Sound Matching: "Which word has the same vowel sound as the 'X' in 'word'?" with 4 word options. Target sounds difficult for Spanish speakers (e.g., short i vs long ee, schwa, th sounds).
      CRITICAL: Match by ACTUAL PHONETIC SOUND (IPA), NOT by spelling/letter. English letters often produce different sounds:
      - "u" in "lunchbox" = /ʌ/ (matches "cup", "brush") — NOT "ruler" which is /uː/
      - "o" in "come" = /ʌ/ — NOT the same as "o" in "home" /oʊ/
@@ -121,7 +128,18 @@ TEST QUESTIONS:
      Always verify the IPA of both the source word and the correct answer match. All distractors must have clearly DIFFERENT vowel sounds.
   3. Odd One Out: "Which word does NOT rhyme with the others?" with 4 words (3 that rhyme, 1 that doesn't). Tests sound discrimination.
      CRITICAL: Rhyming is about SOUND, not spelling. "cough" does NOT rhyme with "through" despite both ending in "-ough". Verify pronunciation of all 4 words.
-- NEVER ask "Which syllable is stressed in...?" — use the three phonetics styles above instead
+
+MATCHING QUESTION (generate exactly 1 per module when the user prompt specifies matching pairs):
+- type: "matching"
+- prompt: "Match each English word with its definition"
+- correctAnswer: null
+- pairs: an array of objects, each with:
+  - "word": the English vocabulary word
+  - "definition": a concise English definition (5-15 words)
+  - "spanish": the Spanish translation of the word
+- Use exactly the number of pairs specified in the user prompt
+- Choose a diverse subset of vocabulary words; use DIFFERENT words for practice vs test matching if possible
+- options: [] (empty array)
 
 JSON STRUCTURE (follow exactly):
 {
@@ -153,24 +171,11 @@ JSON STRUCTURE (follow exactly):
       ]
     },
     {
-      "type": "multiple_choice",
-      "prompt": "Which English word means 'ejemplo, muestra'?",
-      "correctAnswer": null,
-      "options": [
-        {"optionText": "example", "isCorrect": true},
-        {"optionText": "exercise", "isCorrect": false},
-        {"optionText": "excuse", "isCorrect": false},
-        {"optionText": "exchange", "isCorrect": false}
-      ]
-    },
-    {
       "type": "fill_blank",
       "prompt": "Can you give me an ___ of what you mean?",
       "correctAnswer": "example",
       "options": []
-    }
-  ],
-  "testQuestions": [
+    },
     {
       "type": "phonetics",
       "prompt": "Which word is pronounced /ɪɡˈzæmpəl/?",
@@ -183,6 +188,19 @@ JSON STRUCTURE (follow exactly):
       ]
     },
     {
+      "type": "matching",
+      "prompt": "Match each English word with its definition",
+      "correctAnswer": null,
+      "pairs": [
+        {"word": "example", "definition": "A thing characteristic of its kind or group", "spanish": "ejemplo"},
+        {"word": "exercise", "definition": "Activity requiring physical effort for fitness", "spanish": "ejercicio"},
+        {"word": "exchange", "definition": "An act of giving and receiving reciprocally", "spanish": "intercambio"}
+      ],
+      "options": []
+    }
+  ],
+  "testQuestions": [
+    {
       "type": "phonetics",
       "prompt": "Which word has the same vowel sound as the 'a' in 'example'?",
       "correctAnswer": null,
@@ -194,15 +212,15 @@ JSON STRUCTURE (follow exactly):
       ]
     },
     {
-      "type": "phonetics",
-      "prompt": "Which word does NOT rhyme with the others?",
+      "type": "matching",
+      "prompt": "Match each English word with its definition",
       "correctAnswer": null,
-      "options": [
-        {"optionText": "sample", "isCorrect": false},
-        {"optionText": "trample", "isCorrect": false},
-        {"optionText": "simple", "isCorrect": true},
-        {"optionText": "ample", "isCorrect": false}
-      ]
+      "pairs": [
+        {"word": "excuse", "definition": "A reason put forward to justify a fault", "spanish": "excusa"},
+        {"word": "expert", "definition": "A person with extensive knowledge in a field", "spanish": "experto"},
+        {"word": "expand", "definition": "To become or make larger in size or scope", "spanish": "expandir"}
+      ],
+      "options": []
     }
   ]
 }`;
@@ -233,13 +251,22 @@ export async function POST(request: NextRequest) {
     const practiceCount = Math.min(wordCount * 2, 20);
     const testCount = Math.min(20, Math.max(10, Math.round(10 + ((wordCount - 5) / 15) * 10)));
 
+    // Matching question: 3-5 pairs depending on unit size (only if ≥ 3 words)
+    const matchingPairs = wordCount >= 3 ? Math.min(wordCount, wordCount <= 6 ? 3 : wordCount <= 12 ? 4 : 5) : 0;
+    // Regular question counts adjusted so total points stay approximately the same
+    const practiceRegularCount = Math.max(1, practiceCount - matchingPairs);
+    const testRegularCount = Math.max(1, testCount - matchingPairs);
+
     // Call OpenAI (using fetch directly to avoid IDE proxy interception)
+    const matchingInstruction = matchingPairs > 0
+      ? `\nMatching pairs: ${matchingPairs} word pairs per matching question (generate 1 matching question for practice + 1 for test)`
+      : "";
     const content = await callOpenAI(
       SYSTEM_PROMPT,
       `Generate a complete vocabulary section for the topic: "${topic}"
 Number of vocabulary words: ${wordCount}
-Required practice questions: exactly ${practiceCount} (this is mandatory — every word must appear in at least one question)
-Required test questions: exactly ${testCount} (this is mandatory)
+Required regular practice questions: exactly ${practiceRegularCount} (this is mandatory — every word must appear in at least one question)
+Required regular test questions: exactly ${testRegularCount} (this is mandatory)${matchingInstruction}
 
 Return the JSON object now.`
     );
@@ -355,6 +382,11 @@ Return the JSON object now.`
     if (Array.isArray(generated.practiceQuestions)) {
       for (let i = 0; i < generated.practiceQuestions.length; i++) {
         const q = generated.practiceQuestions[i];
+        // For matching questions, store pairs as JSON in correctAnswer
+        const correctAnswer =
+          q.type === "matching" && Array.isArray(q.pairs)
+            ? JSON.stringify(q.pairs)
+            : q.correctAnswer || null;
         const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
           Array.isArray(q.options) && q.options.length > 0
             ? shuffleArray(q.options)
@@ -364,7 +396,7 @@ Return the JSON object now.`
             moduleId: practiceModule.id,
             type: q.type || "multiple_choice",
             prompt: q.prompt,
-            correctAnswer: q.correctAnswer || null,
+            correctAnswer,
             sortOrder: i + 1,
             options:
               shuffledOptions.length > 0
@@ -390,6 +422,10 @@ Return the JSON object now.`
     if (Array.isArray(generated.testQuestions)) {
       for (let i = 0; i < generated.testQuestions.length; i++) {
         const q = generated.testQuestions[i];
+        const correctAnswer =
+          q.type === "matching" && Array.isArray(q.pairs)
+            ? JSON.stringify(q.pairs)
+            : q.correctAnswer || null;
         const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
           Array.isArray(q.options) && q.options.length > 0
             ? shuffleArray(q.options)
@@ -399,7 +435,7 @@ Return the JSON object now.`
             moduleId: testModule.id,
             type: q.type || "multiple_choice",
             prompt: q.prompt,
-            correctAnswer: q.correctAnswer || null,
+            correctAnswer,
             sortOrder: i + 1,
             options:
               shuffledOptions.length > 0

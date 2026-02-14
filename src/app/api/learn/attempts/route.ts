@@ -30,43 +30,85 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Process answers
-    let correctCount = 0;
+    // Process answers — matching questions count each pair as a separate point
+    let totalPoints = 0;
+    let correctPoints = 0;
     const answerRecords = [];
 
     for (const ans of answers) {
-      let isCorrect = false;
-
-      if (ans.selectedOptionId) {
-        const option = await prisma.questionOption.findUnique({
-          where: { id: ans.selectedOptionId },
-        });
-        isCorrect = option?.isCorrect || false;
-      } else if (ans.answerText) {
-        const question = await prisma.question.findUnique({
-          where: { id: ans.questionId },
-        });
-        isCorrect =
-          question?.correctAnswer?.toLowerCase().trim() ===
-          ans.answerText.toLowerCase().trim();
-      }
-
-      if (isCorrect) correctCount++;
-
-      answerRecords.push({
-        attemptId: attempt.id,
-        questionId: ans.questionId,
-        selectedOptionId: ans.selectedOptionId || null,
-        answerText: ans.answerText || null,
-        isCorrect,
+      // Look up the question to determine type
+      const question = await prisma.question.findUnique({
+        where: { id: ans.questionId },
       });
+
+      if (question?.type === "matching" && ans.answerText) {
+        // Matching: each correct pair = 1 point
+        try {
+          const correctPairs: { word: string; definition: string }[] = JSON.parse(
+            question.correctAnswer || "[]"
+          );
+          const learnerPairings: Record<string, string> = JSON.parse(
+            ans.answerText || "{}"
+          );
+          let pairsCorrect = 0;
+          for (const pair of correctPairs) {
+            if (learnerPairings[pair.word] === pair.definition) {
+              pairsCorrect++;
+            }
+          }
+          totalPoints += correctPairs.length;
+          correctPoints += pairsCorrect;
+          answerRecords.push({
+            attemptId: attempt.id,
+            questionId: ans.questionId,
+            selectedOptionId: null,
+            answerText: ans.answerText,
+            isCorrect: pairsCorrect === correctPairs.length,
+          });
+        } catch {
+          // If JSON parse fails, treat as wrong
+          totalPoints += 1;
+          answerRecords.push({
+            attemptId: attempt.id,
+            questionId: ans.questionId,
+            selectedOptionId: null,
+            answerText: ans.answerText || null,
+            isCorrect: false,
+          });
+        }
+      } else {
+        // Regular question: 1 point
+        totalPoints += 1;
+        let isCorrect = false;
+
+        if (ans.selectedOptionId) {
+          const option = await prisma.questionOption.findUnique({
+            where: { id: ans.selectedOptionId },
+          });
+          isCorrect = option?.isCorrect || false;
+        } else if (ans.answerText && question) {
+          isCorrect =
+            question.correctAnswer?.toLowerCase().trim() ===
+            ans.answerText.toLowerCase().trim();
+        }
+
+        if (isCorrect) correctPoints++;
+
+        answerRecords.push({
+          attemptId: attempt.id,
+          questionId: ans.questionId,
+          selectedOptionId: ans.selectedOptionId || null,
+          answerText: ans.answerText || null,
+          isCorrect,
+        });
+      }
     }
 
     // Save all answers
     await prisma.learnerAnswer.createMany({ data: answerRecords });
 
-    // Calculate score
-    const score = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
+    // Calculate score — total points includes matching pair counts
+    const score = totalPoints > 0 ? (correctPoints / totalPoints) * 100 : 0;
     const passed = score >= 80;
 
     // Update attempt
@@ -159,8 +201,8 @@ export async function POST(request: NextRequest) {
       attemptId: attempt.id,
       score,
       passed,
-      correctCount,
-      totalQuestions: answers.length,
+      correctCount: correctPoints,
+      totalQuestions: totalPoints,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
