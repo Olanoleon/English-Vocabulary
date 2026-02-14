@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Lock,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +66,7 @@ export default function TestPage({
     correctCount: number;
     totalQuestions: number;
   } | null>(null);
+  const [showAbortModal, setShowAbortModal] = useState(false);
 
   useEffect(() => {
     fetchSection();
@@ -357,7 +359,51 @@ export default function TestPage({
             {section.titleEs} · Question {currentIndex + 1} of {questions.length}
           </p>
         </div>
+        <button
+          onClick={() => setShowAbortModal(true)}
+          className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+          title="Quit test"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
+
+      {/* Abort Confirmation Modal */}
+      {showAbortModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-bold text-gray-900">Quit Test?</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-1">
+              Are you sure you want to quit this test attempt?
+            </p>
+            <p className="text-xs text-red-500 mb-4">
+              Your current progress will be lost and your score will not be saved.
+              You can retake the test at any time.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.push(`/learn/sections/${id}`)}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                Quit Test
+              </button>
+              <button
+                onClick={() => setShowAbortModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-1 bg-gray-100">
