@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { matchEmoji } from "@/lib/logo";
 
 export async function GET(
   _request: NextRequest,
@@ -57,6 +58,7 @@ export async function PUT(
         titleEs: body.titleEs,
         description: body.description,
         isActive: body.isActive,
+        ...(body.regenerateImage && body.title ? { imageUrl: matchEmoji(body.title) } : {}),
       },
     });
 

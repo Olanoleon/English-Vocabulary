@@ -11,6 +11,7 @@ import {
   EyeOff,
   X,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +115,27 @@ export default function AdminAreasPage() {
       }),
     });
 
+    if (res.ok) {
+      setEditArea(null);
+      fetchAreas();
+    }
+    setSaving(false);
+  }
+
+  async function regenerateAreaLogo() {
+    if (!editArea) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/areas/${editArea.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        nameEs: editNameEs,
+        description: editDesc || null,
+        isActive: editArea.isActive,
+        regenerateImage: true,
+      }),
+    });
     if (res.ok) {
       setEditArea(null);
       fetchAreas();
@@ -417,6 +439,15 @@ export default function AdminAreasPage() {
                 className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={regenerateAreaLogo}
+                disabled={saving}
+                className="flex items-center gap-1 px-3 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                title="Regenerate logo based on current name"
+              >
+                <RefreshCw className="w-4 h-4" />
               </button>
               <button
                 type="button"

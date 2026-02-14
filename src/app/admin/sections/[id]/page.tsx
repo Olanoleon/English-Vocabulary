@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -137,6 +138,19 @@ export default function SectionEditorPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, titleEs, description }),
     });
+    setSaving(false);
+  }
+
+  async function regenerateLogo() {
+    setSaving(true);
+    const res = await fetch(`/api/admin/sections/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, titleEs, description, regenerateImage: true }),
+    });
+    if (res.ok) {
+      fetchSection();
+    }
     setSaving(false);
   }
 
@@ -302,6 +316,15 @@ export default function SectionEditorPage({
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving..." : "Save"}
+          </button>
+          <button
+            onClick={regenerateLogo}
+            disabled={saving}
+            className="flex items-center gap-1 bg-white text-gray-600 border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+            title="Regenerate logo based on current title"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Logo
           </button>
           <button
             onClick={deleteSection}
