@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, BookOpen, Flame } from "lucide-react";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface Area {
   id: string;
@@ -19,11 +20,7 @@ export default function LearningAreasPage() {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = async () => {
     const [areasRes, meRes] = await Promise.all([
       fetch("/api/learn/areas"),
       fetch("/api/auth/me"),
@@ -37,7 +34,14 @@ export default function LearningAreasPage() {
       setDisplayName(me.displayName || "");
     }
     setLoading(false);
-  }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (loading) {
     return (
@@ -86,12 +90,12 @@ export default function LearningAreasPage() {
               </div>
             )}
             <div className="flex items-center gap-4">
-              {/* Emoji Icon */}
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 text-3xl ${
-                area.isHot ? "bg-orange-50" : "bg-primary-50"
-              }`}>
-                {area.imageUrl || "📘"}
-              </div>
+              {/* Area Logo */}
+              <LogoBadge
+                logo={area.imageUrl}
+                size="lg"
+                tone={area.isHot ? "orange" : "primary"}
+              />
 
               {/* Info */}
               <div className="flex-1 min-w-0">

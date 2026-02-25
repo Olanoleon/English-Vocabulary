@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 import {
   DndContext,
   closestCenter,
@@ -99,9 +100,12 @@ function SortableSectionCard({
       </button>
 
       {/* Unit Emoji or Number */}
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary-100 text-xl">
-        {section.imageUrl || String(index + 1).padStart(2, "0")}
-      </div>
+      <LogoBadge
+        logo={section.imageUrl}
+        fallback={String(index + 1).padStart(2, "0")}
+        size="md"
+        tone="primary"
+      />
 
       {/* Info */}
       <div className="flex-1 min-w-0">
@@ -144,9 +148,12 @@ function DragOverlayCard({
       <div className="p-1 -ml-1 text-primary-500">
         <GripVertical className="w-5 h-5" />
       </div>
-      <div className="bg-primary-100 text-primary-700 rounded-lg w-10 h-10 flex items-center justify-center text-sm font-bold flex-shrink-0">
-        {String(index + 1).padStart(2, "0")}
-      </div>
+      <LogoBadge
+        logo={section.imageUrl}
+        fallback={String(index + 1).padStart(2, "0")}
+        size="md"
+        tone="primary"
+      />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">{section.title}</p>
         <p className="text-xs text-gray-500 truncate">
@@ -439,9 +446,7 @@ export default function AreaUnitsPage({
           All Areas
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
-            {area.imageUrl || "📘"}
-          </div>
+          <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{area.name}</h2>
             <p className="text-sm text-gray-500">{area.nameEs}</p>

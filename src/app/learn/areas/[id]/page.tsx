@@ -12,6 +12,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface SectionProgress {
   introCompleted: boolean;
@@ -124,9 +125,7 @@ export default function AreaLearningPathPage({
         </button>
         {area ? (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
-              {area.imageUrl || "📘"}
-            </div>
+            <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{area.name}</h1>
               <p className="text-xs text-gray-400">{area.nameEs}</p>
@@ -219,11 +218,12 @@ export default function AreaLearningPathPage({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {section.imageUrl && (
-                          <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-lg">
-                            {section.imageUrl}
-                          </div>
-                        )}
+                        <LogoBadge
+                          logo={section.imageUrl}
+                          fallback={String(index + 1).padStart(2, "0")}
+                          size="sm"
+                          tone="primary"
+                        />
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-xs text-primary-600 uppercase font-medium">

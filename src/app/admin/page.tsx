@@ -9,6 +9,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 import {
   DndContext,
   closestCenter,
@@ -80,10 +81,8 @@ function SortableAreaCard({
           <GripVertical className="w-5 h-5" />
         </button>
 
-        {/* Emoji Icon */}
-        <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
-          {area.imageUrl || "📘"}
-        </div>
+        {/* Area Logo */}
+        <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
 
         {/* Info */}
         <div className="flex-1 min-w-0">
@@ -120,9 +119,7 @@ function AreaDragOverlayCard({ area }: { area: Area }) {
         <div className="p-1 -ml-1 text-primary-500">
           <GripVertical className="w-5 h-5" />
         </div>
-        <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0 text-2xl">
-          {area.imageUrl || "📘"}
-        </div>
+        <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{area.name}</p>
           <p className="text-xs text-gray-500 truncate">
