@@ -9,6 +9,7 @@ import {
   ShieldOff,
   ShieldAlert,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -153,6 +154,7 @@ function AccessControl({
 export default function LearnersPage() {
   const [learners, setLearners] = useState<Learner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -219,6 +221,14 @@ export default function LearnersPage() {
 
   const activeCount = learners.filter((l) => l.hasAccess).length;
   const blockedCount = learners.filter((l) => !l.hasAccess).length;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredLearners = learners.filter((learner) => {
+    if (!normalizedSearch) return true;
+    return (
+      learner.displayName.toLowerCase().includes(normalizedSearch) ||
+      learner.username.toLowerCase().includes(normalizedSearch)
+    );
+  });
 
   return (
     <div className="px-4 py-6">
@@ -316,9 +326,30 @@ export default function LearnersPage() {
         </div>
       )}
 
+      {/* Search */}
+      {learners.length > 0 && (
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search learners by name or username"
+              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+          {normalizedSearch && (
+            <p className="text-xs text-gray-500 mt-1">
+              Showing {filteredLearners.length} of {learners.length} learners
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Learners List */}
       <div className="space-y-3">
-        {learners.map((learner) => {
+        {filteredLearners.map((learner) => {
           const completedSections = learner.sectionProgress.filter(
             (p) => p.testPassed
           ).length;
@@ -395,6 +426,14 @@ export default function LearnersPage() {
           );
         })}
       </div>
+
+      {learners.length > 0 && filteredLearners.length === 0 && (
+        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl">
+          <p className="text-sm text-gray-500">
+            No learners match "<span className="font-medium">{search}</span>"
+          </p>
+        </div>
+      )}
 
       {learners.length === 0 && !showCreate && (
         <div className="text-center py-12">
