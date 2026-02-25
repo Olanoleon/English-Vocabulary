@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 // GET /api/admin/payments — list all learners with payment info
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
+    const { searchParams } = new URL(request.url);
+    const requestedOrgId = searchParams.get("organizationId");
+
+    const where: {
+      role: string;
+      organizationId?: string;
+    } = { role: "learner" };
+    if (session.role === "org_admin") {
+      if (!session.organizationId) {
+        return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
+      }
+      where.organizationId = session.organizationId;
+    } else if (requestedOrgId) {
+      where.organizationId = requestedOrgId;
+    }
 
     const learners = await prisma.user.findMany({
-      where: { role: "learner" },
+      where,
       orderBy: { displayName: "asc" },
       select: {
         id: true,
@@ -65,7 +80,7 @@ export async function GET() {
 // POST /api/admin/payments — record a payment for a learner
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { userId, amount, note } = await request.json();
 
     if (!userId || amount === undefined) {
@@ -78,6 +93,12 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== "learner") {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      user.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const now = new Date();

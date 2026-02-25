@@ -1,18 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
+    const url = new URL(request.url);
+    const requestedOrgId = url.searchParams.get("organizationId");
+
+    // org_admin can only query learners in their own org.
+    // super_admin/admin can query all learners, or a specific org via query param.
+    const learnerWhere: {
+      role: string;
+      organizationId?: string;
+    } = { role: "learner" };
+    if (session.role === "org_admin") {
+      if (!session.organizationId) {
+        return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
+      }
+      learnerWhere.organizationId = session.organizationId;
+    } else if (requestedOrgId) {
+      learnerWhere.organizationId = requestedOrgId;
+    }
+
     const learners = await prisma.user.findMany({
-      where: { role: "learner" },
+      where: learnerWhere,
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
         username: true,
         displayName: true,
+        organizationId: true,
         createdAt: true,
         monthlyRate: true,
         nextPaymentDue: true,
@@ -72,14 +91,48 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
-    const { username, password, displayName } = await request.json();
+    const session = await requireOrgAdminOrSuperAdmin();
+    const { username, password, displayName, organizationId } = await request.json();
 
     if (!username || !password || !displayName) {
       return NextResponse.json(
         { error: "Username, password, and display name are required" },
         { status: 400 }
       );
+    }
+
+    // Determine target org:
+    // - org_admin: forced to own org
+    // - super_admin/admin: can pass organizationId, else defaults to fallback "Independent" org
+    let targetOrgId: string | null = null;
+    if (session.role === "org_admin") {
+      if (!session.organizationId) {
+        return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
+      }
+      targetOrgId = session.organizationId;
+    } else {
+      targetOrgId = organizationId || null;
+      if (!targetOrgId) {
+        const defaultOrg = await prisma.organization.findUnique({
+          where: { slug: "default-organization" },
+          select: { id: true },
+        });
+        if (!defaultOrg) {
+          return NextResponse.json(
+            { error: "No target organization provided and default organization not found" },
+            { status: 400 }
+          );
+        }
+        targetOrgId = defaultOrg.id;
+      }
+    }
+
+    const org = await prisma.organization.findUnique({
+      where: { id: targetOrgId },
+      select: { id: true, isActive: true },
+    });
+    if (!org || !org.isActive) {
+      return NextResponse.json({ error: "Invalid or inactive organization" }, { status: 400 });
     }
 
     // Check existing
@@ -101,18 +154,29 @@ export async function POST(request: NextRequest) {
         passwordHash,
         role: "learner",
         displayName,
+        organizationId: targetOrgId,
       },
       select: {
         id: true,
         username: true,
         displayName: true,
+        organizationId: true,
         createdAt: true,
       },
     });
 
-    // Auto-unlock first section
+    // Auto-unlock first section visible to the learner's org
     const firstSection = await prisma.section.findFirst({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        area: {
+          isActive: true,
+          OR: [
+            { scopeType: "global" },
+            { scopeType: "org", organizationId: targetOrgId },
+          ],
+        },
+      },
       orderBy: { sortOrder: "asc" },
     });
 

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface SectionData {
   id: string;
+  areaId: string;
   title: string;
   titleEs: string;
   modules: {
@@ -73,6 +74,7 @@ export default function SectionDetailPage({
   }
 
   const progress = section.progress;
+  const backHref = `/learn/areas/${section.areaId}`;
   const introModule = section.modules.find((m) => m.type === "introduction");
   const practiceModule = section.modules.find((m) => m.type === "practice");
   const testModule = section.modules.find((m) => m.type === "test");
@@ -130,7 +132,7 @@ export default function SectionDetailPage({
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
         <button
-          onClick={() => router.push("/learn")}
+          onClick={() => router.push(backHref)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-5 h-5" />

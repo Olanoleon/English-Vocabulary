@@ -135,8 +135,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Learner — go straight in
-      router.push(data.role === "admin" ? "/admin" : "/learn");
+      // Route by role
+      const isAdminRole =
+        data.role === "admin" ||
+        data.role === "super_admin" ||
+        data.role === "org_admin";
+      router.push(isAdminRole ? "/admin" : "/learn");
       router.refresh();
     } catch {
       setError("Connection error. Please try again.");

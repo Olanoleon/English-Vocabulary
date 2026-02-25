@@ -1,19 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const body = await request.json();
     const { type, prompt, correctAnswer, vocabularyId, options } = body;
 
+    const existing = await prisma.question.findUnique({
+      where: { id },
+      include: {
+        module: {
+          include: {
+            section: {
+              include: {
+                area: {
+                  select: {
+                    scopeType: true,
+                    organizationId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Question not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      (existing.module.section.area.scopeType !== "org" ||
+        existing.module.section.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Update question
-    const question = await prisma.question.update({
+    await prisma.question.update({
       where: { id },
       data: {
         type,
@@ -58,8 +88,39 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
+
+    const existing = await prisma.question.findUnique({
+      where: { id },
+      include: {
+        module: {
+          include: {
+            section: {
+              include: {
+                area: {
+                  select: {
+                    scopeType: true,
+                    organizationId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Question not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      (existing.module.section.area.scopeType !== "org" ||
+        existing.module.section.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await prisma.question.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

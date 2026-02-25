@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,9 +8,13 @@ import {
   GripVertical,
   Pencil,
   Eye,
+  EyeOff,
   BookOpen,
   Sparkles,
   Loader2,
+  RefreshCw,
+  Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -36,7 +40,9 @@ interface Area {
   id: string;
   name: string;
   nameEs: string;
+  description: string | null;
   imageUrl: string | null;
+  isActive: boolean;
 }
 
 interface Section {
@@ -165,6 +171,14 @@ export default function AreaUnitsPage({
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [apiError, setApiError] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editNameEs, setEditNameEs] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [showEditAreaModal, setShowEditAreaModal] = useState(false);
+  const [savingArea, setSavingArea] = useState(false);
+  const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
+  const [deletingArea, setDeletingArea] = useState(false);
 
   // AI generation form
   const [topic, setTopic] = useState("");
@@ -186,27 +200,147 @@ export default function AreaUnitsPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaId]);
 
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and return fallback.
+    }
+    return fallback;
+  }
+
   async function fetchData() {
+    setApiError("");
     const [areaRes, sectionsRes] = await Promise.all([
       fetch(`/api/admin/areas/${areaId}`),
       fetch(`/api/admin/sections?areaId=${areaId}`),
     ]);
 
-    if (areaRes.ok) setArea(await areaRes.json());
-    if (sectionsRes.ok) setSections(await sectionsRes.json());
+    if (areaRes.ok) {
+      const areaData = (await areaRes.json()) as Area;
+      setArea(areaData);
+      setEditName(areaData.name);
+      setEditNameEs(areaData.nameEs);
+      setEditDesc(areaData.description || "");
+    } else {
+      setArea(null);
+      setApiError(
+        await readApiError(
+          areaRes,
+          areaRes.status === 403
+            ? "You do not have access to this area."
+            : "Failed to load area."
+        )
+      );
+    }
+
+    if (sectionsRes.ok) {
+      setSections(await sectionsRes.json());
+    } else {
+      setSections([]);
+      setApiError(await readApiError(sectionsRes, "Failed to load area units."));
+    }
     setLoading(false);
   }
 
-  const persistOrder = useCallback(
-    async (newSections: Section[]) => {
-      await fetch("/api/admin/sections/reorder", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderedIds: newSections.map((s) => s.id) }),
-      });
-    },
-    []
-  );
+  async function persistOrder(newSections: Section[]) {
+    setApiError("");
+    const res = await fetch("/api/admin/sections/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: newSections.map((s) => s.id) }),
+    });
+    if (!res.ok) {
+      setApiError(await readApiError(res, "Failed to save unit order."));
+      await fetchData();
+    }
+  }
+
+  async function saveAreaEdits(e: React.FormEvent) {
+    e.preventDefault();
+    if (!area) return;
+    setSavingArea(true);
+    setApiError("");
+    const res = await fetch(`/api/admin/areas/${area.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        nameEs: editNameEs,
+        description: editDesc || null,
+        isActive: area.isActive,
+      }),
+    });
+
+    if (res.ok) {
+      setShowEditAreaModal(false);
+      await fetchData();
+    } else {
+      setApiError(await readApiError(res, "Failed to update area."));
+    }
+    setSavingArea(false);
+  }
+
+  async function regenerateAreaLogo() {
+    if (!area) return;
+    setSavingArea(true);
+    setApiError("");
+    const res = await fetch(`/api/admin/areas/${area.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        nameEs: editNameEs,
+        description: editDesc || null,
+        isActive: area.isActive,
+        regenerateImage: true,
+      }),
+    });
+
+    if (res.ok) {
+      setShowEditAreaModal(false);
+      await fetchData();
+    } else {
+      setApiError(await readApiError(res, "Failed to regenerate area logo."));
+    }
+    setSavingArea(false);
+  }
+
+  async function toggleAreaVisibility() {
+    if (!area) return;
+    setApiError("");
+    const res = await fetch(`/api/admin/areas/${area.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: area.name,
+        nameEs: area.nameEs,
+        description: area.description,
+        isActive: !area.isActive,
+      }),
+    });
+    if (res.ok) {
+      await fetchData();
+    } else {
+      setApiError(await readApiError(res, "Failed to update area visibility."));
+    }
+  }
+
+  async function deleteArea() {
+    if (!area) return;
+    setDeletingArea(true);
+    setApiError("");
+    const res = await fetch(`/api/admin/areas/${area.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/admin");
+    } else {
+      setApiError(await readApiError(res, "Failed to delete area."));
+    }
+    setDeletingArea(false);
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string);
@@ -228,6 +362,7 @@ export default function AreaUnitsPage({
     e.preventDefault();
     setGenerating(true);
     setGenError("");
+    setApiError("");
     setGenProgress("Sending topic to AI...");
 
     try {
@@ -311,6 +446,57 @@ export default function AreaUnitsPage({
             <h2 className="text-2xl font-bold text-gray-900">{area.name}</h2>
             <p className="text-sm text-gray-500">{area.nameEs}</p>
           </div>
+        </div>
+      </div>
+      {apiError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {apiError}
+        </div>
+      )}
+
+      <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+          Area Settings
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAreaVisibility}
+            className={cn(
+              "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold border",
+              area.isActive
+                ? "bg-green-50 border-green-200 text-green-700"
+                : "bg-gray-50 border-gray-200 text-gray-600"
+            )}
+          >
+            {area.isActive ? (
+              <>
+                <Eye className="w-3.5 h-3.5" />
+                Visible
+              </>
+            ) : (
+              <>
+                <EyeOff className="w-3.5 h-3.5" />
+                Hidden
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowEditAreaModal(true)}
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDeleteAreaModal(true)}
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
         </div>
       </div>
 
@@ -506,6 +692,118 @@ export default function AreaUnitsPage({
         <div className="text-center py-12">
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No units yet. Generate your first one!</p>
+        </div>
+      )}
+
+      {showEditAreaModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={saveAreaEdits}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">Edit Area</h3>
+              <button
+                type="button"
+                onClick={() => setShowEditAreaModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Name (English)
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Name (Spanish)
+                </label>
+                <input
+                  type="text"
+                  value={editNameEs}
+                  onChange={(e) => setEditNameEs(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="submit"
+                disabled={savingArea}
+                className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
+              >
+                {savingArea ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={regenerateAreaLogo}
+                disabled={savingArea}
+                className="flex items-center gap-1 px-3 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                title="Regenerate logo based on current name"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEditAreaModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showDeleteAreaModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+            <h3 className="font-bold text-gray-900 mb-2">Delete Area</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              Are you sure you want to delete <span className="font-semibold">{area.name}</span>?
+            </p>
+            <p className="text-xs text-red-500 mb-4">
+              This will permanently delete this area and all units inside it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={deleteArea}
+                disabled={deletingArea}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingArea ? "Deleting..." : "Delete Area"}
+              </button>
+              <button
+                onClick={() => setShowDeleteAreaModal(false)}
+                disabled={deletingArea}
+                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,15 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const body = await request.json();
     const { moduleId, vocabularyId, type, prompt, correctAnswer, options } = body;
 
     if (!moduleId || !type || !prompt) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const targetModule = await prisma.module.findUnique({
+      where: { id: moduleId },
+      include: {
+        section: {
+          include: {
+            area: {
+              select: {
+                scopeType: true,
+                organizationId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!targetModule) {
+      return NextResponse.json({ error: "Module not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      (targetModule.section.area.scopeType !== "org" ||
+        targetModule.section.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get next sort order

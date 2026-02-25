@@ -229,6 +229,7 @@ export default function UnitPreviewPage({
   const router = useRouter();
   const [section, setSection] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("intro");
 
   useEffect(() => {
@@ -236,10 +237,38 @@ export default function UnitPreviewPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and return fallback.
+    }
+    return fallback;
+  }
+
   async function fetchSection() {
-    const res = await fetch(`/api/admin/sections/${id}`);
-    if (res.ok) {
-      setSection(await res.json());
+    setApiError("");
+    try {
+      const res = await fetch(`/api/admin/sections/${id}`);
+      if (res.ok) {
+        setSection(await res.json());
+      } else {
+        setSection(null);
+        setApiError(
+          await readApiError(
+            res,
+            res.status === 403
+              ? "You do not have access to this unit."
+              : "Failed to load unit preview."
+          )
+        );
+      }
+    } catch {
+      setSection(null);
+      setApiError("Connection error. Please try again.");
     }
     setLoading(false);
   }
@@ -337,6 +366,11 @@ export default function UnitPreviewPage({
           Edit
         </button>
       </div>
+      {apiError && (
+        <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {apiError}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="bg-white border-b border-gray-100 px-4 py-2 flex gap-1">

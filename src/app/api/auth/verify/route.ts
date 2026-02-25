@@ -20,10 +20,19 @@ export async function POST(request: NextRequest) {
     if (resend) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, username: true, displayName: true, role: true },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          role: true,
+          organizationId: true,
+        },
       });
 
-      if (!user || user.role !== "admin") {
+      if (
+        !user ||
+        (user.role !== "super_admin" && user.role !== "admin")
+      ) {
         return NextResponse.json(
           { error: "Invalid request" },
           { status: 400 }
@@ -33,7 +42,9 @@ export async function POST(request: NextRequest) {
       const newCode = createVerificationCode(
         user.id,
         user.username,
-        user.displayName
+        user.displayName,
+        user.role,
+        user.organizationId || null
       );
 
       try {
@@ -64,18 +75,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Code is valid — create admin session
+    // Code is valid — create privileged session
     const response = NextResponse.json({
       success: true,
-      role: "admin",
+      role: result.role,
       displayName: result.displayName,
     });
 
     const session = await getIronSession<SessionData>(request, response, sessionOptions);
     session.userId = result.userId;
     session.username = result.username;
-    session.role = "admin";
+    session.role = result.role;
     session.displayName = result.displayName;
+    session.organizationId = result.organizationId || null;
     session.isLoggedIn = true;
     await session.save();
 

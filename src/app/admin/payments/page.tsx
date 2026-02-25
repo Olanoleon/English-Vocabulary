@@ -37,6 +37,17 @@ interface Learner {
   payments: PaymentRecord[];
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface SessionMe {
+  role: string;
+  organizationId: string | null;
+}
+
 type FilterTab = "all" | "settled" | "past_due" | "free_trial";
 
 const STATUS_CONFIG: Record<
@@ -101,10 +112,12 @@ function RecordPaymentForm({
   learner,
   onClose,
   onSaved,
+  onError,
 }: {
   learner: Learner;
   onClose: () => void;
   onSaved: () => void;
+  onError: (message: string) => void;
 }) {
   const [amount, setAmount] = useState(
     learner.monthlyRate > 0 ? String(learner.monthlyRate) : ""
@@ -126,6 +139,8 @@ function RecordPaymentForm({
     });
     if (res.ok) {
       onSaved();
+    } else {
+      onError("Failed to record payment.");
     }
     setSaving(false);
   }
@@ -198,10 +213,12 @@ function EditRateForm({
   learner,
   onClose,
   onSaved,
+  onError,
 }: {
   learner: Learner;
   onClose: () => void;
   onSaved: () => void;
+  onError: (message: string) => void;
 }) {
   const [rate, setRate] = useState(String(learner.monthlyRate));
   const [saving, setSaving] = useState(false);
@@ -216,6 +233,8 @@ function EditRateForm({
     });
     if (res.ok) {
       onSaved();
+    } else {
+      onError("Failed to update monthly rate.");
     }
     setSaving(false);
   }
@@ -416,31 +435,96 @@ function LearnerCard({
 
 export default function PaymentsPage() {
   const [learners, setLearners] = useState<Learner[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [sessionMe, setSessionMe] = useState<SessionMe | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [paymentTarget, setPaymentTarget] = useState<Learner | null>(null);
   const [rateTarget, setRateTarget] = useState<Learner | null>(null);
+  const [apiError, setApiError] = useState("");
 
   useEffect(() => {
-    fetchData();
+    const timer = window.setTimeout(() => {
+      void initialize();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fetchData() {
-    const res = await fetch("/api/admin/payments");
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and return fallback.
+    }
+    return fallback;
+  }
+
+  async function initialize() {
+    setApiError("");
+    try {
+      const [meRes, orgRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/admin/organizations?activeOnly=true"),
+      ]);
+
+      let me: SessionMe | null = null;
+      if (meRes.ok) {
+        const meData = (await meRes.json()) as SessionMe;
+        me = meData;
+        setSessionMe({
+          role: meData.role,
+          organizationId: meData.organizationId ?? null,
+        });
+      } else {
+        setApiError(await readApiError(meRes, "Failed to load session."));
+      }
+
+      if (orgRes.ok) {
+        const orgs = (await orgRes.json()) as Organization[];
+        setOrganizations(orgs);
+      } else {
+        setOrganizations([]);
+        setApiError(await readApiError(orgRes, "Failed to load organizations."));
+      }
+
+      const initialOrgId =
+        me?.role === "org_admin"
+          ? me.organizationId || ""
+          : "";
+      setSelectedOrgId(initialOrgId);
+      await fetchData(initialOrgId || undefined);
+    } catch {
+      setApiError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchData(orgId?: string) {
+    setApiError("");
+    const query = orgId ? `?organizationId=${encodeURIComponent(orgId)}` : "";
+    const res = await fetch(`/api/admin/payments${query}`);
     if (res.ok) {
       setLearners(await res.json());
+    } else {
+      setLearners([]);
+      setApiError(await readApiError(res, "Failed to load payments."));
     }
-    setLoading(false);
   }
 
   function handlePaymentSaved() {
     setPaymentTarget(null);
-    fetchData();
+    void fetchData(selectedOrgId || undefined);
   }
 
   function handleRateSaved() {
     setRateTarget(null);
-    fetchData();
+    void fetchData(selectedOrgId || undefined);
   }
 
   const filtered = useMemo(() => {
@@ -486,6 +570,36 @@ export default function PaymentsPage() {
           Track and manage monthly learner payments
         </p>
       </div>
+      {apiError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {apiError}
+        </div>
+      )}
+
+      {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
+        organizations.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Organization Scope
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => {
+                const orgId = e.target.value;
+                setSelectedOrgId(orgId);
+                void fetchData(orgId || undefined);
+              }}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            >
+              <option value="">All organizations</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -565,6 +679,7 @@ export default function PaymentsPage() {
           learner={paymentTarget}
           onClose={() => setPaymentTarget(null)}
           onSaved={handlePaymentSaved}
+          onError={setApiError}
         />
       )}
       {rateTarget && (
@@ -572,6 +687,7 @@ export default function PaymentsPage() {
           learner={rateTarget}
           onClose={() => setRateTarget(null)}
           onSaved={handleRateSaved}
+          onError={setApiError}
         />
       )}
     </div>

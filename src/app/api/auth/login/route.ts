@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { username: username.toLowerCase().trim() },
+      select: {
+        id: true,
+        username: true,
+        passwordHash: true,
+        role: true,
+        displayName: true,
+        organizationId: true,
+      },
     });
 
     if (!user) {
@@ -36,12 +44,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Admin: require email verification ──────────────────────────────
-    if (user.role === "admin") {
+    // ── Super Admin: require email verification ───────────────────────
+    // Keep legacy "admin" support during migration.
+    if (user.role === "super_admin" || user.role === "admin") {
       const code = createVerificationCode(
         user.id,
         user.username,
-        user.displayName
+        user.displayName,
+        user.role,
+        user.organizationId || null
       );
 
       try {
@@ -71,6 +82,7 @@ export async function POST(request: NextRequest) {
     session.username = user.username;
     session.role = user.role;
     session.displayName = user.displayName;
+    session.organizationId = user.organizationId || null;
     session.isLoggedIn = true;
     await session.save();
 

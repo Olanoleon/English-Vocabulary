@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
+    const orgId = session.organizationId || null;
     const { moduleId, answers } = await request.json();
 
     if (!moduleId || !answers || !Array.isArray(answers)) {
@@ -14,11 +15,46 @@ export async function POST(request: NextRequest) {
     // Get the module to find section
     const module = await prisma.module.findUnique({
       where: { id: moduleId },
-      include: { section: true },
+      include: {
+        section: {
+          include: {
+            area: {
+              include: {
+                orgConfigs: {
+                  where: { organizationId: orgId || "__no_org__" },
+                  take: 1,
+                },
+              },
+            },
+            orgConfigs: {
+              where: { organizationId: orgId || "__no_org__" },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
     if (!module) {
       return NextResponse.json({ error: "Module not found" }, { status: 404 });
+    }
+
+    const scopeAllowed =
+      module.section.isActive &&
+      module.section.area.isActive &&
+      (module.section.area.scopeType === "global" ||
+        (orgId !== null &&
+          module.section.area.scopeType === "org" &&
+          module.section.area.organizationId === orgId));
+    if (!scopeAllowed) {
+      return NextResponse.json({ error: "Section not available" }, { status: 403 });
+    }
+    if (orgId) {
+      const areaCfg = module.section.area.orgConfigs[0];
+      const sectionCfg = module.section.orgConfigs[0];
+      if ((areaCfg && !areaCfg.isVisible) || (sectionCfg && !sectionCfg.isVisible)) {
+        return NextResponse.json({ error: "Section not available" }, { status: 403 });
+      }
     }
 
     // Create attempt
@@ -146,13 +182,36 @@ export async function POST(request: NextRequest) {
 
       // If passed, unlock next section
       if (passed) {
-        const nextSection = await prisma.section.findFirst({
+        // Scope next unlock to the same area and org-visible sections only.
+        const areaSections = await prisma.section.findMany({
           where: {
             isActive: true,
-            sortOrder: { gt: module.section.sortOrder },
+            areaId: module.section.areaId,
           },
           orderBy: { sortOrder: "asc" },
+          include: {
+            orgConfigs: {
+              where: { organizationId: orgId || "__no_org__" },
+              take: 1,
+            },
+          },
         });
+
+        const visibleAreaSections = areaSections
+          .filter((s) => {
+            if (!orgId) return true;
+            const cfg = s.orgConfigs[0];
+            return cfg ? cfg.isVisible : true;
+          })
+          .sort((a, b) => {
+            const aOrder = orgId ? (a.orgConfigs[0]?.sortOrder ?? a.sortOrder) : a.sortOrder;
+            const bOrder = orgId ? (b.orgConfigs[0]?.sortOrder ?? b.sortOrder) : b.sortOrder;
+            return aOrder - bOrder;
+          });
+
+        const currentIndex = visibleAreaSections.findIndex((s) => s.id === module.sectionId);
+        const nextSection =
+          currentIndex >= 0 ? visibleAreaSections[currentIndex + 1] : null;
 
         if (nextSection) {
           await prisma.learnerSectionProgress.upsert({

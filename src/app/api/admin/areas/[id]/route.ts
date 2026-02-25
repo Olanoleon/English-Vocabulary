@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { matchEmoji } from "@/lib/logo";
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
 
     const area = await prisma.area.findUnique({
@@ -20,6 +20,12 @@ export async function GET(
 
     if (!area) {
       return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      !(area.scopeType === "global" || area.organizationId === session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(area);
@@ -37,9 +43,23 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const body = await request.json();
+
+    const existing = await prisma.area.findUnique({
+      where: { id },
+      select: { id: true, scopeType: true, organizationId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      existing.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const area = await prisma.area.update({
       where: { id },
@@ -67,8 +87,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
+
+    const existing = await prisma.area.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, scopeType: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    }
+    // org_admin can only delete org-owned areas in their own org.
+    if (
+      session.role === "org_admin" &&
+      existing.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await prisma.area.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

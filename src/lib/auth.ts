@@ -7,6 +7,7 @@ export interface SessionData {
   username: string;
   role: string;
   displayName: string;
+  organizationId?: string | null;
   isLoggedIn: boolean;
 }
 
@@ -36,7 +37,30 @@ export async function requireAuth() {
 
 export async function requireAdmin() {
   const session = await requireAuth();
-  if (session.role !== "admin") {
+  // Legacy "admin" remains supported during migration.
+  if (session.role !== "admin" && session.role !== "super_admin") {
+    throw new Error("Forbidden");
+  }
+  return session;
+}
+
+export async function requireSuperAdmin() {
+  const session = await requireAuth();
+  // Legacy "admin" remains supported during migration.
+  if (session.role !== "super_admin" && session.role !== "admin") {
+    throw new Error("Forbidden");
+  }
+  return session;
+}
+
+export async function requireOrgAdminOrSuperAdmin() {
+  const session = await requireAuth();
+  // Legacy "admin" remains supported during migration.
+  if (
+    session.role !== "org_admin" &&
+    session.role !== "super_admin" &&
+    session.role !== "admin"
+  ) {
     throw new Error("Forbidden");
   }
   return session;
@@ -87,7 +111,14 @@ export async function checkLearnerAccess(userId: string): Promise<{
  */
 export async function requireLearnerAccess() {
   const session = await requireAuth();
-  if (session.role === "admin") return session; // admins always have access
+  // Admin roles can access learner pages for preview/support workflows.
+  if (
+    session.role === "admin" ||
+    session.role === "super_admin" ||
+    session.role === "org_admin"
+  ) {
+    return session;
+  }
 
   const access = await checkLearnerAccess(session.userId);
   if (!access.hasAccess) {

@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
+
+    // Org admins can only manage learners in their own organization.
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, organizationId: true },
+    });
+    if (!target || target.role !== "learner") {
+      return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      target.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     await prisma.user.delete({ where: { id } });
     return NextResponse.json({ success: true });
@@ -27,9 +43,23 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const body = await request.json();
+
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, organizationId: true },
+    });
+    if (!target || target.role !== "learner") {
+      return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      target.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const updateData: Record<string, unknown> = {};
 
@@ -43,6 +73,27 @@ export async function PATCH(
         );
       }
       updateData.accessOverride = body.accessOverride;
+    }
+
+    if (body.password !== undefined) {
+      const newPassword = String(body.password || "").trim();
+      if (session.role === "org_admin") {
+        return NextResponse.json(
+          { error: "Only super admin can change learner passwords" },
+          { status: 403 }
+        );
+      }
+      if (newPassword.length < 4) {
+        return NextResponse.json(
+          { error: "Password must be at least 4 characters" },
+          { status: 400 }
+        );
+      }
+      updateData.passwordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
     const user = await prisma.user.update({

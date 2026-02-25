@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 /** Shuffle an array (Fisher-Yates) */
 function shuffleArray<T>(array: T[]): T[] {
@@ -134,7 +134,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
 
     // 1. Fetch the section with its vocabulary and modules
@@ -142,6 +142,12 @@ export async function POST(
       where: { id },
       include: {
         modules: true,
+        area: {
+          select: {
+            scopeType: true,
+            organizationId: true,
+          },
+        },
         sectionVocabulary: {
           include: { vocabulary: true },
           orderBy: { sortOrder: "asc" },
@@ -151,6 +157,12 @@ export async function POST(
 
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      (section.area.scopeType !== "org" || section.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const practiceModule = section.modules.find((m) => m.type === "practice");

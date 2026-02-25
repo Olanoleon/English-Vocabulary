@@ -16,5 +16,6 @@ export async function GET(request: NextRequest) {
     username: session.username,
     role: session.role,
     displayName: session.displayName,
+    organizationId: session.organizationId ?? null,
   });
 }

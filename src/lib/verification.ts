@@ -6,6 +6,8 @@ interface PendingCode {
   userId: string;
   username: string;
   displayName: string;
+  role: string;
+  organizationId: string | null;
 }
 
 // In-memory store — codes are ephemeral (5 min TTL)
@@ -20,7 +22,9 @@ const CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export function createVerificationCode(
   userId: string,
   username: string,
-  displayName: string
+  displayName: string,
+  role: string,
+  organizationId: string | null
 ): string {
   // Generate cryptographically random 6-digit code
   const code = String(crypto.randomInt(100000, 999999));
@@ -31,6 +35,8 @@ export function createVerificationCode(
     userId,
     username,
     displayName,
+    role,
+    organizationId,
   });
 
   // Clean up expired codes periodically
@@ -46,7 +52,13 @@ export function createVerificationCode(
 export function verifyCode(
   userId: string,
   code: string
-): { userId: string; username: string; displayName: string } | null {
+): {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+  organizationId: string | null;
+} | null {
   const pending = pendingCodes.get(userId);
 
   if (!pending) return null;
@@ -62,6 +74,8 @@ export function verifyCode(
     userId: pending.userId,
     username: pending.username,
     displayName: pending.displayName,
+    role: pending.role,
+    organizationId: pending.organizationId,
   };
 }
 

@@ -114,6 +114,7 @@ export default function SectionEditorPage({
   const [showRegenModal, setShowRegenModal] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [regenError, setRegenError] = useState("");
+  const [apiError, setApiError] = useState("");
 
   useEffect(() => {
     fetchSection();
@@ -121,34 +122,64 @@ export default function SectionEditorPage({
   }, [id]);
 
   async function fetchSection() {
-    const res = await fetch(`/api/admin/sections/${id}`);
-    if (res.ok) {
-      const data: SectionDetail = await res.json();
-      setSection(data);
-      setTitle(data.title);
-      setTitleEs(data.titleEs);
-      setDescription(data.description || "");
-      const introModule = data.modules.find((m) => m.type === "introduction");
-      if (introModule?.content) {
-        const content = introModule.content as { readingTitle?: string; readingText?: string };
-        setReadingTitle(content.readingTitle || "");
-        setReadingText(content.readingText || "");
+    setApiError("");
+    try {
+      const res = await fetch(`/api/admin/sections/${id}`);
+      if (res.ok) {
+        const data: SectionDetail = await res.json();
+        setSection(data);
+        setTitle(data.title);
+        setTitleEs(data.titleEs);
+        setDescription(data.description || "");
+        const introModule = data.modules.find((m) => m.type === "introduction");
+        if (introModule?.content) {
+          const content = introModule.content as { readingTitle?: string; readingText?: string };
+          setReadingTitle(content.readingTitle || "");
+          setReadingText(content.readingText || "");
+        }
+      } else {
+        const message = await readApiError(
+          res,
+          res.status === 403 ? "You do not have access to this unit." : "Failed to load unit."
+        );
+        setApiError(message);
+        setSection(null);
       }
+    } catch {
+      setApiError("Connection error. Please try again.");
+      setSection(null);
     }
     setLoading(false);
   }
 
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and use fallback.
+    }
+    return fallback;
+  }
+
   async function saveSection() {
+    setApiError("");
     setSaving(true);
-    await fetch(`/api/admin/sections/${id}`, {
+    const res = await fetch(`/api/admin/sections/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, titleEs, description }),
     });
+    if (!res.ok) {
+      setApiError(await readApiError(res, "Failed to save unit."));
+    }
     setSaving(false);
   }
 
   async function regenerateLogo() {
+    setApiError("");
     setSaving(true);
     const res = await fetch(`/api/admin/sections/${id}`, {
       method: "PUT",
@@ -157,6 +188,8 @@ export default function SectionEditorPage({
     });
     if (res.ok) {
       fetchSection();
+    } else {
+      setApiError(await readApiError(res, "Failed to regenerate logo."));
     }
     setSaving(false);
   }
@@ -184,19 +217,24 @@ export default function SectionEditorPage({
   async function saveIntroContent() {
     const introModule = section?.modules.find((m) => m.type === "introduction");
     if (!introModule) return;
+    setApiError("");
     setSaving(true);
-    await fetch(`/api/admin/modules/${introModule.id}`, {
+    const res = await fetch(`/api/admin/modules/${introModule.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: { readingTitle, readingText },
       }),
     });
+    if (!res.ok) {
+      setApiError(await readApiError(res, "Failed to save introduction."));
+    }
     setSaving(false);
   }
 
   async function addVocab(e: React.FormEvent) {
     e.preventDefault();
+    setApiError("");
     const res = await fetch("/api/admin/vocabulary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -218,19 +256,27 @@ export default function SectionEditorPage({
       setVocabStress("");
       setShowVocabForm(false);
       fetchSection();
+    } else {
+      setApiError(await readApiError(res, "Failed to add vocabulary word."));
     }
   }
 
   async function deleteVocab(vocabId: string) {
     if (!confirm("Delete this vocabulary word?")) return;
-    await fetch(`/api/admin/vocabulary/${vocabId}`, { method: "DELETE" });
-    fetchSection();
+    setApiError("");
+    const res = await fetch(`/api/admin/vocabulary/${vocabId}`, { method: "DELETE" });
+    if (res.ok) {
+      fetchSection();
+    } else {
+      setApiError(await readApiError(res, "Failed to delete vocabulary word."));
+    }
   }
 
   async function addQuestion(e: React.FormEvent) {
     e.preventDefault();
     const moduleObj = section?.modules.find((m) => m.type === qModuleType);
     if (!moduleObj) return;
+    setApiError("");
 
     const body: Record<string, unknown> = {
       moduleId: moduleObj.id,
@@ -263,19 +309,31 @@ export default function SectionEditorPage({
       ]);
       setShowQuestionForm(false);
       fetchSection();
+    } else {
+      setApiError(await readApiError(res, "Failed to add question."));
     }
   }
 
   async function deleteQuestion(questionId: string) {
     if (!confirm("Delete this question?")) return;
-    await fetch(`/api/admin/questions/${questionId}`, { method: "DELETE" });
-    fetchSection();
+    setApiError("");
+    const res = await fetch(`/api/admin/questions/${questionId}`, { method: "DELETE" });
+    if (res.ok) {
+      fetchSection();
+    } else {
+      setApiError(await readApiError(res, "Failed to delete question."));
+    }
   }
 
   async function deleteSection() {
     if (!confirm("Delete this entire unit and all its content? This cannot be undone.")) return;
-    await fetch(`/api/admin/sections/${id}`, { method: "DELETE" });
-    router.push(`/admin/areas/${section?.areaId}`);
+    setApiError("");
+    const res = await fetch(`/api/admin/sections/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push(`/admin/areas/${section?.areaId}`);
+    } else {
+      setApiError(await readApiError(res, "Failed to delete unit."));
+    }
   }
 
   if (loading) {
@@ -314,6 +372,11 @@ export default function SectionEditorPage({
 
       {/* Section Details */}
       <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
+        {apiError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {apiError}
+          </div>
+        )}
         <input
           type="text"
           value={title}

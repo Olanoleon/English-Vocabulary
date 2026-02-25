@@ -4,41 +4,73 @@ import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
   try {
-    await requireAuth();
+    const session = await requireAuth();
+    const orgId = session.organizationId || null;
 
     const areas = await prisma.area.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        OR: orgId
+          ? [{ scopeType: "global" }, { scopeType: "org", organizationId: orgId }]
+          : [{ scopeType: "global" }],
+      },
       orderBy: { sortOrder: "asc" },
       include: {
-        _count: {
-          select: {
-            sections: {
-              where: { isActive: true },
-            },
-          },
+        orgConfigs: {
+          where: { organizationId: orgId || "__no_org__" },
+          take: 1,
         },
         sections: {
           where: { isActive: true },
-          select: { id: true },
+          select: {
+            id: true,
+            sortOrder: true,
+            orgConfigs: {
+              where: { organizationId: orgId || "__no_org__" },
+              take: 1,
+            },
+          },
         },
       },
     });
+
+    // Apply org-level visibility and section visibility
+    const visibleAreas = areas
+      .filter((area) => {
+        if (!orgId) return true;
+        const cfg = area.orgConfigs[0];
+        return cfg ? cfg.isVisible : true;
+      })
+      .map((area) => {
+        const visibleSections = area.sections.filter((section) => {
+          if (!orgId) return true;
+          const cfg = section.orgConfigs[0];
+          return cfg ? cfg.isVisible : true;
+        });
+        return {
+          ...area,
+          visibleSections,
+          effectiveSortOrder: orgId
+            ? (area.orgConfigs[0]?.sortOrder ?? area.sortOrder)
+            : area.sortOrder,
+        };
+      });
 
     // Count completions per area in the last 7 days
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    const recentCompletions = await prisma.learnerAttempt.groupBy({
-      by: ["moduleId"],
+    const recentCompletions = await prisma.learnerAttempt.findMany({
       where: {
         completedAt: { gte: oneWeekAgo },
         passed: true,
+        user: orgId ? { organizationId: orgId } : undefined,
       },
-      _count: { id: true },
+      select: { moduleId: true },
     });
 
     // Map moduleId -> sectionId so we can aggregate by area
-    const moduleIds = recentCompletions.map((r) => r.moduleId);
+    const moduleIds = [...new Set(recentCompletions.map((r) => r.moduleId))];
     const modules = moduleIds.length > 0
       ? await prisma.module.findMany({
           where: { id: { in: moduleIds } },
@@ -50,8 +82,8 @@ export async function GET() {
 
     // Build sectionId -> area lookup
     const sectionToArea = new Map<string, string>();
-    for (const area of areas) {
-      for (const section of area.sections) {
+    for (const area of visibleAreas) {
+      for (const section of area.visibleSections) {
         sectionToArea.set(section.id, area.id);
       }
     }
@@ -63,10 +95,10 @@ export async function GET() {
       if (!sectionId) continue;
       const areaId = sectionToArea.get(sectionId);
       if (!areaId) continue;
-      areaCompletions.set(areaId, (areaCompletions.get(areaId) || 0) + rc._count.id);
+      areaCompletions.set(areaId, (areaCompletions.get(areaId) || 0) + 1);
     }
 
-    const result = areas
+    const result = visibleAreas
       .map((area) => {
         const recentCount = areaCompletions.get(area.id) || 0;
         return {
@@ -75,10 +107,10 @@ export async function GET() {
           nameEs: area.nameEs,
           description: area.description,
           imageUrl: area.imageUrl,
-          unitCount: area._count.sections,
+          unitCount: area.visibleSections.length,
           recentCompletions: recentCount,
           isHot: recentCount >= 3,
-          sortOrder: area.sortOrder,
+          sortOrder: area.effectiveSortOrder,
         };
       })
       // Hot topics first, then by sortOrder

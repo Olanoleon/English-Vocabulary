@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
   Loader2,
-  Pencil,
-  Trash2,
-  Eye,
-  EyeOff,
-  X,
   BookOpen,
-  RefreshCw,
   GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,14 +42,8 @@ interface Area {
 
 function SortableAreaCard({
   area,
-  onToggleVisibility,
-  onEdit,
-  onDelete,
 }: {
   area: Area;
-  onToggleVisibility: (area: Area) => void;
-  onEdit: (area: Area) => void;
-  onDelete: (area: Area) => void;
 }) {
   const {
     attributes,
@@ -106,39 +94,11 @@ function SortableAreaCard({
           </p>
         </div>
 
-        {/* Actions */}
-        <button
-          onClick={() => onToggleVisibility(area)}
-          className={cn(
-            "p-2 rounded-lg transition-colors",
-            area.isActive
-              ? "text-green-500 hover:text-green-700 hover:bg-green-50"
-              : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
-          )}
-          title={area.isActive ? "Visible to learners — click to hide" : "Hidden from learners — click to show"}
-        >
-          {area.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={() => onEdit(area)}
-          className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-          title="Edit"
-        >
-          <Pencil className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onDelete(area)}
-          className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
         <Link
           href={`/admin/areas/${area.id}`}
-          className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors"
         >
-          <Eye className="w-3.5 h-3.5" />
-          See Area
+          Manage
         </Link>
       </div>
 
@@ -180,6 +140,7 @@ function AreaDragOverlayCard({ area }: { area: Area }) {
 export default function AdminAreasPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createProgress, setCreateProgress] = useState("");
@@ -189,17 +150,6 @@ export default function AdminAreasPage() {
   // Create form
   const [name, setName] = useState("");
 
-  // Delete confirmation
-  const [deleteArea, setDeleteArea] = useState<Area | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // Edit modal
-  const [editArea, setEditArea] = useState<Area | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editNameEs, setEditNameEs] = useState("");
-  const [editDesc, setEditDesc] = useState("");
-  const [saving, setSaving] = useState(false);
-
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 8 },
   });
@@ -208,24 +158,61 @@ export default function AdminAreasPage() {
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
-  useEffect(() => {
-    fetchAreas();
-  }, []);
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and return fallback.
+    }
+    return fallback;
+  }
 
   async function fetchAreas() {
-    const res = await fetch("/api/admin/areas");
-    if (res.ok) {
-      setAreas(await res.json());
+    setApiError("");
+    try {
+      const res = await fetch("/api/admin/areas");
+      if (res.ok) {
+        setAreas(await res.json());
+      } else {
+        setAreas([]);
+        setApiError(
+          await readApiError(
+            res,
+            res.status === 403
+              ? "You do not have access to areas."
+              : "Failed to load areas."
+          )
+        );
+      }
+    } catch {
+      setAreas([]);
+      setApiError("Connection error. Please try again.");
     }
     setLoading(false);
   }
 
-  const persistOrder = useCallback(async (newAreas: Area[]) => {
-    await fetch("/api/admin/areas/reorder", {
+  async function persistOrder(newAreas: Area[]) {
+    setApiError("");
+    const res = await fetch("/api/admin/areas/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderedIds: newAreas.map((a) => a.id) }),
     });
+    if (!res.ok) {
+      setApiError(await readApiError(res, "Failed to save area order."));
+      await fetchAreas();
+    }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchAreas();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleDragStart(event: DragStartEvent) {
@@ -248,6 +235,7 @@ export default function AdminAreasPage() {
     e.preventDefault();
     setCreating(true);
     setCreateError("");
+    setApiError("");
     setCreateProgress("Creating area...");
 
     try {
@@ -277,80 +265,6 @@ export default function AdminAreasPage() {
     }
   }
 
-  function openEdit(area: Area) {
-    setEditArea(area);
-    setEditName(area.name);
-    setEditNameEs(area.nameEs);
-    setEditDesc(area.description || "");
-  }
-
-  async function handleEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editArea) return;
-    setSaving(true);
-
-    const res = await fetch(`/api/admin/areas/${editArea.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: editName,
-        nameEs: editNameEs,
-        description: editDesc || null,
-        isActive: editArea.isActive,
-      }),
-    });
-
-    if (res.ok) {
-      setEditArea(null);
-      fetchAreas();
-    }
-    setSaving(false);
-  }
-
-  async function regenerateAreaLogo() {
-    if (!editArea) return;
-    setSaving(true);
-    const res = await fetch(`/api/admin/areas/${editArea.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: editName,
-        nameEs: editNameEs,
-        description: editDesc || null,
-        isActive: editArea.isActive,
-        regenerateImage: true,
-      }),
-    });
-    if (res.ok) {
-      setEditArea(null);
-      fetchAreas();
-    }
-    setSaving(false);
-  }
-
-  async function toggleVisibility(area: Area) {
-    await fetch(`/api/admin/areas/${area.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: area.name,
-        nameEs: area.nameEs,
-        description: area.description,
-        isActive: !area.isActive,
-      }),
-    });
-    fetchAreas();
-  }
-
-  async function handleDelete() {
-    if (!deleteArea) return;
-    setDeleting(true);
-    await fetch(`/api/admin/areas/${deleteArea.id}`, { method: "DELETE" });
-    setDeleteArea(null);
-    setDeleting(false);
-    fetchAreas();
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -370,6 +284,11 @@ export default function AdminAreasPage() {
           Organize vocabulary units by subject area
         </p>
       </div>
+      {apiError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {apiError}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -416,9 +335,6 @@ export default function AdminAreasPage() {
               <SortableAreaCard
                 key={area.id}
                 area={area}
-                onToggleVisibility={toggleVisibility}
-                onEdit={openEdit}
-                onDelete={setDeleteArea}
               />
             ))}
           </div>
@@ -531,132 +447,6 @@ export default function AdminAreasPage() {
         </button>
       )}
 
-      {/* Edit Modal */}
-      {editArea && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <form
-            onSubmit={handleEdit}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900">Edit Area</h3>
-              <button
-                type="button"
-                onClick={() => setEditArea(null)}
-                className="p-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Name (English)
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Name (Spanish)
-                </label>
-                <input
-                  type="text"
-                  value={editNameEs}
-                  onChange={(e) => setEditNameEs(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-              <button
-                type="button"
-                onClick={regenerateAreaLogo}
-                disabled={saving}
-                className="flex items-center gap-1 px-3 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
-                title="Regenerate logo based on current name"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditArea(null)}
-                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteArea && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="font-bold text-gray-900">Delete Area</h3>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-1">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteArea.name}</span>?
-            </p>
-            <p className="text-xs text-red-500 mb-4">
-              This will permanently delete the area and all{" "}
-              {deleteArea._count.sections}{" "}
-              {deleteArea._count.sections === 1 ? "unit" : "units"} inside it.
-              This action cannot be undone.
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
-              >
-                {deleting ? "Deleting..." : "Delete Area"}
-              </button>
-              <button
-                onClick={() => setDeleteArea(null)}
-                disabled={deleting}
-                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

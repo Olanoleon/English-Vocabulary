@@ -5,8 +5,12 @@ export async function GET() {
   try {
     const session = await requireAuth();
 
-    // Admins always have access
-    if (session.role === "admin") {
+    // Admin roles always have access
+    if (
+      session.role === "admin" ||
+      session.role === "super_admin" ||
+      session.role === "org_admin"
+    ) {
       return NextResponse.json({ hasAccess: true });
     }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 // PATCH /api/admin/payments/:id — update learner payment settings (rate, nextPaymentDue)
 export async function PATCH(
@@ -8,9 +8,23 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const body = await request.json();
+
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, organizationId: true },
+    });
+    if (!target || target.role !== "learner") {
+      return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      target.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const updateData: Record<string, unknown> = {};
 
@@ -52,8 +66,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
+
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, organizationId: true },
+    });
+    if (!target || target.role !== "learner") {
+      return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      target.organizationId !== session.organizationId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const payments = await prisma.payment.findMany({
       where: { userId: id },

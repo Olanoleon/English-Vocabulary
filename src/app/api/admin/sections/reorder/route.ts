@@ -1,25 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 export async function PUT(request: NextRequest) {
   try {
-    await requireAdmin();
-    const { orderedIds } = await request.json();
+    const session = await requireOrgAdminOrSuperAdmin();
+    const { orderedIds, organizationId } = await request.json();
 
     if (!Array.isArray(orderedIds)) {
       return NextResponse.json({ error: "orderedIds array required" }, { status: 400 });
     }
 
-    // Update sort orders in a transaction
-    await prisma.$transaction(
-      orderedIds.map((id: string, index: number) =>
-        prisma.section.update({
-          where: { id },
-          data: { sortOrder: index + 1 },
-        })
-      )
-    );
+    const targetOrgId =
+      session.role === "org_admin" ? session.organizationId : organizationId || null;
+
+    if (session.role === "org_admin" && !targetOrgId) {
+      return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
+    }
+
+    if (targetOrgId) {
+      const scopedSections = await prisma.section.findMany({
+        where: {
+          id: { in: orderedIds },
+          area: {
+            OR: [
+              { scopeType: "global" },
+              { scopeType: "org", organizationId: targetOrgId },
+            ],
+          },
+        },
+        select: { id: true },
+      });
+      if (scopedSections.length !== orderedIds.length) {
+        return NextResponse.json({ error: "Some sections are out of scope" }, { status: 403 });
+      }
+
+      await prisma.$transaction(
+        orderedIds.map((id: string, index: number) =>
+          prisma.organizationSectionConfig.upsert({
+            where: {
+              organizationId_sectionId: {
+                organizationId: targetOrgId,
+                sectionId: id,
+              },
+            },
+            update: { sortOrder: index + 1, isVisible: true },
+            create: {
+              organizationId: targetOrgId,
+              sectionId: id,
+              sortOrder: index + 1,
+              isVisible: true,
+            },
+          })
+        )
+      );
+    } else {
+      await prisma.$transaction(
+        orderedIds.map((id: string, index: number) =>
+          prisma.section.update({
+            where: { id },
+            data: { sortOrder: index + 1 },
+          })
+        )
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

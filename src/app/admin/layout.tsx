@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Users, LogOut, Settings, DollarSign } from "lucide-react";
+import {
+  Building2,
+  DollarSign,
+  LayoutGrid,
+  LogOut,
+  Settings,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Areas", icon: LayoutGrid },
   { href: "/admin/learners", label: "Learners", icon: Users },
   { href: "/admin/payments", label: "Payments", icon: DollarSign },
+  { href: "/admin/orgs", label: "Orgs", icon: Building2 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -50,7 +58,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navItems.map((item) => {
             const isActive =
               item.href === "/admin"
-                ? pathname === "/admin" || pathname.startsWith("/admin/areas") || pathname.startsWith("/admin/preview")
+                ? pathname === "/admin" ||
+                  pathname.startsWith("/admin/areas") ||
+                  pathname.startsWith("/admin/sections") ||
+                  pathname.startsWith("/admin/preview")
                 : pathname.startsWith(item.href);
             const Icon = item.icon;
             return (

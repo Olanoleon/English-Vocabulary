@@ -5,6 +5,7 @@ import {
   Plus,
   Trash2,
   UserCircle,
+  KeyRound,
   ShieldCheck,
   ShieldOff,
   ShieldAlert,
@@ -31,14 +32,27 @@ interface Learner {
   }[];
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface SessionMe {
+  role: string;
+  organizationId: string | null;
+}
+
 // ─── Access Control Dropdown ──────────────────────────────────────────────────
 
 function AccessControl({
   learner,
   onUpdate,
+  onError,
 }: {
   learner: Learner;
   onUpdate: () => void;
+  onError: (message: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -52,6 +66,8 @@ function AccessControl({
     });
     if (res.ok) {
       onUpdate();
+    } else {
+      onError("Failed to update learner access.");
     }
     setUpdating(false);
     setOpen(false);
@@ -74,9 +90,6 @@ function AccessControl({
       desc: "Block access regardless of payment",
     },
   ];
-
-  const currentOption =
-    options.find((o) => o.value === learner.accessOverride) || options[0];
 
   return (
     <div className="relative">
@@ -153,31 +166,110 @@ function AccessControl({
 
 export default function LearnersPage() {
   const [learners, setLearners] = useState<Learner[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [sessionMe, setSessionMe] = useState<SessionMe | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [createOrgId, setCreateOrgId] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [apiError, setApiError] = useState("");
+  const [resetTarget, setResetTarget] = useState<Learner | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
-    fetchLearners();
+    const timer = window.setTimeout(() => {
+      void initialize();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fetchLearners() {
-    const res = await fetch("/api/admin/learners");
+  async function readApiError(res: Response, fallback: string) {
+    try {
+      const data = (await res.json()) as { error?: unknown };
+      if (typeof data.error === "string" && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      // Ignore parse errors and return fallback.
+    }
+    return fallback;
+  }
+
+  async function initialize() {
+    setApiError("");
+    try {
+      const [meRes, orgRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/admin/organizations?activeOnly=true"),
+      ]);
+
+      let me: SessionMe | null = null;
+      if (meRes.ok) {
+        const meData = (await meRes.json()) as SessionMe;
+        me = meData;
+        setSessionMe({
+          role: meData.role,
+          organizationId: meData.organizationId ?? null,
+        });
+      } else {
+        setApiError(await readApiError(meRes, "Failed to load session."));
+      }
+
+      if (orgRes.ok) {
+        const orgs = (await orgRes.json()) as Organization[];
+        setOrganizations(orgs);
+      } else {
+        setOrganizations([]);
+        setApiError(await readApiError(orgRes, "Failed to load organizations."));
+      }
+
+      const initialOrgId =
+        me?.role === "org_admin"
+          ? me.organizationId || ""
+          : "";
+      setSelectedOrgId(initialOrgId);
+      setCreateOrgId(initialOrgId);
+      await fetchLearners(initialOrgId || undefined);
+    } catch {
+      setApiError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchLearners(orgId?: string) {
+    setApiError("");
+    const query = orgId ? `?organizationId=${encodeURIComponent(orgId)}` : "";
+    const res = await fetch(`/api/admin/learners${query}`);
     if (res.ok) {
       setLearners(await res.json());
+    } else {
+      setLearners([]);
+      setApiError(await readApiError(res, "Failed to load learners."));
     }
-    setLoading(false);
   }
 
   async function createLearner(e: React.FormEvent) {
     e.preventDefault();
     setCreating(true);
     setError("");
+    setApiError("");
+    if (
+      (sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
+      !createOrgId
+    ) {
+      setError("Please choose an organization for this learner.");
+      setCreating(false);
+      return;
+    }
     const res = await fetch("/api/admin/learners", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,6 +277,10 @@ export default function LearnersPage() {
         username: newUsername,
         password: newPassword,
         displayName: newDisplayName,
+        organizationId:
+          sessionMe?.role === "org_admin"
+            ? sessionMe.organizationId
+            : createOrgId || undefined,
       }),
     });
     if (res.ok) {
@@ -192,10 +288,9 @@ export default function LearnersPage() {
       setNewPassword("");
       setNewDisplayName("");
       setShowCreate(false);
-      fetchLearners();
+      void fetchLearners(selectedOrgId || undefined);
     } else {
-      const data = await res.json();
-      setError(data.error || "Failed to create learner");
+      setError(await readApiError(res, "Failed to create learner"));
     }
     setCreating(false);
   }
@@ -207,8 +302,32 @@ export default function LearnersPage() {
       )
     )
       return;
-    await fetch(`/api/admin/learners/${id}`, { method: "DELETE" });
-    fetchLearners();
+    setApiError("");
+    const res = await fetch(`/api/admin/learners/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      void fetchLearners(selectedOrgId || undefined);
+    } else {
+      setApiError(await readApiError(res, "Failed to delete learner."));
+    }
+  }
+
+  async function resetLearnerPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetTarget) return;
+    setResetting(true);
+    setApiError("");
+    const res = await fetch(`/api/admin/learners/${resetTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: resetPassword }),
+    });
+    if (res.ok) {
+      setResetTarget(null);
+      setResetPassword("");
+    } else {
+      setApiError(await readApiError(res, "Failed to reset learner password."));
+    }
+    setResetting(false);
   }
 
   if (loading) {
@@ -229,6 +348,8 @@ export default function LearnersPage() {
       learner.username.toLowerCase().includes(normalizedSearch)
     );
   });
+  const canResetPasswords =
+    sessionMe?.role === "super_admin" || sessionMe?.role === "admin";
 
   return (
     <div className="px-4 py-6">
@@ -244,7 +365,10 @@ export default function LearnersPage() {
         </div>
         {!showCreate && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => {
+              setCreateOrgId(selectedOrgId || "");
+              setShowCreate(true);
+            }}
             className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             title="Add New Learner"
           >
@@ -252,6 +376,11 @@ export default function LearnersPage() {
           </button>
         )}
       </div>
+      {apiError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {apiError}
+        </div>
+      )}
 
       {/* Create Form */}
       {showCreate && (
@@ -260,6 +389,21 @@ export default function LearnersPage() {
           className="mb-4 bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-scale-in"
         >
           <h4 className="font-semibold text-sm">New Learner Account</h4>
+          {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") && (
+            <select
+              value={createOrgId}
+              onChange={(e) => setCreateOrgId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              required
+            >
+              <option value="">Select organization...</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             type="text"
             placeholder="Display name"
@@ -307,6 +451,31 @@ export default function LearnersPage() {
           </div>
         </form>
       )}
+
+      {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
+        organizations.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Organization Scope
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => {
+                const orgId = e.target.value;
+                setSelectedOrgId(orgId);
+                void fetchLearners(orgId || undefined);
+              }}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            >
+              <option value="">All organizations</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
       {/* Access stats */}
       {learners.length > 0 && (
@@ -391,8 +560,21 @@ export default function LearnersPage() {
                 <div className="flex items-center gap-1">
                   <AccessControl
                     learner={learner}
-                    onUpdate={fetchLearners}
+                    onUpdate={() => void fetchLearners(selectedOrgId || undefined)}
+                    onError={setApiError}
                   />
+                  {canResetPasswords && (
+                    <button
+                      onClick={() => {
+                        setResetTarget(learner);
+                        setResetPassword("");
+                      }}
+                      className="p-2 text-gray-300 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                      title="Reset password"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() =>
                       deleteLearner(learner.id, learner.displayName)
@@ -430,7 +612,7 @@ export default function LearnersPage() {
       {learners.length > 0 && filteredLearners.length === 0 && (
         <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl">
           <p className="text-sm text-gray-500">
-            No learners match "<span className="font-medium">{search}</span>"
+            No learners match &quot;<span className="font-medium">{search}</span>&quot;
           </p>
         </div>
       )}
@@ -441,6 +623,48 @@ export default function LearnersPage() {
           <p className="text-gray-500">
             No learners yet. Create your first one!
           </p>
+        </div>
+      )}
+
+      {resetTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={resetLearnerPassword}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+          >
+            <h3 className="font-bold text-gray-900">Reset Learner Password</h3>
+            <p className="text-xs text-gray-500">
+              Set a new password for <span className="font-medium">{resetTarget.displayName}</span>.
+            </p>
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              placeholder="New password"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              minLength={4}
+              required
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={resetting}
+                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                {resetting ? "Updating..." : "Update Password"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetTarget(null);
+                  setResetPassword("");
+                }}
+                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

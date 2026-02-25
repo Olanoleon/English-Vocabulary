@@ -1,17 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { searchParams } = new URL(request.url);
     const areaId = searchParams.get("areaId");
+    const requestedOrgId = searchParams.get("organizationId");
+    const targetOrgId =
+      session.role === "org_admin" ? session.organizationId : requestedOrgId || null;
+
+    const where: Record<string, unknown> = {};
+    if (areaId) where.areaId = areaId;
+    if (targetOrgId) {
+      where.area = {
+        OR: [
+          { scopeType: "global" },
+          { scopeType: "org", organizationId: targetOrgId },
+        ],
+      };
+    } else if (session.role === "org_admin") {
+      where.areaId = "__no_area__";
+    }
 
     const sections = await prisma.section.findMany({
-      where: areaId ? { areaId } : undefined,
+      where,
       orderBy: { sortOrder: "asc" },
       include: {
+        orgConfigs: {
+          where: { organizationId: targetOrgId || "__no_org__" },
+          take: 1,
+        },
         _count: {
           select: { sectionVocabulary: true },
         },
@@ -20,7 +40,16 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    return NextResponse.json(sections);
+
+    const sortedSections = targetOrgId
+      ? [...sections].sort((a, b) => {
+          const aOrder = a.orgConfigs[0]?.sortOrder ?? a.sortOrder;
+          const bOrder = b.orgConfigs[0]?.sortOrder ?? b.sortOrder;
+          return aOrder - bOrder;
+        })
+      : sections;
+
+    return NextResponse.json(sortedSections);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
     if (message === "Unauthorized" || message === "Forbidden") {
@@ -32,12 +61,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const body = await request.json();
     const { title, titleEs, description, areaId } = body;
 
     if (!title || !titleEs || !areaId) {
       return NextResponse.json({ error: "Title, Spanish title, and area ID are required" }, { status: 400 });
+    }
+
+    const area = await prisma.area.findUnique({
+      where: { id: areaId },
+      select: {
+        id: true,
+        scopeType: true,
+        organizationId: true,
+      },
+    });
+    if (!area) {
+      return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    }
+    // org_admin can create sections only in own org-owned areas.
+    if (
+      session.role === "org_admin" &&
+      (area.scopeType !== "org" || area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get next sort order within area
@@ -55,6 +103,7 @@ export async function POST(request: NextRequest) {
         description: description || "",
         sortOrder,
         areaId,
+        organizationId: area.organizationId,
         modules: {
           create: [
             { type: "introduction", content: { readingText: "", readingTitle: "" } },
@@ -68,6 +117,24 @@ export async function POST(request: NextRequest) {
         _count: { select: { sectionVocabulary: true } },
       },
     });
+
+    if (area.organizationId) {
+      await prisma.organizationSectionConfig.upsert({
+        where: {
+          organizationId_sectionId: {
+            organizationId: area.organizationId,
+            sectionId: section.id,
+          },
+        },
+        update: {},
+        create: {
+          organizationId: area.organizationId,
+          sectionId: section.id,
+          isVisible: true,
+          sortOrder,
+        },
+      });
+    }
 
     return NextResponse.json(section, { status: 201 });
   } catch (error: unknown) {

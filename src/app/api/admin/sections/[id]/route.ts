@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { matchEmoji } from "@/lib/logo";
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const section = await prisma.section.findUnique({
       where: { id },
@@ -25,11 +25,23 @@ export async function GET(
           include: { vocabulary: true },
           orderBy: { sortOrder: "asc" },
         },
+        area: {
+          select: {
+            scopeType: true,
+            organizationId: true,
+          },
+        },
       },
     });
 
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      !(section.area.scopeType === "global" || section.area.organizationId === session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(section);
@@ -47,9 +59,24 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
     const body = await request.json();
+
+    const existing = await prisma.section.findUnique({
+      where: { id },
+      include: { area: { select: { scopeType: true, organizationId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+    // org_admin can only edit org-owned sections in their own org.
+    if (
+      session.role === "org_admin" &&
+      (existing.area.scopeType !== "org" || existing.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const section = await prisma.section.update({
       where: { id },
@@ -77,8 +104,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
     const { id } = await params;
+
+    const existing = await prisma.section.findUnique({
+      where: { id },
+      include: { area: { select: { scopeType: true, organizationId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+    if (
+      session.role === "org_admin" &&
+      (existing.area.scopeType !== "org" || existing.area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await prisma.section.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

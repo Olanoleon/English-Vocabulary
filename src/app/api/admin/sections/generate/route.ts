@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { matchEmoji } from "@/lib/logo";
 
 /** Shuffle an array in place (Fisher-Yates) */
@@ -227,7 +227,7 @@ JSON STRUCTURE (follow exactly):
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireOrgAdminOrSuperAdmin();
 
     const { topic, wordCount, areaId } = await request.json();
 
@@ -236,6 +236,21 @@ export async function POST(request: NextRequest) {
         { error: "Topic, word count, and area ID are required" },
         { status: 400 }
       );
+    }
+
+    const area = await prisma.area.findUnique({
+      where: { id: areaId },
+      select: { id: true, scopeType: true, organizationId: true },
+    });
+    if (!area) {
+      return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    }
+    // org_admin can generate only in own org-owned areas.
+    if (
+      session.role === "org_admin" &&
+      (area.scopeType !== "org" || area.organizationId !== session.organizationId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (wordCount < 1 || wordCount > 20) {
@@ -340,6 +355,7 @@ Return the JSON object now.`
         imageUrl,
         sortOrder,
         areaId,
+        organizationId: area.organizationId,
         modules: {
           create: [
             {
@@ -356,6 +372,24 @@ Return the JSON object now.`
       },
       include: { modules: true },
     });
+
+    if (area.organizationId) {
+      await prisma.organizationSectionConfig.upsert({
+        where: {
+          organizationId_sectionId: {
+            organizationId: area.organizationId,
+            sectionId: section.id,
+          },
+        },
+        update: {},
+        create: {
+          organizationId: area.organizationId,
+          sectionId: section.id,
+          isVisible: true,
+          sortOrder,
+        },
+      });
+    }
 
     const practiceModule = section.modules.find((m) => m.type === "practice")!;
     const testModule = section.modules.find((m) => m.type === "test")!;
