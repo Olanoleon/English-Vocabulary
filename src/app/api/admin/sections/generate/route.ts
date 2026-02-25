@@ -304,16 +304,19 @@ Return the JSON object now.`
     }
 
     // Log if OpenAI under-generated (helps debugging)
+    // Expected total includes regular questions plus one matching question (when enabled).
+    const expectedPracticeTotal = practiceRegularCount + (matchingPairs > 0 ? 1 : 0);
+    const expectedTestTotal = testRegularCount + (matchingPairs > 0 ? 1 : 0);
     const actualPractice = generated.practiceQuestions?.length || 0;
     const actualTest = generated.testQuestions?.length || 0;
-    if (actualPractice < practiceCount) {
+    if (actualPractice < expectedPracticeTotal) {
       console.warn(
-        `OpenAI under-generated practice questions: got ${actualPractice}, expected ${practiceCount}`
+        `OpenAI under-generated practice questions: got ${actualPractice}, expected ${expectedPracticeTotal}`
       );
     }
-    if (actualTest < testCount) {
+    if (actualTest < expectedTestTotal) {
       console.warn(
-        `OpenAI under-generated test questions: got ${actualTest}, expected ${testCount}`
+        `OpenAI under-generated test questions: got ${actualTest}, expected ${expectedTestTotal}`
       );
     }
 
