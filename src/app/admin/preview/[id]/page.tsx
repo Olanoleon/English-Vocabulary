@@ -14,6 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface QuestionOption {
   id: string;
@@ -51,6 +52,7 @@ interface SectionData {
   titleEs: string;
   description: string | null;
   areaId: string;
+  imageUrl: string | null;
   modules: Module[];
   sectionVocabulary: { vocabulary: VocabWord }[];
 }
@@ -352,6 +354,7 @@ export default function UnitPreviewPage({
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
             <Eye className="w-4 h-4 text-purple-500 flex-shrink-0" />
             <h1 className="font-bold text-gray-900 text-sm truncate">
               {section.title}

@@ -12,12 +12,14 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface SectionData {
   id: string;
   areaId: string;
   title: string;
   titleEs: string;
+  imageUrl: string | null;
   modules: {
     id: string;
     type: string;
@@ -137,6 +139,7 @@ export default function SectionDetailPage({
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
+        <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="truncate">
           <h1 className="font-bold text-gray-900 truncate">{section.title}</h1>
           <p className="text-xs text-gray-400 truncate">{section.titleEs}</p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Building2,
   Plus,
   Trash2,
   UserCircle,
@@ -13,11 +14,13 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ToastMessage } from "@/components/toast-message";
 
 interface Learner {
   id: string;
   username: string;
   displayName: string;
+  organizationId: string | null;
   createdAt: string;
   accessOverride: string | null;
   hasAccess: boolean;
@@ -41,6 +44,12 @@ interface Organization {
 interface SessionMe {
   role: string;
   organizationId: string | null;
+}
+
+interface ToastState {
+  open: boolean;
+  status: "success" | "failed";
+  message: string;
 }
 
 // ─── Access Control Dropdown ──────────────────────────────────────────────────
@@ -182,6 +191,14 @@ export default function LearnersPage() {
   const [resetTarget, setResetTarget] = useState<Learner | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState<Learner | null>(null);
+  const [reassignOrgId, setReassignOrgId] = useState("");
+  const [reassigning, setReassigning] = useState(false);
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    status: "success",
+    message: "",
+  });
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -190,6 +207,14 @@ export default function LearnersPage() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!toast.open) return;
+    const timer = window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, open: false }));
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [toast.open]);
 
   async function readApiError(res: Response, fallback: string) {
     try {
@@ -330,6 +355,37 @@ export default function LearnersPage() {
     setResetting(false);
   }
 
+  async function reassignLearnerOrganization(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reassignTarget) return;
+    setReassigning(true);
+    setApiError("");
+    const res = await fetch(`/api/admin/learners/${reassignTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId: reassignOrgId }),
+    });
+    if (res.ok) {
+      setReassignTarget(null);
+      setReassignOrgId("");
+      await fetchLearners(selectedOrgId || undefined);
+      setToast({
+        open: true,
+        status: "success",
+        message: "Learner organization updated.",
+      });
+    } else {
+      const err = await readApiError(res, "Failed to change learner organization.");
+      setApiError(err);
+      setToast({
+        open: true,
+        status: "failed",
+        message: err,
+      });
+    }
+    setReassigning(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -350,9 +406,19 @@ export default function LearnersPage() {
   });
   const canResetPasswords =
     sessionMe?.role === "super_admin" || sessionMe?.role === "admin";
+  const canReassignOrganization =
+    sessionMe?.role === "super_admin" || sessionMe?.role === "admin";
+  const organizationNameById = new Map(
+    organizations.map((org) => [org.id, org.name])
+  );
 
   return (
     <div className="px-4 py-6">
+      <ToastMessage
+        open={toast.open}
+        status={toast.status}
+        message={toast.message}
+      />
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -551,6 +617,14 @@ export default function LearnersPage() {
                     <p className="text-xs text-gray-500">
                       @{learner.username}
                     </p>
+                    {canReassignOrganization && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Org:{" "}
+                        {learner.organizationId
+                          ? organizationNameById.get(learner.organizationId) || "Unknown"
+                          : "Unassigned"}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
                       {completedSections} section
                       {completedSections !== 1 ? "s" : ""} completed
@@ -573,6 +647,18 @@ export default function LearnersPage() {
                       title="Reset password"
                     >
                       <KeyRound className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canReassignOrganization && (
+                    <button
+                      onClick={() => {
+                        setReassignTarget(learner);
+                        setReassignOrgId(learner.organizationId || "");
+                      }}
+                      className="p-2 text-gray-300 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                      title="Change organization"
+                    >
+                      <Building2 className="w-4 h-4" />
                     </button>
                   )}
                   <button
@@ -658,6 +744,52 @@ export default function LearnersPage() {
                 onClick={() => {
                   setResetTarget(null);
                   setResetPassword("");
+                }}
+                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {reassignTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={reassignLearnerOrganization}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+          >
+            <h3 className="font-bold text-gray-900">Change Learner Organization</h3>
+            <p className="text-xs text-gray-500">
+              Move <span className="font-medium">{reassignTarget.displayName}</span> to a different organization.
+            </p>
+            <select
+              value={reassignOrgId}
+              onChange={(e) => setReassignOrgId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              required
+            >
+              <option value="">Select organization...</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={reassigning}
+                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                {reassigning ? "Updating..." : "Update Organization"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReassignTarget(null);
+                  setReassignOrgId("");
                 }}
                 className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
               >

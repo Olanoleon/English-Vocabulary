@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Volume2, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface VocabWord {
   id: string;
@@ -18,6 +18,7 @@ interface SectionData {
   id: string;
   title: string;
   titleEs: string;
+  imageUrl: string | null;
   modules: {
     id: string;
     type: string;
@@ -117,6 +118,7 @@ export default function IntroductionPage({
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
+        <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">{section.title}</h1>
           <p className="text-xs text-gray-400">{section.titleEs} · Introduction</p>

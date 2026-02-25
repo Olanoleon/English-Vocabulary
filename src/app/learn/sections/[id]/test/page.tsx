@@ -4,8 +4,6 @@ import { useEffect, useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  CheckCircle2,
-  XCircle,
   Trophy,
   AlertTriangle,
   ChevronRight,
@@ -14,6 +12,7 @@ import {
   Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface QuestionOption {
   id: string;
@@ -39,6 +38,7 @@ interface SectionData {
   id: string;
   title: string;
   titleEs: string;
+  imageUrl: string | null;
   modules: {
     id: string;
     type: string;
@@ -248,6 +248,7 @@ export default function TestPage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+          <LogoBadge logo={section?.imageUrl ?? null} size="sm" tone="primary" />
           <div>
             <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
             {section?.titleEs && <p className="text-xs text-gray-400">{section.titleEs}</p>}
@@ -390,6 +391,7 @@ export default function TestPage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+          <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
           <div>
             <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
             <p className="text-xs text-gray-400">{section.titleEs}</p>
@@ -442,6 +444,7 @@ export default function TestPage({
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+        <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
           <p className="text-xs text-gray-400">

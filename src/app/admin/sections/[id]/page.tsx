@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoBadge } from "@/components/logo-badge";
 
 interface Vocabulary {
   id: string;
@@ -56,6 +57,7 @@ interface SectionDetail {
   id: string;
   title: string;
   titleEs: string;
+  imageUrl: string | null;
   description: string;
   isActive: boolean;
   areaId: string;
@@ -364,6 +366,7 @@ export default function SectionEditorPage({
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
+        <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="flex-1">
           <h2 className="text-lg font-bold text-gray-900">{section.title}</h2>
           <p className="text-xs text-gray-500">{section.titleEs}</p>

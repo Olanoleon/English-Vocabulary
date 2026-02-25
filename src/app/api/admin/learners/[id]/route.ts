@@ -92,6 +92,33 @@ export async function PATCH(
       updateData.passwordHash = await bcrypt.hash(newPassword, 10);
     }
 
+    if (body.organizationId !== undefined) {
+      if (session.role === "org_admin") {
+        return NextResponse.json(
+          { error: "Only super admin can reassign learner organization" },
+          { status: 403 }
+        );
+      }
+      const nextOrganizationId = String(body.organizationId || "").trim();
+      if (!nextOrganizationId) {
+        return NextResponse.json(
+          { error: "organizationId is required" },
+          { status: 400 }
+        );
+      }
+      const org = await prisma.organization.findUnique({
+        where: { id: nextOrganizationId },
+        select: { id: true, isActive: true },
+      });
+      if (!org || !org.isActive) {
+        return NextResponse.json(
+          { error: "Invalid or inactive organization" },
+          { status: 400 }
+        );
+      }
+      updateData.organizationId = org.id;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
@@ -103,6 +130,7 @@ export async function PATCH(
         id: true,
         displayName: true,
         accessOverride: true,
+        organizationId: true,
       },
     });
 
