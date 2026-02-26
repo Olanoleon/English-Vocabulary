@@ -249,8 +249,8 @@ export default function TestPage({
 
   if (!section || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -281,7 +281,7 @@ export default function TestPage({
   // Result screen
   if (result) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
         <div className="animate-scale-in text-center w-full max-w-sm">
           <div
             className={cn(
@@ -388,7 +388,7 @@ export default function TestPage({
   // Submitting screen
   if (submitting) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4" />
         <p className="text-gray-500 font-medium">Calculating your score...</p>
       </div>
@@ -398,8 +398,8 @@ export default function TestPage({
   // Start screen
   if (!started) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -464,9 +464,9 @@ export default function TestPage({
 
   // Test in progress
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
@@ -532,7 +532,7 @@ export default function TestPage({
 
       {/* Question */}
       <div className="flex-1 px-4 py-6" key={currentIndex}>
-        <div className="animate-slide-in">
+        <div className="animate-slide-in bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
           <span className="inline-block bg-primary-50 text-primary-600 text-xs font-medium px-2.5 py-1 rounded-full mb-4 capitalize">
             {currentQuestion.type.replace("_", " ")}
           </span>

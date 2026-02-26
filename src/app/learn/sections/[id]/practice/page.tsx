@@ -243,8 +243,8 @@ export default function PracticePage({
 
   if (!section || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -279,7 +279,7 @@ export default function PracticePage({
     const percentage =
       score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
         <div className="animate-scale-in text-center">
           <div
             className={cn(
@@ -332,9 +332,9 @@ export default function PracticePage({
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -362,7 +362,7 @@ export default function PracticePage({
 
       {/* Question */}
       <div className="flex-1 px-4 py-6" key={currentIndex}>
-        <div className="animate-slide-in">
+        <div className="animate-slide-in bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
           <span className="inline-block bg-primary-50 text-primary-600 text-xs font-medium px-2.5 py-1 rounded-full mb-4 capitalize">
             {currentQuestion.type.replace("_", " ")}
           </span>

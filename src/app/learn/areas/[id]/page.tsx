@@ -115,7 +115,7 @@ export default function AreaLearningPathPage({
   return (
     <div className="px-4 py-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-5">
         <button
           onClick={() => router.push("/learn")}
           className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-2"
@@ -140,7 +140,7 @@ export default function AreaLearningPathPage({
       </div>
 
       {/* Overall Progress */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-600">
             Path Completion
@@ -190,7 +190,7 @@ export default function AreaLearningPathPage({
 
                 {/* Card */}
                 {status === "locked" ? (
-                  <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl p-4 opacity-60">
+                  <div className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-4 opacity-60">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-gray-400 uppercase font-medium">
@@ -210,7 +210,7 @@ export default function AreaLearningPathPage({
                   <Link
                     href={`/learn/sections/${section.id}`}
                     className={cn(
-                      "flex-1 rounded-xl p-4 transition-all",
+                      "flex-1 rounded-2xl p-4 transition-all shadow-sm",
                       status === "active"
                         ? "bg-white border-2 border-primary-500 shadow-sm"
                         : "bg-white border border-gray-200"

@@ -54,7 +54,7 @@ export default function LearningAreasPage() {
   return (
     <div className="px-4 py-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">
           Areas of Knowledge
         </h1>
@@ -64,6 +64,9 @@ export default function LearningAreasPage() {
             ? `Welcome back, ${displayName}`
             : "Choose an area to start learning"}
         </p>
+        <div className="mt-2 inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+          {areas.length} {areas.length === 1 ? "Area" : "Areas"} Available
+        </div>
       </div>
 
       {/* Area Cards */}
@@ -72,10 +75,10 @@ export default function LearningAreasPage() {
           <Link
             key={area.id}
             href={`/learn/areas/${area.id}`}
-            className={`block bg-white border rounded-xl p-4 hover:shadow-sm transition-all ${
+            className={`block bg-white border rounded-2xl p-4 shadow-sm transition-all ${
               area.isHot
-                ? "border-orange-300 ring-1 ring-orange-200 hover:border-orange-400"
-                : "border-gray-200 hover:border-primary-300"
+                ? "border-orange-300 ring-1 ring-orange-200 hover:border-orange-400 hover:shadow-md"
+                : "border-gray-100 hover:border-primary-300 hover:shadow-md"
             }`}
           >
             {area.isHot && (
@@ -111,7 +114,9 @@ export default function LearningAreasPage() {
                 </p>
               </div>
 
-              <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+              <div className="rounded-lg bg-gray-100 p-1.5">
+                <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              </div>
             </div>
           </Link>
         ))}

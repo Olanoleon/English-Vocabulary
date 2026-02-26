@@ -115,9 +115,9 @@ export default function IntroductionPage({
   const vocabulary = section.sectionVocabulary.map((sv) => sv.vocabulary);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -168,7 +168,7 @@ export default function IntroductionPage({
                 {content.readingTitle}
               </h3>
             )}
-            <div className="bg-gray-50 rounded-xl p-4 text-sm leading-relaxed text-gray-700">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-sm leading-relaxed text-gray-700 shadow-sm">
               {renderReadingText(content.readingText)}
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function IntroductionPage({
             {vocabulary.map((word) => (
               <div
                 key={word.id}
-                className="bg-white border border-gray-200 rounded-xl p-4 animate-fade-in"
+                className="bg-white border border-gray-100 rounded-2xl p-4 animate-fade-in shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -219,7 +219,7 @@ export default function IntroductionPage({
                 </p>
                 <p className="text-sm text-gray-700">{word.definitionEs}</p>
 
-                <div className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
+                <div className="mt-2 bg-gray-50 rounded-xl px-3 py-2">
                   <p className="text-xs text-gray-500 italic">
                     &ldquo;{word.exampleSentence}&rdquo;
                   </p>
@@ -233,7 +233,7 @@ export default function IntroductionPage({
         <button
           onClick={markCompleted}
           disabled={marking}
-          className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors disabled:opacity-50"
+          className="w-full bg-primary-600 text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors disabled:opacity-50"
         >
           {marking ? "Saving..." : "Continue to Unit Practice"}
           <ChevronRight className="w-5 h-5" />

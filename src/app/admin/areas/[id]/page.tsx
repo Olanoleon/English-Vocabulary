@@ -88,9 +88,9 @@ function SortableSectionCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "bg-white border rounded-xl p-4 flex items-center gap-3",
-        section.isActive ? "border-gray-200" : "border-gray-100 opacity-60",
-        isDragging && "opacity-40 shadow-lg scale-[1.02]"
+        "bg-white border rounded-2xl p-4 flex items-center gap-3 shadow-sm",
+        section.isActive ? "border-gray-100" : "border-gray-100 opacity-60",
+        isDragging && "opacity-40 shadow-xl scale-[1.02]"
       )}
     >
       {/* Drag Handle */}
@@ -100,7 +100,7 @@ function SortableSectionCard({
         className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
         aria-label="Drag to reorder"
       >
-        <GripVertical className="w-5 h-5" />
+        <GripVertical className="w-4 h-4" />
       </button>
 
       {/* Unit Emoji or Number */}
@@ -114,8 +114,8 @@ function SortableSectionCard({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-gray-500 truncate">
-          {section.titleEs} &middot; {section._count.sectionVocabulary} Terms
+        <p className="text-xs text-primary-700 truncate">
+          {section.titleEs} · {section._count.sectionVocabulary} Terms
         </p>
       </div>
 
@@ -148,9 +148,9 @@ function DragOverlayCard({
   index: number;
 }) {
   return (
-    <div className="bg-white border-2 border-primary-400 rounded-xl p-4 flex items-center gap-3 shadow-xl rotate-1 scale-[1.03]">
+    <div className="bg-white border-2 border-primary-300 rounded-2xl p-4 flex items-center gap-3 shadow-xl rotate-1 scale-[1.03]">
       <div className="p-1 -ml-1 text-primary-500">
-        <GripVertical className="w-5 h-5" />
+        <GripVertical className="w-4 h-4" />
       </div>
       <LogoBadge
         logo={section.imageUrl}
@@ -160,8 +160,8 @@ function DragOverlayCard({
       />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-gray-500 truncate">
-          {section.titleEs} &middot; {section._count.sectionVocabulary} Terms
+        <p className="text-xs text-primary-700 truncate">
+          {section.titleEs} · {section._count.sectionVocabulary} Terms
         </p>
       </div>
     </div>

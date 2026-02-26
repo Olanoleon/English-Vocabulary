@@ -134,7 +134,7 @@ export default function SectionDetailPage({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button
           onClick={() => router.push(backHref)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -177,7 +177,7 @@ export default function SectionDetailPage({
             <div
               key={mod.label}
               className={cn(
-                "bg-white rounded-xl border p-4 transition-all",
+                "bg-white rounded-2xl border p-4 transition-all shadow-sm",
                 !mod.completed &&
                   mod.label !== "Unit Test" &&
                   "border-primary-200 shadow-sm"
@@ -217,7 +217,7 @@ export default function SectionDetailPage({
                   <button
                     onClick={() => router.push(mod.href)}
                     className={cn(
-                      "mt-3 w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1 transition-colors",
+                      "mt-3 w-full py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-1 transition-colors",
                       mod.completed
                         ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         : "bg-primary-600 text-white hover:bg-primary-700"

@@ -1,6 +1,7 @@
 /**
- * Emoji-based icon matching for Areas and Units.
- * Matches keywords in the name to a curated emoji bank.
+ * Icon matching for Areas and Units.
+ * Legacy emoji matching is kept for backward compatibility, but now we
+ * normalize most matches to curated in-app icon tokens.
  */
 
 const EMOJI_MAP: [string[], string][] = [
@@ -127,6 +128,108 @@ const EMOJI_MAP: [string[], string][] = [
 
 const DEFAULT_EMOJI = "📘";
 
+const EMOJI_TO_ICON_TOKEN: Record<string, string> = {
+  "🎓": "icon:graduation-cap",
+  "✏️": "icon:pencil",
+  "📚": "icon:book-open",
+  "✍️": "icon:pen",
+  "🗣️": "icon:languages",
+  "🔢": "icon:calculator",
+  "🔬": "icon:flask-round",
+  "🏛️": "icon:landmark",
+  "🌍": "icon:globe",
+  "🎨": "icon:palette",
+  "🎵": "icon:music",
+  "🤔": "icon:brain",
+  "⚙️": "icon:settings",
+  "💻": "icon:laptop",
+  "📊": "icon:chart-column",
+  "🏗️": "icon:hard-hat",
+  "⚡": "icon:zap",
+  "⚗️": "icon:beaker",
+  "🫀": "icon:heart-pulse",
+  "💪": "icon:armchair",
+  "👄": "icon:smile",
+  "🤒": "icon:cross",
+  "🫁": "icon:heart-pulse",
+  "🩺": "icon:stethoscope",
+  "👩‍⚕️": "icon:stethoscope",
+  "💊": "icon:pill",
+  "🦷": "icon:cross",
+  "🧠": "icon:brain",
+  "⚖️": "icon:scale",
+  "💼": "icon:briefcase",
+  "💰": "icon:coins",
+  "🧾": "icon:receipt",
+  "📈": "icon:trending-up",
+  "🚀": "icon:rocket",
+  "👩‍🏫": "icon:graduation-cap",
+  "📰": "icon:newspaper",
+  "🎯": "icon:target",
+  "📷": "icon:camera",
+  "🎬": "icon:film",
+  "🧬": "icon:dna",
+  "🔭": "icon:telescope",
+  "🌌": "icon:stars",
+  "🌱": "icon:leaf",
+  "🐦": "icon:bird",
+  "🐕": "icon:paw-print",
+  "🦁": "icon:shield",
+  "🐾": "icon:paw-print",
+  "🌿": "icon:leaf",
+  "🐟": "icon:fish",
+  "🌊": "icon:waves",
+  "🌤️": "icon:sun",
+  "🪨": "icon:mountain",
+  "🥗": "icon:apple",
+  "🍳": "icon:utensils",
+  "🍽️": "icon:utensils",
+  "🧑‍🍳": "icon:chef-hat",
+  "✈️": "icon:plane",
+  "🏨": "icon:building",
+  "🛫": "icon:plane",
+  "🚆": "icon:train",
+  "🚗": "icon:car",
+  "🛍️": "icon:shopping-bag",
+  "👗": "icon:shirt",
+  "🏠": "icon:house",
+  "📅": "icon:calendar-days",
+  "🏋️": "icon:dumbbell",
+  "⚽": "icon:goal",
+  "🏀": "icon:circle",
+  "🏊": "icon:waves",
+  "🎮": "icon:gamepad-2",
+  "🎉": "icon:party-popper",
+  "👥": "icon:users",
+  "❤️": "icon:heart",
+  "🎭": "icon:masks",
+  "📱": "icon:smartphone",
+  "🌐": "icon:globe",
+  "📧": "icon:mail",
+  "👔": "icon:briefcase",
+  "🏢": "icon:building",
+  "📋": "icon:clipboard-list",
+  "🤝": "icon:handshake",
+  "📌": "icon:folder-kanban",
+  "🧘": "icon:flower-2",
+  "😴": "icon:moon-star",
+  "🏙️": "icon:building-2",
+  "🌾": "icon:sprout",
+  "🏖️": "icon:palmtree",
+  "⛰️": "icon:mountain",
+  "🌳": "icon:trees",
+  "🚨": "icon:siren",
+  "🚔": "icon:shield",
+  "⏰": "icon:clock-3",
+  "💵": "icon:banknote",
+  "📝": "icon:file-pen-line",
+  "🔧": "icon:wrench",
+  "🏆": "icon:trophy",
+  "🧩": "icon:puzzle",
+  "💡": "icon:lightbulb",
+  "📘": "icon:book-open",
+};
+
 /**
  * Match a name to the best emoji from the curated bank.
  * Searches for keyword matches in the name (case-insensitive).
@@ -151,5 +254,6 @@ export function matchEmoji(name: string): string {
     }
   }
 
-  return bestMatch || DEFAULT_EMOJI;
+  const matched = bestMatch || DEFAULT_EMOJI;
+  return EMOJI_TO_ICON_TOKEN[matched] || matched;
 }

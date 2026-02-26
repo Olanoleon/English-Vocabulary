@@ -65,9 +65,9 @@ function SortableAreaCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "bg-white border rounded-xl p-4 transition-all",
-        area.isActive ? "border-gray-200" : "border-gray-100 opacity-60",
-        isDragging && "opacity-40 shadow-lg scale-[1.02]"
+        "bg-white border rounded-2xl p-4 transition-all",
+        area.isActive ? "border-gray-100 shadow-sm" : "border-gray-100 opacity-60",
+        isDragging && "opacity-40 shadow-xl scale-[1.02]"
       )}
     >
       <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ function SortableAreaCard({
           className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
           aria-label="Drag to reorder"
         >
-          <GripVertical className="w-5 h-5" />
+          <GripVertical className="w-4 h-4" />
         </button>
 
         {/* Area Logo */}
@@ -87,25 +87,27 @@ function SortableAreaCard({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{area.name}</p>
-          <p className="text-xs text-gray-500 truncate">
-            {area.nameEs} &middot; {area._count.sections}{" "}
+          {area.description && (
+            <p className="text-xs text-gray-500 truncate">{area.description}</p>
+          )}
+          <p className="text-xs text-primary-700 truncate mt-0.5">
+            {area.nameEs} · {area._count.sections}{" "}
             {area._count.sections === 1 ? "unit" : "units"}
           </p>
         </div>
 
         <Link
           href={`/admin/areas/${area.id}`}
-          className="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-colors"
+          className={cn(
+            "px-4 py-2 rounded-xl text-xs font-semibold transition-colors",
+            area.isActive
+              ? "bg-primary-600 text-white hover:bg-primary-700"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          )}
         >
           Manage
         </Link>
       </div>
-
-      {area.description && (
-        <p className="text-xs text-gray-400 mt-2 ml-15 truncate">
-          {area.description}
-        </p>
-      )}
     </div>
   );
 }
@@ -114,16 +116,16 @@ function SortableAreaCard({
 
 function AreaDragOverlayCard({ area }: { area: Area }) {
   return (
-    <div className="bg-white border-2 border-primary-400 rounded-xl p-4 shadow-xl rotate-1 scale-[1.03]">
+    <div className="bg-white border-2 border-primary-300 rounded-2xl p-4 shadow-xl rotate-1 scale-[1.03]">
       <div className="flex items-center gap-3">
         <div className="p-1 -ml-1 text-primary-500">
-          <GripVertical className="w-5 h-5" />
+          <GripVertical className="w-4 h-4" />
         </div>
         <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{area.name}</p>
-          <p className="text-xs text-gray-500 truncate">
-            {area.nameEs} &middot; {area._count.sections}{" "}
+          <p className="text-xs text-primary-700 truncate">
+            {area.nameEs} · {area._count.sections}{" "}
             {area._count.sections === 1 ? "unit" : "units"}
           </p>
         </div>
@@ -273,13 +275,13 @@ export default function AdminAreasPage() {
   return (
     <div className="px-4 py-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <h2 className="text-2xl font-bold text-gray-900">
           Areas of Knowledge
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Organize vocabulary units by subject area
-        </p>
+        <div className="mt-2 inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+          {areas.length} {areas.length === 1 ? "Area" : "Areas"} Total
+        </div>
       </div>
       {apiError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -287,29 +289,9 @@ export default function AdminAreasPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-primary-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-primary-600 uppercase">
-            Active Areas
-          </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {areas.filter((a) => a.isActive).length}
-          </p>
-        </div>
-        <div className="bg-primary-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-primary-600 uppercase">
-            Total Units
-          </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {areas.reduce((sum, a) => sum + a._count.sections, 0)}
-          </p>
-        </div>
-      </div>
-
       {/* Area Cards Header */}
       {areas.length > 1 && (
-        <div className="mb-2 flex items-center justify-end">
+        <div className="mb-2 mt-4 flex items-center justify-end">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider">
             Drag to reorder
           </span>
@@ -437,7 +419,7 @@ export default function AdminAreasPage() {
       ) : (
         <button
           onClick={() => setShowCreate(true)}
-          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all"
+          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all"
         >
           <Plus className="w-5 h-5" />
           Create New Area
