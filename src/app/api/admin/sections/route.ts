@@ -14,12 +14,19 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (areaId) where.areaId = areaId;
     if (targetOrgId) {
-      where.area = {
-        OR: [
-          { scopeType: "global" },
-          { scopeType: "org", organizationId: targetOrgId },
-        ],
-      };
+      where.AND = [
+        {
+          area: {
+            OR: [
+              { scopeType: "global" },
+              { scopeType: "org", organizationId: targetOrgId },
+            ],
+          },
+        },
+        {
+          OR: [{ organizationId: null }, { organizationId: targetOrgId }],
+        },
+      ];
     } else if (session.role === "org_admin") {
       where.areaId = "__no_area__";
     }
@@ -80,10 +87,11 @@ export async function POST(request: NextRequest) {
     if (!area) {
       return NextResponse.json({ error: "Area not found" }, { status: 404 });
     }
-    // org_admin can create sections only in own org-owned areas.
+    // org_admin can create in own org-owned areas, or create org-private instances in global areas.
     if (
       session.role === "org_admin" &&
-      (area.scopeType !== "org" || area.organizationId !== session.organizationId)
+      ((area.scopeType === "org" && area.organizationId !== session.organizationId) ||
+        (area.scopeType === "global" && !session.organizationId))
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -96,6 +104,8 @@ export async function POST(request: NextRequest) {
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
 
     // Create section with 3 modules
+    const ownerOrgIdForSection =
+      session.role === "org_admin" ? session.organizationId || null : area.organizationId;
     const section = await prisma.section.create({
       data: {
         title,
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
         description: description || "",
         sortOrder,
         areaId,
-        organizationId: area.organizationId,
+        organizationId: ownerOrgIdForSection,
         modules: {
           create: [
             { type: "introduction", content: { readingText: "", readingTitle: "" } },
@@ -118,7 +128,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (area.organizationId) {
+    if (area.scopeType === "global" && ownerOrgIdForSection) {
+      // Org-admin-created sections in global areas are private to that org.
+      const orgs = await prisma.organization.findMany({
+        select: { id: true },
+      });
+      if (orgs.length > 0) {
+        await prisma.organizationSectionConfig.createMany({
+          data: orgs.map((org) => ({
+            organizationId: org.id,
+            sectionId: section.id,
+            isVisible: org.id === ownerOrgIdForSection,
+            sortOrder,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    } else if (area.organizationId) {
       await prisma.organizationSectionConfig.upsert({
         where: {
           organizationId_sectionId: {

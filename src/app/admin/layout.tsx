@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Building2,
   DollarSign,
@@ -23,6 +24,30 @@ const navItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (!res.ok) return;
+          const data = (await res.json()) as { role?: string };
+          if (typeof data.role === "string") {
+            setRole(data.role);
+          }
+        } catch {
+          // Ignore fetch errors and keep default navigation.
+        }
+      })();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visibleNavItems =
+    role === "org_admin"
+      ? navItems.filter((item) => item.href !== "/admin/orgs")
+      : navItems;
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -55,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-30">
         <div className="max-w-lg mx-auto flex">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive =
               item.href === "/admin"
                 ? pathname === "/admin" ||

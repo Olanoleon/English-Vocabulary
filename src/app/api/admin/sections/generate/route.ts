@@ -250,10 +250,13 @@ export async function POST(request: NextRequest) {
     if (!area) {
       return NextResponse.json({ error: "Area not found" }, { status: 404 });
     }
-    // org_admin can generate only in own org-owned areas.
+    // org_admin can generate in:
+    // - own org-owned areas (shared org content)
+    // - global areas (private org-specific instance)
     if (
       session.role === "org_admin" &&
-      (area.scopeType !== "org" || area.organizationId !== session.organizationId)
+      ((area.scopeType === "org" && area.organizationId !== session.organizationId) ||
+        (area.scopeType === "global" && !session.organizationId))
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -369,6 +372,8 @@ Return the JSON object now.`
 
     // Create everything in the database
     // 1. Create section with modules
+    const ownerOrgIdForSection =
+      session.role === "org_admin" ? session.organizationId || null : area.organizationId;
     const section = await prisma.section.create({
       data: {
         title: generated.title,
@@ -377,7 +382,7 @@ Return the JSON object now.`
         imageUrl,
         sortOrder,
         areaId,
-        organizationId: area.organizationId,
+        organizationId: ownerOrgIdForSection,
         modules: {
           create: [
             {
@@ -396,7 +401,23 @@ Return the JSON object now.`
       include: { modules: true },
     });
 
-    if (area.organizationId) {
+    if (area.scopeType === "global" && ownerOrgIdForSection) {
+      // Org-admin-generated units in global areas are org-private instances.
+      const orgs = await prisma.organization.findMany({
+        select: { id: true },
+      });
+      if (orgs.length > 0) {
+        await prisma.organizationSectionConfig.createMany({
+          data: orgs.map((org) => ({
+            organizationId: org.id,
+            sectionId: section.id,
+            isVisible: org.id === ownerOrgIdForSection,
+            sortOrder,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    } else if (area.organizationId) {
       await prisma.organizationSectionConfig.upsert({
         where: {
           organizationId_sectionId: {

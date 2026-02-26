@@ -44,6 +44,8 @@ interface Area {
   description: string | null;
   imageUrl: string | null;
   isActive: boolean;
+  scopeType?: string;
+  organizationId?: string | null;
 }
 
 interface Section {
@@ -714,7 +716,7 @@ export default function AreaUnitsPage({
       ) : (
         <button
           onClick={() => setShowCreate(true)}
-          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all"
+          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Sparkles className="w-5 h-5" />
           Generate New Unit with AI

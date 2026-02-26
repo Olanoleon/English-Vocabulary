@@ -165,7 +165,11 @@ export async function POST(
     }
     if (
       session.role === "org_admin" &&
-      (section.area.scopeType !== "org" || section.area.organizationId !== session.organizationId)
+      !(
+        section.organizationId === session.organizationId ||
+        (section.area.scopeType === "org" &&
+          section.area.organizationId === session.organizationId)
+      )
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

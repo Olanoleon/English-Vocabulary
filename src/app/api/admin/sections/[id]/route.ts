@@ -39,7 +39,10 @@ export async function GET(
     }
     if (
       session.role === "org_admin" &&
-      !(section.area.scopeType === "global" || section.area.organizationId === session.organizationId)
+      ((section.area.scopeType === "org" &&
+        section.area.organizationId !== session.organizationId) ||
+        (section.organizationId &&
+          section.organizationId !== session.organizationId))
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -65,7 +68,11 @@ export async function PUT(
 
     const existing = await prisma.section.findUnique({
       where: { id },
-      include: { area: { select: { scopeType: true, organizationId: true } } },
+      select: {
+        id: true,
+        organizationId: true,
+        area: { select: { scopeType: true, organizationId: true } },
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
@@ -73,7 +80,11 @@ export async function PUT(
     // org_admin can only edit org-owned sections in their own org.
     if (
       session.role === "org_admin" &&
-      (existing.area.scopeType !== "org" || existing.area.organizationId !== session.organizationId)
+      !(
+        existing.organizationId === session.organizationId ||
+        (existing.area.scopeType === "org" &&
+          existing.area.organizationId === session.organizationId)
+      )
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -109,14 +120,22 @@ export async function DELETE(
 
     const existing = await prisma.section.findUnique({
       where: { id },
-      include: { area: { select: { scopeType: true, organizationId: true } } },
+      select: {
+        id: true,
+        organizationId: true,
+        area: { select: { scopeType: true, organizationId: true } },
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
     if (
       session.role === "org_admin" &&
-      (existing.area.scopeType !== "org" || existing.area.organizationId !== session.organizationId)
+      !(
+        existing.organizationId === session.organizationId ||
+        (existing.area.scopeType === "org" &&
+          existing.area.organizationId === session.organizationId)
+      )
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
