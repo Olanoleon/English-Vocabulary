@@ -82,6 +82,7 @@ export default function TestPage({
     totalQuestions: number;
   } | null>(null);
   const [showAbortModal, setShowAbortModal] = useState(false);
+  const [hasLastAttempt, setHasLastAttempt] = useState(false);
 
   // Matching question state
   const [matchingSelectedWord, setMatchingSelectedWord] = useState<number | null>(null);
@@ -94,9 +95,13 @@ export default function TestPage({
   }, [id]);
 
   async function fetchSection() {
-    const res = await fetch(`/api/learn/sections/${id}`);
-    if (res.ok) {
-      const data = await res.json();
+    const [sectionRes, attemptRes] = await Promise.all([
+      fetch(`/api/learn/sections/${id}`),
+      fetch(`/api/learn/attempts?sectionId=${encodeURIComponent(id)}`),
+    ]);
+
+    if (sectionRes.ok) {
+      const data = await sectionRes.json();
       // Shuffle test questions
       const testModule = data.modules.find(
         (m: { type: string }) => m.type === "test"
@@ -105,6 +110,10 @@ export default function TestPage({
         testModule.questions = shuffleArray(testModule.questions);
       }
       setSection(data);
+    }
+    if (attemptRes.ok) {
+      const payload = (await attemptRes.json()) as { attempt?: unknown | null };
+      setHasLastAttempt(Boolean(payload.attempt));
     }
     setLoading(false);
   }
@@ -326,6 +335,12 @@ export default function TestPage({
           </div>
 
           <div className="mt-8 space-y-3">
+            <button
+              onClick={() => router.push(`/learn/sections/${id}/test/review`)}
+              className="w-full bg-white text-primary-600 border border-primary-200 py-3.5 rounded-xl font-semibold hover:bg-primary-50 transition-colors"
+            >
+              Review Last Attempt
+            </button>
             {result.passed ? (
               <button
                 onClick={() => router.push("/learn")}
@@ -433,6 +448,14 @@ export default function TestPage({
             >
               Start Test
             </button>
+            {hasLastAttempt && (
+              <button
+                onClick={() => router.push(`/learn/sections/${id}/test/review`)}
+                className="mt-2 w-full bg-white text-primary-600 border border-primary-200 py-3.5 rounded-xl font-semibold hover:bg-primary-50 transition-colors"
+              >
+                Review Last Attempt
+              </button>
+            )}
           </div>
         </div>
       </div>

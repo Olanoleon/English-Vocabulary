@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import https from "https";
+import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { matchEmoji } from "@/lib/logo";
@@ -16,8 +19,6 @@ function shuffleArray<T>(array: T[]): T[] {
 function getOpenAIKey(): string {
   // Read .env file directly to bypass Cursor IDE env caching
   try {
-    const fs = require("fs");
-    const path = require("path");
     const envPath = path.resolve(process.cwd(), ".env");
     const envContent = fs.readFileSync(envPath, "utf-8");
     const match = envContent.match(/^OPENAI_API_KEY=["']?([^"'\r\n]+)["']?/m);
@@ -28,7 +29,6 @@ function getOpenAIKey(): string {
 
 function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
   // Use Node.js native https to bypass Cursor IDE's network proxy
-  const https = require("https");
   const apiKey = getOpenAIKey();
 
   const payload = JSON.stringify({
@@ -94,26 +94,31 @@ INTRODUCTION READING:
 - Write a short engaging passage (80-150 words) that naturally uses ALL vocabulary words
 - Wrap each vocabulary word with double asterisks like **word** so it can be highlighted
 - The passage should read like a natural story or scenario, not a list of definitions
+- The user will provide a target reading difficulty (easy, medium, or advanced). You MUST adapt sentence length, grammar complexity, and discourse markers to match that difficulty while still using the same vocabulary naturally.
 
 PRACTICE QUESTIONS:
 - You MUST generate the exact number of regular practice questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
 - ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the practiceQuestions array.
-- Focus on WORD DEFINITIONS — do NOT reference the reading passage
+- Focus on WORD DEFINITIONS
 - Every vocabulary word MUST appear in at least one practice question (either as the subject of a definition question, or as the correct answer in a reverse/fill_blank/phonetics question)
 - Regular questions should be a mix of four styles:
   1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors) — about 30%
   2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list — about 30%
-  3. "fill_blank": A standalone generic sentence (NOT from the reading passage) where the vocabulary word fits naturally. Set correct_answer to the word. — about 25%
+  3. "fill_blank": A sentence where the vocabulary word fits naturally. It can be extracted/adapted from the reading OR be a new sentence with strong contextual clues. Set correct_answer to the word. — about 25%
   4. "phonetics": Pronunciation questions using styles from the PHONETICS RULES section below — about 15%
 - All options arrays must have exactly 4 items for multiple_choice and phonetics, 0 items for fill_blank and matching
-- IMPORTANT: fill_blank sentences must be original and independent from the intro reading text
+- IMPORTANT fill_blank quality rules:
+  - Each fill_blank prompt must have exactly ONE blank written as "___"
+  - The sentence must contain enough semantic context to infer the target word (avoid vague templates like "I saw a ___")
+  - There must be one clearly best answer from the section vocabulary list
+  - If using a reading-derived sentence, adapt it if needed to keep context clear as a standalone question
 
 TEST QUESTIONS:
 - You MUST generate the exact number of regular test questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
 - ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the testQuestions array.
 - Regular questions: mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
-- multiple_choice and fill_blank: same definition-focused rules as practice (NOT referencing the reading)
+- multiple_choice and fill_blank: same definition-focused rules and fill_blank quality constraints as practice
 - Phonetics: follow PHONETICS RULES below
 - NEVER ask "Which syllable is stressed in...?" — use the phonetics styles below instead
 
@@ -229,7 +234,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
 
-    const { topic, wordCount, areaId } = await request.json();
+    const { topic, wordCount, areaId, introDifficulty } = await request.json();
 
     if (!topic || !wordCount || !areaId) {
       return NextResponse.json(
@@ -260,6 +265,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedDifficulty = String(introDifficulty || "medium").toLowerCase();
+    if (!["easy", "medium", "advanced"].includes(normalizedDifficulty)) {
+      return NextResponse.json(
+        { error: "Difficulty must be easy, medium, or advanced" },
+        { status: 400 }
+      );
+    }
+
+    const difficultyGuidance =
+      normalizedDifficulty === "easy"
+        ? "Easy: short sentences, simple connectors, straightforward grammar, very clear context clues."
+        : normalizedDifficulty === "advanced"
+        ? "Advanced: longer and more varied sentence structures, richer connectors, nuanced context, and more complex discourse flow."
+        : "Medium: moderate sentence length, mixed simple/complex structures, natural conversational-academic balance.";
+
     // Calculate required question counts
     // Practice: 2 per word, capped at 20
     // Test: linear scale — 5 words→10, 20 words→20, range [10, 20]
@@ -282,6 +302,8 @@ export async function POST(request: NextRequest) {
 Number of vocabulary words: ${wordCount}
 Required regular practice questions: exactly ${practiceRegularCount} (this is mandatory — every word must appear in at least one question)
 Required regular test questions: exactly ${testRegularCount} (this is mandatory)${matchingInstruction}
+Introduction reading difficulty: ${normalizedDifficulty}
+Difficulty style guidance: ${difficultyGuidance}
 
 Return the JSON object now.`
     );
@@ -363,6 +385,7 @@ Return the JSON object now.`
               content: {
                 readingTitle: generated.readingTitle || generated.title,
                 readingText: generated.readingText || "",
+                readingDifficulty: normalizedDifficulty,
               },
             },
             { type: "practice" },

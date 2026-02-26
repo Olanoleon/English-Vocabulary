@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
+import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
 
 interface SectionData {
   id: string;
@@ -23,6 +24,7 @@ interface SectionData {
   modules: {
     id: string;
     type: string;
+    content?: { readingDifficulty?: string } | null;
     _count: { questions: number };
   }[];
   sectionVocabulary: { vocabulary: { word: string } }[];
@@ -200,6 +202,11 @@ export default function SectionDetailPage({
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-gray-900">{mod.label}</h3>
+                          {mod.label === "Introduction" && introModule?.content && (
+                            <ReadingDifficultyBadge
+                              difficulty={introModule.content.readingDifficulty}
+                            />
+                          )}
                     {mod.extra && (
                       <span className="text-xs text-gray-400">{mod.extra}</span>
                     )}

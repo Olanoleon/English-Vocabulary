@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import https from "https";
+import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 
@@ -14,8 +17,6 @@ function shuffleArray<T>(array: T[]): T[] {
 
 function getOpenAIKey(): string {
   try {
-    const fs = require("fs");
-    const path = require("path");
     const envPath = path.resolve(process.cwd(), ".env");
     const envContent = fs.readFileSync(envPath, "utf-8");
     const match = envContent.match(/^OPENAI_API_KEY=["']?([^"'\r\n]+)["']?/m);
@@ -25,7 +26,6 @@ function getOpenAIKey(): string {
 }
 
 function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const https = require("https");
   const apiKey = getOpenAIKey();
 
   const payload = JSON.stringify({
@@ -50,9 +50,9 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
           "Content-Length": Buffer.byteLength(payload),
         },
       },
-      (res: { on: Function; statusCode: number }) => {
+      (res: import("http").IncomingMessage) => {
         let data = "";
-        res.on("data", (chunk: string) => (data += chunk));
+        res.on("data", (chunk: Buffer) => (data += chunk.toString()));
         res.on("end", () => {
           try {
             const json = JSON.parse(data);
@@ -78,20 +78,25 @@ const REGEN_PROMPT = `You are an expert ESL teacher creating practice and test q
 You will be given a list of vocabulary words with their definitions, IPA pronunciations, and example sentences. Generate NEW questions based on these words.
 
 PRACTICE QUESTIONS:
-- Focus on WORD DEFINITIONS — do NOT reference any reading passage
+- Focus on WORD DEFINITIONS
 - Every vocabulary word MUST appear in at least one practice question
 - Regular questions should be a mix of four styles:
   1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors) — about 30%
   2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list — about 30%
-  3. "fill_blank": A standalone generic sentence where the vocabulary word fits naturally. Set correct_answer to the word. — about 25%
+  3. "fill_blank": A sentence where the vocabulary word fits naturally. It can be extracted/adapted from the intro reading OR be a new sentence with strong contextual clues. Set correct_answer to the word. — about 25%
   4. "phonetics": Pronunciation questions using styles from the PHONETICS RULES below — about 15%
 - ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in practiceQuestions.
 - All options arrays must have exactly 4 items for multiple_choice and phonetics, 0 items for fill_blank and matching
+- IMPORTANT fill_blank quality rules:
+  - Each fill_blank prompt must have exactly ONE blank written as "___"
+  - The sentence must contain enough semantic context to infer the target word (avoid vague templates like "I saw a ___")
+  - There must be one clearly best answer from the section vocabulary list
+  - If using a reading-derived sentence, adapt it if needed to keep context clear as a standalone question
 
 TEST QUESTIONS:
 - Regular questions: mix of "multiple_choice", "fill_blank", and "phonetics" types
 - At least 30% should be "phonetics" type
-- multiple_choice and fill_blank: same definition-focused rules as practice
+- multiple_choice and fill_blank: same definition-focused rules and fill_blank quality constraints as practice
 - Phonetics: follow PHONETICS RULES below
 - ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in testQuestions.
 - NEVER ask "Which syllable is stressed in...?"
@@ -200,6 +205,11 @@ export async function POST(
           `- ${v.word} (${v.partOfSpeech}): "${v.definitionEs}" | IPA: ${v.phoneticIpa || "N/A"} | Example: "${v.exampleSentence}"`
       )
       .join("\n");
+    const introModule = section.modules.find((m) => m.type === "introduction");
+    const introReadingText =
+      (
+        introModule?.content as { readingText?: string } | null
+      )?.readingText?.trim() || "";
 
     // 4. Call OpenAI
     const matchingInstruction = matchingPairs > 0
@@ -207,7 +217,13 @@ export async function POST(
       : "";
     const content = await callOpenAI(
       REGEN_PROMPT,
-      `Vocabulary words:\n${vocabSummary}\n\nGenerate exactly ${practiceRegularCount} regular practice questions and exactly ${testRegularCount} regular test questions.${matchingInstruction}\nReturn the JSON object now.`
+      `Vocabulary words:\n${vocabSummary}
+
+Existing intro reading passage (optional source for fill_blank extraction/adaptation):
+${introReadingText || "N/A"}
+
+Generate exactly ${practiceRegularCount} regular practice questions and exactly ${testRegularCount} regular test questions.${matchingInstruction}
+Return the JSON object now.`
     );
 
     if (!content) {

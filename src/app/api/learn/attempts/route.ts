@@ -2,6 +2,146 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
+export async function GET(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+    const orgId = session.organizationId || null;
+    const url = new URL(request.url);
+    const sectionId = url.searchParams.get("sectionId");
+
+    if (!sectionId) {
+      return NextResponse.json({ error: "sectionId is required" }, { status: 400 });
+    }
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        area: {
+          include: {
+            orgConfigs: {
+              where: { organizationId: orgId || "__no_org__" },
+              take: 1,
+            },
+          },
+        },
+        orgConfigs: {
+          where: { organizationId: orgId || "__no_org__" },
+          take: 1,
+        },
+        modules: {
+          where: { type: "test" },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!section) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+
+    const scopeAllowed =
+      section.isActive &&
+      section.area.isActive &&
+      (section.area.scopeType === "global" ||
+        (orgId !== null &&
+          section.area.scopeType === "org" &&
+          section.area.organizationId === orgId));
+    if (!scopeAllowed) {
+      return NextResponse.json({ error: "Section not available" }, { status: 403 });
+    }
+    if (orgId) {
+      const areaCfg = section.area.orgConfigs[0];
+      const sectionCfg = section.orgConfigs[0];
+      if ((areaCfg && !areaCfg.isVisible) || (sectionCfg && !sectionCfg.isVisible)) {
+        return NextResponse.json({ error: "Section not available" }, { status: 403 });
+      }
+    }
+
+    const testModuleId = section.modules[0]?.id;
+    if (!testModuleId) {
+      return NextResponse.json({ error: "Test module not found" }, { status: 404 });
+    }
+
+    const latestAttempt = await prisma.learnerAttempt.findFirst({
+      where: {
+        userId: session.userId,
+        moduleId: testModuleId,
+        completedAt: { not: null },
+      },
+      orderBy: { completedAt: "desc" },
+      include: {
+        answers: {
+          include: {
+            selectedOption: {
+              select: { id: true, optionText: true },
+            },
+            question: {
+              include: {
+                options: {
+                  orderBy: { sortOrder: "asc" },
+                  select: {
+                    id: true,
+                    optionText: true,
+                    isCorrect: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!latestAttempt) {
+      return NextResponse.json({ attempt: null });
+    }
+
+    const reviewedQuestions = latestAttempt.answers
+      .slice()
+      .sort((a, b) => a.question.sortOrder - b.question.sortOrder)
+      .map((answer) => {
+        const correctOption = answer.question.options.find((o) => o.isCorrect) || null;
+        return {
+          answerId: answer.id,
+          isCorrect: answer.isCorrect,
+          question: {
+            id: answer.question.id,
+            type: answer.question.type,
+            prompt: answer.question.prompt,
+            correctAnswer: answer.question.correctAnswer,
+            options: answer.question.options,
+          },
+          learnerAnswer: {
+            selectedOptionId: answer.selectedOptionId,
+            selectedOptionText: answer.selectedOption?.optionText || null,
+            answerText: answer.answerText,
+          },
+          expected: {
+            optionText: correctOption?.optionText || null,
+            answerText: answer.question.correctAnswer,
+          },
+        };
+      });
+
+    return NextResponse.json({
+      attempt: {
+        id: latestAttempt.id,
+        score: latestAttempt.score,
+        passed: latestAttempt.passed,
+        completedAt: latestAttempt.completedAt,
+        reviewedQuestions,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Server error";
+    if (message === "Unauthorized") {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
@@ -13,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the module to find section
-    const module = await prisma.module.findUnique({
+    const sectionModule = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
         section: {
@@ -35,23 +175,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!module) {
+    if (!sectionModule) {
       return NextResponse.json({ error: "Module not found" }, { status: 404 });
     }
 
     const scopeAllowed =
-      module.section.isActive &&
-      module.section.area.isActive &&
-      (module.section.area.scopeType === "global" ||
+      sectionModule.section.isActive &&
+      sectionModule.section.area.isActive &&
+      (sectionModule.section.area.scopeType === "global" ||
         (orgId !== null &&
-          module.section.area.scopeType === "org" &&
-          module.section.area.organizationId === orgId));
+          sectionModule.section.area.scopeType === "org" &&
+          sectionModule.section.area.organizationId === orgId));
     if (!scopeAllowed) {
       return NextResponse.json({ error: "Section not available" }, { status: 403 });
     }
     if (orgId) {
-      const areaCfg = module.section.area.orgConfigs[0];
-      const sectionCfg = module.section.orgConfigs[0];
+      const areaCfg = sectionModule.section.area.orgConfigs[0];
+      const sectionCfg = sectionModule.section.orgConfigs[0];
       if ((areaCfg && !areaCfg.isVisible) || (sectionCfg && !sectionCfg.isVisible)) {
         return NextResponse.json({ error: "Section not available" }, { status: 403 });
       }
@@ -158,17 +298,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Update section progress
-    if (module.type === "test") {
+    if (sectionModule.type === "test") {
       await prisma.learnerSectionProgress.upsert({
         where: {
           userId_sectionId: {
             userId: session.userId,
-            sectionId: module.sectionId,
+            sectionId: sectionModule.sectionId,
           },
         },
         create: {
           userId: session.userId,
-          sectionId: module.sectionId,
+          sectionId: sectionModule.sectionId,
           unlocked: true,
           unlockedAt: new Date(),
           testScore: score,
@@ -186,7 +326,7 @@ export async function POST(request: NextRequest) {
         const areaSections = await prisma.section.findMany({
           where: {
             isActive: true,
-            areaId: module.section.areaId,
+            areaId: sectionModule.section.areaId,
           },
           orderBy: { sortOrder: "asc" },
           include: {
@@ -209,7 +349,7 @@ export async function POST(request: NextRequest) {
             return aOrder - bOrder;
           });
 
-        const currentIndex = visibleAreaSections.findIndex((s) => s.id === module.sectionId);
+        const currentIndex = visibleAreaSections.findIndex((s) => s.id === sectionModule.sectionId);
         const nextSection =
           currentIndex >= 0 ? visibleAreaSections[currentIndex + 1] : null;
 
@@ -234,18 +374,18 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-    } else if (module.type === "practice") {
+    } else if (sectionModule.type === "practice") {
       // Mark practice as completed
       await prisma.learnerSectionProgress.upsert({
         where: {
           userId_sectionId: {
             userId: session.userId,
-            sectionId: module.sectionId,
+            sectionId: sectionModule.sectionId,
           },
         },
         create: {
           userId: session.userId,
-          sectionId: module.sectionId,
+          sectionId: sectionModule.sectionId,
           unlocked: true,
           unlockedAt: new Date(),
           practiceCompleted: true,

@@ -56,6 +56,8 @@ interface Section {
   _count: { sectionVocabulary: number };
 }
 
+type ReadingDifficulty = "easy" | "medium" | "advanced";
+
 // ─── Sortable Section Card ───────────────────────────────────────────────────
 
 function SortableSectionCard({
@@ -190,6 +192,8 @@ export default function AreaUnitsPage({
   // AI generation form
   const [topic, setTopic] = useState("");
   const [wordCount, setWordCount] = useState("5");
+  const [introDifficulty, setIntroDifficulty] =
+    useState<ReadingDifficulty>("medium");
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState("");
   const [genError, setGenError] = useState("");
@@ -388,6 +392,7 @@ export default function AreaUnitsPage({
         body: JSON.stringify({
           topic,
           wordCount: parseInt(wordCount, 10) || 5,
+          introDifficulty,
           areaId,
         }),
       });
@@ -403,6 +408,7 @@ export default function AreaUnitsPage({
 
       setTopic("");
       setWordCount("5");
+      setIntroDifficulty("medium");
       setShowCreate(false);
       setGenProgress("");
       router.push(`/admin/sections/${data.sectionId}`);
@@ -634,6 +640,28 @@ export default function AreaUnitsPage({
                   )
                 )}{" "}
                 test questions
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Introduction text difficulty
+              </label>
+              <select
+                value={introDifficulty}
+                onChange={(e) =>
+                  setIntroDifficulty(e.target.value as ReadingDifficulty)
+                }
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                disabled={generating}
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="advanced">Advanced</option>
+              </select>
+              <p className="text-[10px] text-gray-400 mt-1">
+                Controls intro reading complexity while keeping the same topic
+                and vocabulary terms.
               </p>
             </div>
 

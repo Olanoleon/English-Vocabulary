@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Volume2, ChevronRight } from "lucide-react";
 import { LogoBadge } from "@/components/logo-badge";
+import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
 
 interface VocabWord {
   id: string;
@@ -22,7 +23,11 @@ interface SectionData {
   modules: {
     id: string;
     type: string;
-    content: { readingTitle?: string; readingText?: string } | null;
+    content: {
+      readingTitle?: string;
+      readingText?: string;
+      readingDifficulty?: string;
+    } | null;
   }[];
   sectionVocabulary: { vocabulary: VocabWord }[];
 }
@@ -105,6 +110,7 @@ export default function IntroductionPage({
   const content = introModule?.content as {
     readingTitle?: string;
     readingText?: string;
+    readingDifficulty?: string;
   } | null;
   const vocabulary = section.sectionVocabulary.map((sv) => sv.vocabulary);
 
@@ -143,9 +149,12 @@ export default function IntroductionPage({
         {content?.readingText && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Reading Context
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Reading Context
+                </h2>
+                <ReadingDifficultyBadge difficulty={content?.readingDifficulty} />
+              </div>
               <button
                 onClick={() => speak(content.readingText || "")}
                 className="flex items-center gap-1 text-xs text-primary-600 font-medium"

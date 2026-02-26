@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
+import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
 
 interface Vocabulary {
   id: string;
@@ -48,7 +49,11 @@ interface Question {
 interface Module {
   id: string;
   type: string;
-  content: { readingTitle?: string; readingText?: string } | null;
+  content: {
+    readingTitle?: string;
+    readingText?: string;
+    readingDifficulty?: string;
+  } | null;
   questions: Question[];
   _count: { questions: number };
 }
@@ -582,6 +587,17 @@ export default function SectionEditorPage({
       {/* Introduction Tab */}
       {activeTab === "intro" && (
         <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Reading difficulty:</span>
+            <ReadingDifficultyBadge
+              difficulty={
+                (
+                  section.modules.find((m) => m.type === "introduction")
+                    ?.content as { readingDifficulty?: string } | null
+                )?.readingDifficulty
+              }
+            />
+          </div>
           <p className="text-sm text-gray-500">
             Write the reading context that introduces vocabulary words in
             natural sentences. Bold vocabulary words by wrapping them in
