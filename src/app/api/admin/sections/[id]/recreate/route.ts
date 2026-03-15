@@ -160,68 +160,62 @@ function normalizeGeneratedPayload(
       } => Boolean(v)
     );
 
-  const normalizeQuestions = (value: unknown) => {
-    if (!Array.isArray(value)) {
-      return [] as Array<{
-        type: string;
-        prompt: string;
-        correctAnswer?: string | null;
-        pairs?: unknown[];
-        options?: Array<{ optionText: string; isCorrect: boolean }>;
-      }>;
+  const normalizeQuestions = (
+    value: unknown
+  ): Array<{
+    type: string;
+    prompt: string;
+    correctAnswer: string | null;
+    pairs: unknown[] | undefined;
+    options: Array<{ optionText: string; isCorrect: boolean }>;
+  }> => {
+    if (!Array.isArray(value)) return [];
+
+    const out: Array<{
+      type: string;
+      prompt: string;
+      correctAnswer: string | null;
+      pairs: unknown[] | undefined;
+      options: Array<{ optionText: string; isCorrect: boolean }>;
+    }> = [];
+
+    for (const item of value) {
+      const row =
+        item && typeof item === "object"
+          ? (item as Record<string, unknown>)
+          : null;
+      if (!row) continue;
+
+      const prompt = pickString(row, ["prompt", "question"]);
+      if (!prompt) continue;
+
+      const options: Array<{ optionText: string; isCorrect: boolean }> = [];
+      if (Array.isArray(row.options)) {
+        for (const opt of row.options) {
+          const optRow =
+            opt && typeof opt === "object"
+              ? (opt as Record<string, unknown>)
+              : null;
+          if (!optRow) continue;
+          const optionText = pickString(optRow, ["optionText", "text"]);
+          if (!optionText) continue;
+          options.push({
+            optionText,
+            isCorrect: Boolean(optRow.isCorrect),
+          });
+        }
+      }
+
+      out.push({
+        type: pickString(row, ["type"]) || "multiple_choice",
+        prompt,
+        correctAnswer: pickString(row, ["correctAnswer", "correct_answer"]),
+        pairs: Array.isArray(row.pairs) ? row.pairs : undefined,
+        options,
+      });
     }
-    return value
-      .map((item) => {
-        const row =
-          item && typeof item === "object"
-            ? (item as Record<string, unknown>)
-            : null;
-        if (!row) return null;
-        const prompt = pickString(row, ["prompt", "question"]);
-        if (!prompt) return null;
-        const options = Array.isArray(row.options)
-          ? row.options
-              .map((opt) => {
-                const optRow =
-                  opt && typeof opt === "object"
-                    ? (opt as Record<string, unknown>)
-                    : null;
-                if (!optRow) return null;
-                const optionText = pickString(optRow, ["optionText", "text"]);
-                if (!optionText) return null;
-                return {
-                  optionText,
-                  isCorrect: Boolean(optRow.isCorrect),
-                };
-              })
-              .filter(
-                (
-                  o
-                ): o is {
-                  optionText: string;
-                  isCorrect: boolean;
-                } => Boolean(o)
-              )
-          : [];
-        return {
-          type: pickString(row, ["type"]) || "multiple_choice",
-          prompt,
-          correctAnswer: pickString(row, ["correctAnswer", "correct_answer"]),
-          pairs: Array.isArray(row.pairs) ? row.pairs : undefined,
-          options,
-        };
-      })
-      .filter(
-        (
-          q
-        ): q is {
-          type: string;
-          prompt: string;
-          correctAnswer?: string | null;
-          pairs?: unknown[];
-          options?: Array<{ optionText: string; isCorrect: boolean }>;
-        } => Boolean(q)
-      );
+
+    return out;
   };
 
   return {
