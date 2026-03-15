@@ -13,6 +13,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
+import { APP_IMAGE_FALLBACK } from "@/lib/image-fallback";
+
+const IMAGE_FALLBACK_SRC = APP_IMAGE_FALLBACK;
+const LEGACY_IMAGE_PATH_MAP: Record<string, string> = {
+  "/images/library/humanbody_face.png": "/images/library/humanbody_femaleface.png",
+  "/icons/app-fallback.svg": IMAGE_FALLBACK_SRC,
+  "/file.svg": IMAGE_FALLBACK_SRC,
+};
 
 interface SectionProgress {
   introCompleted: boolean;
@@ -93,6 +101,36 @@ export default function AreaLearningPathPage({
     if (progress.practiceCompleted) total += 33;
     if (progress.testPassed) total += 34;
     return total;
+  }
+
+  function isImageLike(value: string | null | undefined): boolean {
+    if (!value) return false;
+    const normalized = value.trim().toLowerCase();
+    return (
+      normalized.startsWith("/") ||
+      normalized.startsWith("http://") ||
+      normalized.startsWith("https://") ||
+      /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/.test(normalized)
+    );
+  }
+
+  function normalizeImageSrc(value: string | null | undefined): string {
+    if (!value) return "";
+    const trimmed = value.trim();
+    const normalizedWithLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    if (LEGACY_IMAGE_PATH_MAP[normalizedWithLeadingSlash]) {
+      return LEGACY_IMAGE_PATH_MAP[normalizedWithLeadingSlash];
+    }
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+    if (trimmed.startsWith("/")) {
+      return trimmed;
+    }
+    if (trimmed.startsWith("public/")) {
+      return `/${trimmed.replace(/^public\//, "")}`;
+    }
+    return `/${trimmed}`;
   }
 
   if (loading) {
@@ -193,23 +231,35 @@ export default function AreaLearningPathPage({
                   <div className="flex-1 rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-70">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
-                          <LogoBadge
-                            logo={section.imageUrl}
-                            fallback={String(index + 1).padStart(2, "0")}
-                            size="md"
-                            tone="primary"
-                            className="h-full w-full rounded-2xl"
-                          />
+                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                          {isImageLike(section.imageUrl) ? (
+                            <img
+                              src={normalizeImageSrc(section.imageUrl)}
+                              alt={section.title}
+                              className="h-full w-full object-cover object-center"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                              }}
+                            />
+                          ) : (
+                            <LogoBadge
+                              logo={section.imageUrl}
+                              fallback={String(index + 1).padStart(2, "0")}
+                              size="md"
+                              tone="primary"
+                              className="h-full w-full rounded-2xl"
+                            />
+                          )}
                         </div>
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                          <p className="text-xs text-gray-400 uppercase font-medium">
                             Unit {String(index + 1).padStart(2, "0")}
                           </p>
-                          <h3 className="mt-1 text-[28px] leading-none font-bold text-gray-900">
+                          <h3 className="font-bold text-gray-900 mt-0.5">
                             {section.title}
                           </h3>
-                          <p className="mt-1 text-sm text-gray-400">
+                          <p className="text-xs text-gray-400">
                             {section.titleEs}
                           </p>
                         </div>
@@ -228,13 +278,17 @@ export default function AreaLearningPathPage({
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex items-center gap-3">
                         <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
-                          {section.imageUrl ? (
+                          {isImageLike(section.imageUrl) ? (
                             <img
-                              src={section.imageUrl}
+                              src={normalizeImageSrc(section.imageUrl)}
                               alt={section.title}
                               className="h-full w-full object-cover object-center"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                              }}
                             />
                           ) : (
                             <LogoBadge
