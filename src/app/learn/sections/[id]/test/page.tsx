@@ -96,7 +96,7 @@ export default function TestPage({
 
   async function fetchSection() {
     const [sectionRes, attemptRes] = await Promise.all([
-      fetch(`/api/learn/sections/${id}`),
+      fetch(`/api/learn/sections/${id}?view=test`),
       fetch(`/api/learn/attempts?sectionId=${encodeURIComponent(id)}`),
     ]);
 

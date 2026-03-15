@@ -6,12 +6,17 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Lock,
-  CheckCircle2,
   ChevronRight,
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_IMAGE_FALLBACK } from "@/lib/image-fallback";
+import {
+  getCachedAreas,
+  getCachedAreaSections,
+  loadAreasWithCache,
+  loadAreaSectionsWithCache,
+} from "@/lib/learn-client-cache";
 
 const IMAGE_FALLBACK_SRC = APP_IMAGE_FALLBACK;
 const LEGACY_IMAGE_PATH_MAP: Record<string, string> = {
@@ -64,18 +69,47 @@ export default function AreaLearningPathPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaId]);
 
+  async function fetchAreas() {
+    return loadAreasWithCache<AreaInfo[]>(async () => {
+      const res = await fetch("/api/learn/areas");
+      if (!res.ok) {
+        throw new Error("Failed to load areas");
+      }
+      return (await res.json()) as AreaInfo[];
+    });
+  }
+
+  async function fetchSections() {
+    return loadAreaSectionsWithCache<Section[]>(areaId, async () => {
+      const res = await fetch(`/api/learn/sections?areaId=${areaId}`);
+      if (!res.ok) {
+        throw new Error("Failed to load area sections");
+      }
+      return (await res.json()) as Section[];
+    });
+  }
+
   async function fetchData() {
-    const [sectionsRes, areasRes] = await Promise.all([
-      fetch(`/api/learn/sections?areaId=${areaId}`),
-      fetch("/api/learn/areas"),
+    const cachedSections = getCachedAreaSections<Section[]>(areaId);
+    const cachedAreas = getCachedAreas<AreaInfo[]>();
+    if (cachedSections) {
+      setSections(cachedSections);
+      setLoading(false);
+    }
+    if (cachedAreas) {
+      setArea(cachedAreas.find((a) => a.id === areaId) || null);
+    }
+
+    const [sectionsResult, areasResult] = await Promise.allSettled([
+      fetchSections(),
+      fetchAreas(),
     ]);
 
-    if (sectionsRes.ok) {
-      setSections(await sectionsRes.json());
+    if (sectionsResult.status === "fulfilled") {
+      setSections(sectionsResult.value);
     }
-    if (areasRes.ok) {
-      const areas: AreaInfo[] = await areasRes.json();
-      setArea(areas.find((a) => a.id === areaId) || null);
+    if (areasResult.status === "fulfilled") {
+      setArea(areasResult.value.find((a) => a.id === areaId) || null);
     }
     setLoading(false);
   }

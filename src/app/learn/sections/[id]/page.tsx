@@ -58,7 +58,7 @@ export default function SectionDetailPage({
   }, [id]);
 
   async function fetchSection() {
-    const res = await fetch(`/api/learn/sections/${id}`);
+    const res = await fetch(`/api/learn/sections/${id}?view=summary`);
     if (res.ok) {
       setSection(await res.json());
     } else if (res.status === 403) {

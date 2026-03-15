@@ -78,7 +78,7 @@ export default function PracticePage({
   }, [id]);
 
   async function fetchSection() {
-    const res = await fetch(`/api/learn/sections/${id}`);
+    const res = await fetch(`/api/learn/sections/${id}?view=practice`);
     if (res.ok) {
       setSection(await res.json());
     }

@@ -49,7 +49,7 @@ export default function IntroductionPage({
   }, [id]);
 
   async function fetchSection() {
-    const res = await fetch(`/api/learn/sections/${id}`);
+    const res = await fetch(`/api/learn/sections/${id}?view=intro`);
     if (res.ok) {
       setSection(await res.json());
     }

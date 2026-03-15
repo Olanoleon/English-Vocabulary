@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, BookOpen, Flame } from "lucide-react";
 import { LogoBadge } from "@/components/logo-badge";
 import { APP_IMAGE_FALLBACK } from "@/lib/image-fallback";
+import { getCachedAreas, loadAreasWithCache } from "@/lib/learn-client-cache";
 
 interface Area {
   id: string;
@@ -22,17 +23,34 @@ export default function LearningAreasPage() {
   const [displayName, setDisplayName] = useState("");
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
 
+  async function fetchAreas() {
+    return loadAreasWithCache<Area[]>(async () => {
+      const res = await fetch("/api/learn/areas");
+      if (!res.ok) {
+        throw new Error("Failed to load learning areas");
+      }
+      return (await res.json()) as Area[];
+    });
+  }
+
   const fetchData = async () => {
-    const [areasRes, meRes] = await Promise.all([
-      fetch("/api/learn/areas"),
+    const cachedAreas = getCachedAreas<Area[]>();
+    if (cachedAreas) {
+      setAreas(cachedAreas);
+      setLoading(false);
+    }
+
+    const [areasResult, meResult] = await Promise.allSettled([
+      fetchAreas(),
       fetch("/api/auth/me"),
     ]);
 
-    if (areasRes.ok) {
-      setAreas(await areasRes.json());
+    if (areasResult.status === "fulfilled") {
+      setAreas(areasResult.value);
     }
-    if (meRes.ok) {
-      const me = await meRes.json();
+
+    if (meResult.status === "fulfilled" && meResult.value.ok) {
+      const me = await meResult.value.json();
       setDisplayName(me.displayName || "");
       if (me.displayName) {
         setShowWelcomeToast(true);
@@ -46,6 +64,7 @@ export default function LearningAreasPage() {
       void fetchData();
     }, 0);
     return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

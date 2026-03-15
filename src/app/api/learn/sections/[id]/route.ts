@@ -3,13 +3,75 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth();
     const orgId = session.organizationId || null;
     const { id } = await params;
+    const view = request.nextUrl.searchParams.get("view") || "full";
+
+    const modulesIncludeByView =
+      view === "summary"
+        ? {
+            select: {
+              id: true,
+              type: true,
+              content: true,
+              _count: { select: { questions: true } },
+            },
+          }
+        : view === "intro"
+          ? {
+              where: { type: "introduction" as const },
+              select: {
+                id: true,
+                type: true,
+                content: true,
+              },
+            }
+          : view === "practice"
+            ? {
+                where: { type: "practice" as const },
+                select: {
+                  id: true,
+                  type: true,
+                  questions: {
+                    include: { options: { orderBy: { sortOrder: "asc" } } },
+                    orderBy: { sortOrder: "asc" },
+                  },
+                },
+              }
+            : view === "test"
+              ? {
+                  where: { type: "test" as const },
+                  select: {
+                    id: true,
+                    type: true,
+                    questions: {
+                      include: { options: { orderBy: { sortOrder: "asc" } } },
+                      orderBy: { sortOrder: "asc" },
+                    },
+                  },
+                }
+              : {
+                  include: {
+                    questions: {
+                      include: { options: { orderBy: { sortOrder: "asc" } } },
+                      orderBy: { sortOrder: "asc" },
+                    },
+                    _count: { select: { questions: true } },
+                  },
+                };
+
+    const sectionVocabularyIncludeByView =
+      view === "intro"
+        ? {
+            include: { vocabulary: true },
+            orderBy: { sortOrder: "asc" as const },
+          }
+        : false;
 
     // Check if unlocked
     const progress = await prisma.learnerSectionProgress.findUnique({
@@ -38,18 +100,11 @@ export async function GET(
           take: 1,
         },
         modules: {
-          include: {
-            questions: {
-              include: { options: { orderBy: { sortOrder: "asc" } } },
-              orderBy: { sortOrder: "asc" },
-            },
-            _count: { select: { questions: true } },
-          },
+          ...(modulesIncludeByView as object),
         },
-        sectionVocabulary: {
-          include: { vocabulary: true },
-          orderBy: { sortOrder: "asc" },
-        },
+        ...(sectionVocabularyIncludeByView
+          ? { sectionVocabulary: sectionVocabularyIncludeByView }
+          : {}),
       },
     });
 
