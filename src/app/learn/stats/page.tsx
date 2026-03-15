@@ -57,29 +57,29 @@ export default function StatsPage() {
       : 0;
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Statistics</h1>
+    <div className="space-y-4 px-4 py-6">
+      <h1 className="text-[28px] font-bold leading-none text-gray-900">Statistics</h1>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-primary-50 rounded-xl p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-[24px] bg-primary-50 p-4">
           <Trophy className="w-5 h-5 text-primary-600 mb-2" />
           <p className="text-2xl font-bold text-gray-900">
             {completedSections.length}
           </p>
           <p className="text-xs text-gray-500">Sections Completed</p>
         </div>
-        <div className="bg-green-50 rounded-xl p-4">
+        <div className="rounded-[24px] bg-green-50 p-4">
           <BookOpen className="w-5 h-5 text-success-500 mb-2" />
           <p className="text-2xl font-bold text-gray-900">{learnedWords}</p>
           <p className="text-xs text-gray-500">Words Learned</p>
         </div>
-        <div className="bg-yellow-50 rounded-xl p-4">
+        <div className="rounded-[24px] bg-yellow-50 p-4">
           <Target className="w-5 h-5 text-warning-500 mb-2" />
           <p className="text-2xl font-bold text-gray-900">{avgScore}%</p>
           <p className="text-xs text-gray-500">Average Score</p>
         </div>
-        <div className="bg-purple-50 rounded-xl p-4">
+        <div className="rounded-[24px] bg-purple-50 p-4">
           <TrendingUp className="w-5 h-5 text-purple-500 mb-2" />
           <p className="text-2xl font-bold text-gray-900">
             {sections.length > 0
@@ -94,12 +94,12 @@ export default function StatsPage() {
       </div>
 
       {/* Section Breakdown */}
-      <h2 className="font-semibold text-gray-900 mb-3">Section Breakdown</h2>
+      <h2 className="text-lg font-semibold text-gray-900">Section Breakdown</h2>
       <div className="space-y-3">
         {sections.map((section, idx) => (
           <div
             key={section.id}
-            className="bg-white border border-gray-200 rounded-xl p-4"
+            className="rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm"
           >
             <div className="flex items-center justify-between mb-2">
               <div>

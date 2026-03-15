@@ -30,15 +30,16 @@ export default function BlockedPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-gray-50 to-white">
-      <div className="w-full max-w-sm text-center">
-        <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+    <div className="min-h-screen bg-white px-6">
+      <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center">
+        <div className="w-full text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100">
           {reason === "payment_overdue" ? (
             <CreditCard className="w-8 h-8 text-red-500" />
           ) : (
             <ShieldOff className="w-8 h-8 text-red-500" />
           )}
-        </div>
+          </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Access Paused
@@ -56,13 +57,14 @@ export default function BlockedPage() {
           </p>
         )}
 
-        <button
-          onClick={handleLogout}
-          className="w-full bg-gray-900 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          Sign Out
-        </button>
+          <button
+            onClick={handleLogout}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 font-semibold text-white transition-colors hover:bg-gray-800"
+          >
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </button>
+        </div>
       </div>
     </div>
   );

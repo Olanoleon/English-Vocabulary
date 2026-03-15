@@ -113,12 +113,12 @@ export default function AreaLearningPathPage({
       : 0;
 
   return (
-    <div className="px-4 py-6">
+    <div className="space-y-4 px-4 py-6">
       {/* Header */}
-      <div className="mb-5">
+      <div>
         <button
           onClick={() => router.push("/learn")}
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-2"
+          className="mb-2 flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-4 h-4" />
           All Areas
@@ -127,20 +127,20 @@ export default function AreaLearningPathPage({
           <div className="flex items-center gap-3">
             <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{area.name}</h1>
+              <h1 className="text-[28px] font-bold leading-none text-gray-900">{area.name}</h1>
               <p className="text-xs text-gray-400">{area.nameEs}</p>
             </div>
           </div>
         ) : (
-          <h1 className="text-2xl font-bold text-gray-900">Learning Path</h1>
+          <h1 className="text-[28px] font-bold leading-none text-gray-900">Learning Path</h1>
         )}
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="mt-2 text-sm text-gray-500">
           {displayName ? `Welcome back, ${displayName}` : "Vocabulario ESL"}
         </p>
       </div>
 
       {/* Overall Progress */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 shadow-sm">
+      <div className="rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-600">
             Path Completion
@@ -190,7 +190,7 @@ export default function AreaLearningPathPage({
 
                 {/* Card */}
                 {status === "locked" ? (
-                  <div className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-4 opacity-60">
+                  <div className="flex-1 rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-60">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-gray-400 uppercase font-medium">
@@ -210,7 +210,7 @@ export default function AreaLearningPathPage({
                   <Link
                     href={`/learn/sections/${section.id}`}
                     className={cn(
-                      "flex-1 rounded-2xl p-4 transition-all shadow-sm",
+                      "flex-1 rounded-[28px] p-4 shadow-sm transition-all",
                       status === "active"
                         ? "bg-white border-2 border-primary-500 shadow-sm"
                         : "bg-white border border-gray-200"
@@ -221,10 +221,10 @@ export default function AreaLearningPathPage({
                         <LogoBadge
                           logo={section.imageUrl}
                           fallback={String(index + 1).padStart(2, "0")}
-                          size="sm"
+                          size="md"
                           tone="primary"
                         />
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-xs text-primary-600 uppercase font-medium">
                               Unit {String(index + 1).padStart(2, "0")}
@@ -238,7 +238,7 @@ export default function AreaLearningPathPage({
                                 </span>
                               )}
                           </div>
-                          <h3 className="font-bold text-gray-900 mt-0.5">
+                          <h3 className="mt-0.5 truncate text-[17px] font-bold text-gray-900">
                             {section.title}
                           </h3>
                           <p className="text-xs text-gray-400">

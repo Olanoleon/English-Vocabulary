@@ -9,7 +9,6 @@ import {
   KeyRound,
   ShieldCheck,
   ShieldOff,
-  ShieldAlert,
   ChevronDown,
   Search,
 } from "lucide-react";
@@ -20,6 +19,7 @@ interface Learner {
   id: string;
   username: string;
   displayName: string;
+  avatarGender: "female" | "male" | null;
   organizationId: string | null;
   createdAt: string;
   accessOverride: string | null;
@@ -106,7 +106,7 @@ function AccessControl({
         onClick={() => setOpen(!open)}
         disabled={updating}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+          "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors",
           learner.hasAccess
             ? "bg-green-50 border-green-200 text-green-700"
             : "bg-red-50 border-red-200 text-red-700",
@@ -128,8 +128,8 @@ function AccessControl({
             className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-56 overflow-hidden animate-scale-in">
-            <div className="px-3 py-2 border-b border-gray-100">
+          <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg animate-scale-in">
+            <div className="border-b border-gray-100 px-4 py-3">
               <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
                 Access Control
               </p>
@@ -141,7 +141,7 @@ function AccessControl({
                   key={option.value ?? "auto"}
                   onClick={() => setOverride(option.value)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors",
+                    "w-full px-4 py-3 text-left transition-colors hover:bg-gray-50",
                     isSelected && "bg-primary-50"
                   )}
                 >
@@ -184,6 +184,7 @@ export default function LearnersPage() {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [newAvatarGender, setNewAvatarGender] = useState<"female" | "male">("female");
   const [createOrgId, setCreateOrgId] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -302,6 +303,7 @@ export default function LearnersPage() {
         username: newUsername,
         password: newPassword,
         displayName: newDisplayName,
+        avatarGender: newAvatarGender,
         organizationId:
           sessionMe?.role === "org_admin"
             ? sessionMe.organizationId
@@ -312,6 +314,7 @@ export default function LearnersPage() {
       setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
+      setNewAvatarGender("female");
       setShowCreate(false);
       void fetchLearners(selectedOrgId || undefined);
     } else {
@@ -411,20 +414,24 @@ export default function LearnersPage() {
   const organizationNameById = new Map(
     organizations.map((org) => [org.id, org.name])
   );
+  const avatarSrcByGender: Record<"female" | "male", string> = {
+    female: "/images/library/humanbody_femaleface.png",
+    male: "/images/library/humanbody_male.png",
+  };
 
   return (
-    <div className="px-4 py-6">
+    <div className="space-y-4 px-4 py-6 pb-24">
       <ToastMessage
         open={toast.open}
         status={toast.status}
         message={toast.message}
       />
-      <div className="mb-6 flex items-start justify-between">
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-[28px] font-bold leading-none text-gray-900">
             Learner Management
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="mt-2 text-sm text-gray-500">
             {learners.length} registered learner
             {learners.length !== 1 ? "s" : ""}
           </p>
@@ -435,7 +442,7 @@ export default function LearnersPage() {
               setCreateOrgId(selectedOrgId || "");
               setShowCreate(true);
             }}
-            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-600 text-white transition-colors hover:bg-primary-700"
             title="Add New Learner"
           >
             <Plus className="w-5 h-5" />
@@ -443,7 +450,7 @@ export default function LearnersPage() {
         )}
       </div>
       {apiError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {apiError}
         </div>
       )}
@@ -452,14 +459,14 @@ export default function LearnersPage() {
       {showCreate && (
         <form
           onSubmit={createLearner}
-          className="mb-4 bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-scale-in"
+          className="animate-scale-in space-y-3 rounded-[28px] border border-primary-100 bg-white p-4 shadow-sm"
         >
-          <h4 className="font-semibold text-sm">New Learner Account</h4>
+          <h4 className="text-base font-semibold text-gray-900">New Learner Account</h4>
           {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") && (
             <select
               value={createOrgId}
               onChange={(e) => setCreateOrgId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             >
               <option value="">Select organization...</option>
@@ -475,7 +482,7 @@ export default function LearnersPage() {
             placeholder="Display name"
             value={newDisplayName}
             onChange={(e) => setNewDisplayName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             required
           />
           <input
@@ -483,7 +490,7 @@ export default function LearnersPage() {
             placeholder="Username"
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             required
           />
           <input
@@ -491,16 +498,24 @@ export default function LearnersPage() {
             placeholder="Password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             required
             minLength={4}
           />
+          <select
+            value={newAvatarGender}
+            onChange={(e) => setNewAvatarGender(e.target.value as "female" | "male")}
+            className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="female">Female avatar</option>
+            <option value="male">Male avatar</option>
+          </select>
           {error && <p className="text-sm text-danger-500">{error}</p>}
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-1">
             <button
               type="submit"
               disabled={creating}
-              className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
             >
               {creating ? "Creating..." : "Create Account"}
             </button>
@@ -509,8 +524,9 @@ export default function LearnersPage() {
               onClick={() => {
                 setShowCreate(false);
                 setError("");
+                setNewAvatarGender("female");
               }}
-              className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
             >
               Cancel
             </button>
@@ -520,8 +536,8 @@ export default function LearnersPage() {
 
       {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
         organizations.length > 0 && (
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">
               Organization Scope
             </label>
             <select
@@ -531,7 +547,7 @@ export default function LearnersPage() {
                 setSelectedOrgId(orgId);
                 void fetchLearners(orgId || undefined);
               }}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">All organizations</option>
               {organizations.map((org) => (
@@ -545,16 +561,16 @@ export default function LearnersPage() {
 
       {/* Access stats */}
       {learners.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-5">
-          <div className="bg-gray-50 rounded-xl p-3 text-center">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-gray-50 p-3 text-center">
             <p className="text-lg font-bold text-gray-900">{learners.length}</p>
             <p className="text-[10px] text-gray-500 uppercase">Total</p>
           </div>
-          <div className="bg-green-50 rounded-xl p-3 text-center">
+          <div className="rounded-2xl bg-green-50 p-3 text-center">
             <p className="text-lg font-bold text-green-700">{activeCount}</p>
             <p className="text-[10px] text-green-600 uppercase">Active</p>
           </div>
-          <div className={cn("rounded-xl p-3 text-center", blockedCount > 0 ? "bg-red-50" : "bg-gray-50")}>
+          <div className={cn("rounded-2xl p-3 text-center", blockedCount > 0 ? "bg-red-50" : "bg-gray-50")}>
             <p className={cn("text-lg font-bold", blockedCount > 0 ? "text-red-700" : "text-gray-900")}>{blockedCount}</p>
             <p className={cn("text-[10px] uppercase", blockedCount > 0 ? "text-red-600" : "text-gray-500")}>Blocked</p>
           </div>
@@ -563,7 +579,7 @@ export default function LearnersPage() {
 
       {/* Search */}
       {learners.length > 0 && (
-        <div className="mb-4">
+        <div>
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -571,7 +587,7 @@ export default function LearnersPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search learners by name or username"
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           {normalizedSearch && (
@@ -592,103 +608,124 @@ export default function LearnersPage() {
             <div
               key={learner.id}
               className={cn(
-                "bg-white border rounded-xl p-4",
+                "rounded-[28px] border bg-white p-4 shadow-sm",
                 learner.hasAccess ? "border-gray-200" : "border-red-200"
               )}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "rounded-full p-2",
-                      learner.hasAccess ? "bg-primary-100" : "bg-red-100"
-                    )}
-                  >
-                    {learner.hasAccess ? (
-                      <UserCircle className="w-6 h-6 text-primary-600" />
-                    ) : (
-                      <ShieldAlert className="w-6 h-6 text-red-500" />
-                    )}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px]",
+                        learner.hasAccess ? "bg-primary-100" : "bg-red-100"
+                      )}
+                    >
+                      <img
+                        src={avatarSrcByGender[learner.avatarGender === "male" ? "male" : "female"]}
+                        alt={`${learner.displayName} avatar`}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = "/images/library/humanbody_femaleface.png";
+                        }}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[17px] font-semibold leading-tight text-gray-900">
+                        {learner.displayName}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-gray-500">
+                        @{learner.username}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {learner.displayName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      @{learner.username}
-                    </p>
-                    {canReassignOrganization && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Org:{" "}
+                  <div className="shrink-0">
+                    <AccessControl
+                      learner={learner}
+                      onUpdate={() => void fetchLearners(selectedOrgId || undefined)}
+                      onError={setApiError}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {canReassignOrganization && (
+                    <div className="rounded-2xl bg-gray-50 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                        Organization
+                      </p>
+                      <p className="truncate text-xs font-medium text-gray-700">
                         {learner.organizationId
                           ? organizationNameById.get(learner.organizationId) || "Unknown"
                           : "Unassigned"}
                       </p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
+                    </div>
+                  )}
+                  <div className="rounded-2xl bg-gray-50 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                      Progress
+                    </p>
+                    <p className="text-xs font-medium text-gray-700">
                       {completedSections} section
                       {completedSections !== 1 ? "s" : ""} completed
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <AccessControl
-                    learner={learner}
-                    onUpdate={() => void fetchLearners(selectedOrgId || undefined)}
-                    onError={setApiError}
-                  />
-                  {canResetPasswords && (
-                    <button
-                      onClick={() => {
-                        setResetTarget(learner);
-                        setResetPassword("");
-                      }}
-                      className="p-2 text-gray-300 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-                      title="Reset password"
-                    >
-                      <KeyRound className="w-4 h-4" />
-                    </button>
-                  )}
-                  {canReassignOrganization && (
-                    <button
-                      onClick={() => {
-                        setReassignTarget(learner);
-                        setReassignOrgId(learner.organizationId || "");
-                      }}
-                      className="p-2 text-gray-300 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-                      title="Change organization"
-                    >
-                      <Building2 className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() =>
-                      deleteLearner(learner.id, learner.displayName)
-                    }
-                    className="p-2 text-gray-300 hover:text-danger-500 rounded-lg hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
 
-              {/* Access reason hint */}
-              <div className="mt-2 flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "text-[10px] px-2 py-0.5 rounded-full",
-                    learner.hasAccess
-                      ? "bg-gray-100 text-gray-500"
-                      : "bg-red-50 text-red-500"
-                  )}
-                >
-                  {learner.accessReason}
-                </span>
-                {learner.accessOverride && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
-                    Manual override
-                  </span>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[10px]",
+                        learner.hasAccess
+                          ? "bg-gray-100 text-gray-500"
+                          : "bg-red-50 text-red-500"
+                      )}
+                    >
+                      {learner.accessReason}
+                    </span>
+                    {learner.accessOverride && (
+                      <span className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[10px] text-yellow-700">
+                        Manual override
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {canResetPasswords && (
+                      <button
+                        onClick={() => {
+                          setResetTarget(learner);
+                          setResetPassword("");
+                        }}
+                        className="rounded-xl bg-gray-50 p-2 text-gray-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+                        title="Reset password"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                      </button>
+                    )}
+                    {canReassignOrganization && (
+                      <button
+                        onClick={() => {
+                          setReassignTarget(learner);
+                          setReassignOrgId(learner.organizationId || "");
+                        }}
+                        className="rounded-xl bg-gray-50 p-2 text-gray-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+                        title="Change organization"
+                      >
+                        <Building2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() =>
+                        deleteLearner(learner.id, learner.displayName)
+                      }
+                      className="rounded-xl bg-gray-50 p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-danger-500"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -696,7 +733,7 @@ export default function LearnersPage() {
       </div>
 
       {learners.length > 0 && filteredLearners.length === 0 && (
-        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl">
+        <div className="rounded-[28px] border border-dashed border-gray-200 py-10 text-center">
           <p className="text-sm text-gray-500">
             No learners match &quot;<span className="font-medium">{search}</span>&quot;
           </p>
@@ -704,7 +741,7 @@ export default function LearnersPage() {
       )}
 
       {learners.length === 0 && !showCreate && (
-        <div className="text-center py-12">
+        <div className="rounded-[28px] border border-dashed border-gray-200 py-12 text-center">
           <UserCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">
             No learners yet. Create your first one!
@@ -716,7 +753,7 @@ export default function LearnersPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <form
             onSubmit={resetLearnerPassword}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
           >
             <h3 className="font-bold text-gray-900">Reset Learner Password</h3>
             <p className="text-xs text-gray-500">
@@ -727,7 +764,7 @@ export default function LearnersPage() {
               value={resetPassword}
               onChange={(e) => setResetPassword(e.target.value)}
               placeholder="New password"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               minLength={4}
               required
             />
@@ -735,7 +772,7 @@ export default function LearnersPage() {
               <button
                 type="submit"
                 disabled={resetting}
-                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {resetting ? "Updating..." : "Update Password"}
               </button>
@@ -745,7 +782,7 @@ export default function LearnersPage() {
                   setResetTarget(null);
                   setResetPassword("");
                 }}
-                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
               >
                 Cancel
               </button>
@@ -758,7 +795,7 @@ export default function LearnersPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <form
             onSubmit={reassignLearnerOrganization}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
           >
             <h3 className="font-bold text-gray-900">Change Learner Organization</h3>
             <p className="text-xs text-gray-500">
@@ -767,7 +804,7 @@ export default function LearnersPage() {
             <select
               value={reassignOrgId}
               onChange={(e) => setReassignOrgId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm"
               required
             >
               <option value="">Select organization...</option>
@@ -781,7 +818,7 @@ export default function LearnersPage() {
               <button
                 type="submit"
                 disabled={reassigning}
-                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {reassigning ? "Updating..." : "Update Organization"}
               </button>
@@ -791,7 +828,7 @@ export default function LearnersPage() {
                   setReassignTarget(null);
                   setReassignOrgId("");
                 }}
-                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
               >
                 Cancel
               </button>

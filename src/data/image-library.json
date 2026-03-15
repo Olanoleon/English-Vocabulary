@@ -1,0 +1,72 @@
+[
+  { "id": "human-body-female-face", "path": "/images/library/humanbody_femaleface.png", "kind": "any", "title": "Human Body Female Face", "aliases": ["female face", "woman face", "girl face", "parts of the female face", "partes de la cara femenina"], "tags": ["human", "body", "female", "woman", "girl", "face", "hair", "hairstyle", "anatomy", "head"], "priority": 45, "enabled": true },
+  { "id": "human-body-male-face", "path": "/images/library/humanbody_male.png", "kind": "any", "title": "Human Body Male Face", "aliases": ["male face", "man face", "boy face", "parts of the male face", "partes de la cara masculina"], "tags": ["human", "body", "male", "man", "boy", "face", "anatomy", "head"], "priority": 45, "enabled": true },
+  { "id": "human-body-torso", "path": "/images/library/humanbody_torso.png", "kind": "any", "title": "Human Body Torso", "aliases": ["torso", "body organs", "upper body"], "tags": ["human", "body", "torso", "anatomy", "organs"], "priority": 35, "enabled": true },
+  { "id": "family-relationships", "path": "/images/library/family_relationships.png", "kind": "any", "title": "Family Relationships", "aliases": ["family and relationships", "relationship vocabulary", "relatives"], "tags": ["family", "relationships", "relatives", "home"], "priority": 35, "enabled": true },
+  { "id": "family-members", "path": "/images/library/family_members.png", "kind": "any", "title": "Family Members", "aliases": ["basic family members", "extended family", "in-laws"], "tags": ["family", "members", "relatives"], "priority": 30, "enabled": true },
+
+  { "id": "animals-dog", "path": "/images/library/animals_dog.png", "kind": "any", "title": "Animals Dog", "aliases": ["dog", "pets", "animals"], "tags": ["animals", "dog", "pet", "wildlife"], "priority": 20, "enabled": true },
+  { "id": "animals-lion", "path": "/images/library/animals_lion.png", "kind": "any", "title": "Animals Lion", "aliases": ["lion", "wild animals"], "tags": ["animals", "lion", "wildlife", "nature"], "priority": 20, "enabled": true },
+  { "id": "animals-bird", "path": "/images/library/animals_bird.png", "kind": "any", "title": "Animals Bird", "aliases": ["bird", "birds", "wildlife"], "tags": ["animals", "bird", "wildlife", "nature"], "priority": 20, "enabled": true },
+  { "id": "animals-whale", "path": "/images/library/animals_whale.png", "kind": "any", "title": "Animals Whale", "aliases": ["whale", "sea animals", "marine life"], "tags": ["animals", "whale", "ocean", "wildlife"], "priority": 20, "enabled": true },
+
+  { "id": "food-drinks", "path": "/images/library/food_drinks.png", "kind": "any", "title": "Food and Drinks", "aliases": ["drinks", "beverages", "restaurant drinks"], "tags": ["food", "drinks", "beverages", "restaurant"], "priority": 18, "enabled": true },
+  { "id": "food-fruits", "path": "/images/library/food_fruits.png", "kind": "any", "title": "Food Fruits", "aliases": ["fruits", "fruit"], "tags": ["food", "fruits", "grocery"], "priority": 18, "enabled": true },
+  { "id": "food-vegetables", "path": "/images/library/food_vegetables.png", "kind": "any", "title": "Food Vegetables", "aliases": ["vegetables", "vegetable"], "tags": ["food", "vegetables", "grocery"], "priority": 18, "enabled": true },
+  { "id": "food-meat", "path": "/images/library/food_meat.png", "kind": "any", "title": "Food Meat", "aliases": ["meat", "protein foods"], "tags": ["food", "meat", "restaurant"], "priority": 18, "enabled": true },
+
+  { "id": "school-teacher", "path": "/images/library/school_teacher.png", "kind": "any", "title": "School Teacher", "aliases": ["teacher", "classroom teacher"], "tags": ["school", "teacher", "education", "classroom"], "priority": 18, "enabled": true },
+  { "id": "school-items", "path": "/images/library/school_items.png", "kind": "any", "title": "School Items", "aliases": ["school supplies", "classroom objects"], "tags": ["school", "items", "supplies", "classroom"], "priority": 18, "enabled": true },
+  { "id": "school-subjects", "path": "/images/library/school_subjects.png", "kind": "any", "title": "School Subjects", "aliases": ["subjects", "school subjects"], "tags": ["school", "subjects", "education"], "priority": 18, "enabled": true },
+  { "id": "school-campus", "path": "/images/library/school_campus.png", "kind": "any", "title": "School Campus", "aliases": ["campus", "school buildings"], "tags": ["school", "campus", "education"], "priority": 18, "enabled": true },
+
+  { "id": "house-kitchen", "path": "/images/library/house_kitchen.png", "kind": "any", "title": "House Kitchen", "aliases": ["kitchen", "home kitchen"], "tags": ["house", "home", "kitchen", "rooms"], "priority": 15, "enabled": true },
+  { "id": "house-bathroom", "path": "/images/library/house_bathroom.png", "kind": "any", "title": "House Bathroom", "aliases": ["bathroom", "home bathroom"], "tags": ["house", "home", "bathroom", "rooms"], "priority": 15, "enabled": true },
+  { "id": "house-bedroom", "path": "/images/library/house_bedroom.png", "kind": "any", "title": "House Bedroom", "aliases": ["bedroom", "home bedroom"], "tags": ["house", "home", "bedroom", "rooms"], "priority": 15, "enabled": true },
+  { "id": "house-living-room", "path": "/images/library/house_livingroom.png", "kind": "any", "title": "House Living Room", "aliases": ["living room", "house living room"], "tags": ["house", "home", "living", "room", "rooms"], "priority": 15, "enabled": true },
+
+  { "id": "transport-car", "path": "/images/library/transport_car.png", "kind": "any", "title": "Transport Car", "aliases": ["car", "driving"], "tags": ["transport", "car", "vehicle"], "priority": 15, "enabled": true },
+  { "id": "transport-plane", "path": "/images/library/transport_plane.png", "kind": "any", "title": "Transport Plane", "aliases": ["plane", "airplane", "airport"], "tags": ["transport", "plane", "air travel"], "priority": 15, "enabled": true },
+  { "id": "transport-motorcycle", "path": "/images/library/transport_motorcycle.png", "kind": "any", "title": "Transport Motorcycle", "aliases": ["motorcycle", "bike"], "tags": ["transport", "motorcycle", "vehicle"], "priority": 15, "enabled": true },
+  { "id": "transport-engine", "path": "/images/library/transport_engine.png", "kind": "any", "title": "Transport Engine", "aliases": ["engine", "motor"], "tags": ["transport", "engine", "mechanical"], "priority": 12, "enabled": true },
+
+  { "id": "professions-engineer", "path": "/images/library/professions_engineer.png", "kind": "any", "title": "Professions Engineer", "aliases": ["engineer", "engineering"], "tags": ["professions", "jobs", "engineer"], "priority": 14, "enabled": true },
+  { "id": "professions-secretary", "path": "/images/library/professions_secretary.png", "kind": "any", "title": "Professions Secretary", "aliases": ["secretary", "office assistant"], "tags": ["professions", "jobs", "office"], "priority": 14, "enabled": true },
+  { "id": "professions-chef", "path": "/images/library/professions_chef.png", "kind": "any", "title": "Professions Chef", "aliases": ["chef", "cook"], "tags": ["professions", "jobs", "chef", "kitchen"], "priority": 14, "enabled": true },
+  { "id": "professions-artist", "path": "/images/library/professions_artist.png", "kind": "any", "title": "Professions Artist", "aliases": ["artist", "creative jobs"], "tags": ["professions", "jobs", "artist"], "priority": 14, "enabled": true },
+
+  { "id": "weather-rain", "path": "/images/library/weather_rain.png", "kind": "any", "title": "Weather Rain", "aliases": ["rainy weather", "rain"], "tags": ["weather", "rain"], "priority": 12, "enabled": true },
+  { "id": "weather-summer", "path": "/images/library/weather_summer.png", "kind": "any", "title": "Weather Summer", "aliases": ["summer weather", "summer"], "tags": ["weather", "summer", "season"], "priority": 12, "enabled": true },
+  { "id": "weather-forecast", "path": "/images/library/weather_forecast.png", "kind": "any", "title": "Weather Forecast", "aliases": ["forecast", "weather report"], "tags": ["weather", "forecast"], "priority": 12, "enabled": true },
+  { "id": "weather-snowman", "path": "/images/library/weather_snowman.png", "kind": "any", "title": "Weather Snowman", "aliases": ["winter weather", "snow", "snowman"], "tags": ["weather", "winter", "snow", "snowman"], "priority": 12, "enabled": true },
+
+  { "id": "city-streets", "path": "/images/library/city_streets.png", "kind": "any", "title": "City Streets", "aliases": ["streets", "urban streets"], "tags": ["city", "streets", "urban"], "priority": 12, "enabled": true },
+  { "id": "city-park", "path": "/images/library/city_park.png", "kind": "any", "title": "City Park", "aliases": ["park", "city park"], "tags": ["city", "park", "urban"], "priority": 12, "enabled": true },
+  { "id": "city-building", "path": "/images/library/city_building.png", "kind": "any", "title": "City Building", "aliases": ["building", "buildings"], "tags": ["city", "building", "urban"], "priority": 12, "enabled": true },
+  { "id": "city-stadium", "path": "/images/library/city_stadium.png", "kind": "any", "title": "City Stadium", "aliases": ["stadium", "sports stadium"], "tags": ["city", "stadium", "sports"], "priority": 12, "enabled": true },
+
+  { "id": "communication-internet", "path": "/images/library/communication_internet.png", "kind": "any", "title": "Communication Internet", "aliases": ["internet communication", "online communication"], "tags": ["communication", "internet", "online"], "priority": 10, "enabled": true },
+  { "id": "communication-letter", "path": "/images/library/communication_letter.png", "kind": "any", "title": "Communication Letter", "aliases": ["letter", "mail"], "tags": ["communication", "letter", "mail"], "priority": 10, "enabled": true },
+  { "id": "shopping-register", "path": "/images/library/shopping_register.png", "kind": "any", "title": "Shopping Register", "aliases": ["cash register", "checkout"], "tags": ["shopping", "register", "store"], "priority": 10, "enabled": true },
+  { "id": "calendar", "path": "/images/library/calendar.png", "kind": "any", "title": "Calendar", "aliases": ["dates", "months"], "tags": ["calendar", "time", "dates"], "priority": 10, "enabled": true },
+
+  { "id": "utensils-silverware", "path": "/images/library/utensils_silverware.png", "kind": "any", "title": "Utensils Silverware", "aliases": ["silverware", "cutlery"], "tags": ["utensils", "silverware", "cutlery", "dining"], "priority": 10, "enabled": true },
+  { "id": "utensils-chinaware", "path": "/images/library/utensils_chinaware.png", "kind": "any", "title": "Utensils Chinaware", "aliases": ["plates", "dishware"], "tags": ["utensils", "chinaware", "dishware", "dining"], "priority": 10, "enabled": true },
+  { "id": "utensils-mug", "path": "/images/library/utensils_mug.png", "kind": "any", "title": "Utensils Mug", "aliases": ["mug", "cup"], "tags": ["utensils", "mug", "cup", "kitchen"], "priority": 10, "enabled": true },
+  { "id": "utensils-saltshaker", "path": "/images/library/utensils_saltshaker.png", "kind": "any", "title": "Utensils Saltshaker", "aliases": ["salt shaker", "seasoning"], "tags": ["utensils", "saltshaker", "table"], "priority": 10, "enabled": true },
+
+  { "id": "tools-box", "path": "/images/library/tools_box.png", "kind": "any", "title": "Tools Box", "aliases": ["tool box", "toolkit", "toolbox"], "tags": ["tools", "toolbox", "equipment"], "priority": 10, "enabled": true },
+  { "id": "tools-wrench", "path": "/images/library/tools_wrench.png", "kind": "any", "title": "Tools Wrench", "aliases": ["wrench", "spanner"], "tags": ["tools", "wrench"], "priority": 10, "enabled": true },
+  { "id": "tools-drillbit", "path": "/images/library/tools_drillbit.png", "kind": "any", "title": "Tools Drill Bit", "aliases": ["drill bit", "drilling"], "tags": ["tools", "drillbit", "drill"], "priority": 10, "enabled": true },
+  { "id": "tools-pickaxe", "path": "/images/library/tools_pickaxe.png", "kind": "any", "title": "Tools Pickaxe", "aliases": ["pickaxe", "pick axe"], "tags": ["tools", "pickaxe"], "priority": 10, "enabled": true },
+
+  { "id": "clothes-casual", "path": "/images/library/clothes_casual.png", "kind": "any", "title": "Clothes Casual", "aliases": ["casual clothes", "everyday clothes"], "tags": ["clothes", "casual", "fashion"], "priority": 10, "enabled": true },
+  { "id": "clothes-formal", "path": "/images/library/clothes_formal.png", "kind": "any", "title": "Clothes Formal", "aliases": ["formal clothes", "business attire"], "tags": ["clothes", "formal", "fashion"], "priority": 10, "enabled": true },
+  { "id": "clothes-shoes", "path": "/images/library/clothes_shoes.png", "kind": "any", "title": "Clothes Shoes", "aliases": ["shoes", "footwear"], "tags": ["clothes", "shoes", "footwear"], "priority": 10, "enabled": true },
+  { "id": "clothes-underwear", "path": "/images/library/clothes_underwear.png", "kind": "any", "title": "Clothes Underwear", "aliases": ["underwear", "undergarments"], "tags": ["clothes", "underwear"], "priority": 10, "enabled": true },
+
+  { "id": "appliances", "path": "/images/library/appliances.png", "kind": "any", "title": "Appliances", "aliases": ["home appliances", "electrical appliances"], "tags": ["appliances", "home", "kitchen"], "priority": 10, "enabled": true },
+  { "id": "house-home", "path": "/images/library/house_home.png", "kind": "any", "title": "House Home", "aliases": ["home", "house", "at home"], "tags": ["house", "home"], "priority": 12, "enabled": true },
+  { "id": "english-flags", "path": "/images/library/english_flags.png", "kind": "any", "title": "English Flags", "aliases": ["general english", "english language", "english"], "tags": ["english", "language", "flags", "general"], "priority": 20, "enabled": true },
+  { "id": "software", "path": "/images/library/software.png", "kind": "any", "title": "Software", "aliases": ["technology", "computer software", "digital tools"], "tags": ["software", "technology", "computer", "digital"], "priority": 10, "enabled": true }
+]

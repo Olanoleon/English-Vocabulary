@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  GripVertical,
   Pencil,
   Eye,
   EyeOff,
+  MoreVertical,
+  ChevronRight,
   BookOpen,
   Sparkles,
   Loader2,
@@ -87,58 +88,65 @@ function SortableSectionCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "bg-white border rounded-2xl p-4 flex items-center gap-3 shadow-sm",
-        section.isActive ? "border-gray-100" : "border-gray-100 opacity-60",
-        isDragging && "opacity-40 shadow-xl scale-[1.02]"
-      )}
+      className={cn("flex items-center gap-2 transition-all", isDragging && "opacity-40 scale-[1.02]")}
     >
-      {/* Drag Handle */}
-      <button
+      <div
         {...attributes}
         {...listeners}
-        className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
-        aria-label="Drag to reorder"
+        className={cn(
+          "flex flex-1 cursor-grab items-center gap-3 overflow-hidden rounded-[24px] border bg-white p-4 shadow-sm active:cursor-grabbing",
+          section.isActive ? "border-slate-100" : "border-slate-100 opacity-60"
+        )}
       >
-        <GripVertical className="w-4 h-4" />
-      </button>
-
-      {/* Unit Emoji or Number */}
-      <LogoBadge
-        logo={section.imageUrl}
-        fallback={String(index + 1).padStart(2, "0")}
-        size="md"
-        tone="primary"
-      />
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-primary-700 truncate">
-          {section.titleEs} · {section._count.sectionVocabulary} Terms
-        </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="h-20 w-24 shrink-0 overflow-hidden rounded-2xl bg-primary-50">
+              {section.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={section.imageUrl}
+                  alt={section.title}
+                  className="h-full w-full object-cover object-center"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <LogoBadge
+                    logo={null}
+                    fallback={String(index + 1).padStart(2, "0")}
+                    size="md"
+                    tone="primary"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[17px] font-bold leading-tight tracking-tight text-slate-900">
+                {section.title}
+              </p>
+              <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-slate-500">
+                {section._count.sectionVocabulary} terms {section.isActive ? "• Active" : "• Hidden"}
+              </p>
+            </div>
+          </div>
+        </div>
+        <Link
+          href={`/admin/sections/${section.id}`}
+          className="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+          title="Edit"
+        >
+          <Pencil className="h-[18px] w-[18px]" />
+        </Link>
+        <Link
+          href={`/admin/sections/${section.id}`}
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          title="Open"
+        >
+          <ChevronRight className="h-[18px] w-[18px]" />
+        </Link>
       </div>
-
-      {/* Actions */}
-      <Link
-        href={`/admin/sections/${section.id}`}
-        className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-        title="Edit"
-      >
-        <Pencil className="w-4 h-4" />
-      </Link>
-      <Link
-        href={`/admin/preview/${section.id}`}
-        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1"
-        title="Preview"
-      >
-        <Eye className="w-4 h-4" />
-      </Link>
     </div>
   );
 }
-
-// ─── Drag Overlay Card ─────────────────────────────────────────────────────────
 
 function DragOverlayCard({
   section,
@@ -148,10 +156,7 @@ function DragOverlayCard({
   index: number;
 }) {
   return (
-    <div className="bg-white border-2 border-primary-300 rounded-2xl p-4 flex items-center gap-3 shadow-xl rotate-1 scale-[1.03]">
-      <div className="p-1 -ml-1 text-primary-500">
-        <GripVertical className="w-4 h-4" />
-      </div>
+    <div className="flex items-center gap-3 rounded-2xl border-2 border-primary-300 bg-white p-4 shadow-xl">
       <LogoBadge
         logo={section.imageUrl}
         fallback={String(index + 1).padStart(2, "0")}
@@ -159,8 +164,8 @@ function DragOverlayCard({
         tone="primary"
       />
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate">{section.title}</p>
-        <p className="text-xs text-primary-700 truncate">
+        <p className="truncate font-semibold text-gray-900">{section.title}</p>
+        <p className="truncate text-xs text-primary-700">
           {section.titleEs} · {section._count.sectionVocabulary} Terms
         </p>
       </div>
@@ -443,53 +448,59 @@ export default function AreaUnitsPage({
     : -1;
 
   return (
-    <div className="px-4 py-6">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="mx-auto max-w-md px-4 py-4 pb-24">
+      <header className="mb-4 flex items-center justify-between">
         <button
           onClick={() => router.push("/admin")}
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-2"
+          className="flex size-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"
+          aria-label="Back"
         >
-          <ArrowLeft className="w-4 h-4" />
-          All Areas
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-3">
-          <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{area.name}</h2>
-            <p className="text-sm text-gray-500">{area.nameEs}</p>
-          </div>
-        </div>
-      </div>
+        <h2 className="truncate px-2 text-[20px] font-bold leading-tight tracking-tight text-slate-900">
+          {area.name}
+        </h2>
+        <button
+          className="flex size-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+          aria-label="More options"
+          onClick={() => setShowEditAreaModal(true)}
+        >
+          <MoreVertical className="h-5 w-5" />
+        </button>
+      </header>
       {apiError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {apiError}
         </div>
       )}
 
-      <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-          Area Settings
+      <div className="mb-4 rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+        <h3 className="text-[30px] font-bold leading-tight tracking-tight text-slate-900">Area Settings</h3>
+        <p className="mb-2 text-[15px] leading-tight text-slate-500">
+          {area.description || "Configure visibility and management for this knowledge area."}
         </p>
-        <div className="flex items-center gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {area.name}
+        </p>
+        <div className="mt-4 flex items-center gap-2">
           <button
             type="button"
             onClick={toggleAreaVisibility}
             className={cn(
-              "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold border",
+              "inline-flex items-center gap-1 rounded-2xl px-5 py-3 text-sm font-semibold",
               area.isActive
-                ? "bg-green-50 border-green-200 text-green-700"
-                : "bg-gray-50 border-gray-200 text-gray-600"
+                ? "bg-primary-600 text-white"
+                : "border border-slate-200 bg-slate-50 text-slate-600"
             )}
           >
             {area.isActive ? (
               <>
-                <Eye className="w-3.5 h-3.5" />
+                <Eye className="h-4 w-4" />
                 Visible
               </>
             ) : (
               <>
-                <EyeOff className="w-3.5 h-3.5" />
+                <EyeOff className="h-4 w-4" />
                 Hidden
               </>
             )}
@@ -497,48 +508,45 @@ export default function AreaUnitsPage({
           <button
             type="button"
             onClick={() => setShowEditAreaModal(true)}
-            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100"
+            className="inline-flex items-center gap-1 rounded-2xl bg-primary-50 px-5 py-3 text-sm font-semibold text-primary-700 hover:bg-primary-100"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="h-4 w-4" />
             Edit
           </button>
           <button
             type="button"
             onClick={() => setShowDeleteAreaModal(true)}
-            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 hover:bg-red-100"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            Delete
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-primary-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-primary-600 uppercase">
+      <div className="mb-7 grid grid-cols-2 gap-3">
+        <div className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Active Units
           </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="mt-1 text-[44px] font-bold leading-none text-primary-600">
             {sections.filter((s) => s.isActive).length}
           </p>
         </div>
-        <div className="bg-primary-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-primary-600 uppercase">
+        <div className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Total Terms
           </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="mt-1 text-[44px] font-bold leading-none text-primary-600">
             {sections.reduce((sum, s) => sum + s._count.sectionVocabulary, 0)}
           </p>
         </div>
       </div>
 
-      {/* Sections List */}
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Curriculum Units</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[24px] font-bold leading-tight tracking-tight text-slate-900">Curriculum Units</h3>
         {sections.length > 1 && (
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-            Drag to reorder
+          <span className="text-xs font-semibold text-primary-600">
+            View All
           </span>
         )}
       </div>
@@ -553,7 +561,7 @@ export default function AreaUnitsPage({
           items={sections.map((s) => s.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
             {sections.map((section, index) => (
               <SortableSectionCard
                 key={section.id}
@@ -571,11 +579,10 @@ export default function AreaUnitsPage({
         </DragOverlay>
       </DndContext>
 
-      {/* AI Generate Section */}
       {showCreate ? (
         <form
           onSubmit={generateSection}
-          className="mt-4 border border-purple-200 rounded-xl p-4 bg-gradient-to-br from-purple-50 to-primary-50 animate-scale-in"
+          className="mt-4 animate-scale-in rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-primary-50 p-4"
         >
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-5 h-5 text-purple-600" />
@@ -714,13 +721,20 @@ export default function AreaUnitsPage({
           </div>
         </form>
       ) : (
-        <button
-          onClick={() => setShowCreate(true)}
-          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <Sparkles className="w-5 h-5" />
-          Generate New Unit with AI
-        </button>
+        <div className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-600 to-primary-700 p-5 text-white shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary-100">AI Assistant</p>
+          <h4 className="mt-1 text-[28px] font-bold leading-tight tracking-tight">AI Generation Tool</h4>
+          <p className="mt-2 max-w-xs text-[15px] leading-tight text-primary-100">
+            Uses Artificial intelligence to generate the vocabulary units for your students
+          </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-base font-bold text-primary-700 transition hover:bg-primary-50 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <Sparkles className="h-4 w-4" />
+            Generate New Unit with AI
+          </button>
+        </div>
       )}
 
       {sections.length === 0 && (

@@ -269,27 +269,27 @@ export default function OrgsPage() {
   });
 
   return (
-    <div className="px-4 py-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Orgs</h2>
-        <p className="text-sm text-gray-500 mt-1">
+    <div className="space-y-4 px-4 py-6 pb-24">
+      <div>
+        <h2 className="text-[28px] font-bold leading-none text-gray-900">Orgs</h2>
+        <p className="mt-2 text-sm text-gray-500">
           Organization and organization admin management
         </p>
       </div>
 
       {apiError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {apiError}
         </div>
       )}
 
       {!isSuper ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
+        <div className="rounded-[28px] border border-gray-200 bg-white p-4 text-sm text-gray-500">
           Only super admins can manage organizations and organization admins.
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               Organizations
@@ -303,7 +303,7 @@ export default function OrgsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search organizations"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="h-12 w-full rounded-2xl border border-gray-200 pl-10 pr-4 text-sm"
                 />
               </div>
               <button
@@ -314,7 +314,7 @@ export default function OrgsPage() {
                   setSlug("");
                   setShowCreateOrgModal(true);
                 }}
-                className="w-10 h-10 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center justify-center"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-600 text-white hover:bg-primary-700"
                 title="Create organization"
               >
                 <Plus className="w-4 h-4" />
@@ -331,7 +331,7 @@ export default function OrgsPage() {
                   <div
                     key={org.id}
                     className={cn(
-                      "rounded-lg border",
+                      "rounded-2xl border",
                       org.isActive ? "border-gray-200" : "border-gray-100 opacity-60"
                     )}
                   >
@@ -340,7 +340,7 @@ export default function OrgsPage() {
                       onClick={() =>
                         setExpandedOrgId(expandedOrgId === org.id ? null : org.id)
                       }
-                      className="w-full text-left p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                      className="w-full rounded-2xl p-3 text-left transition-colors hover:bg-gray-50"
                     >
                       <div className="flex items-center gap-2">
                         <div className="flex-1 min-w-0">
@@ -359,18 +359,18 @@ export default function OrgsPage() {
                       </div>
                     </button>
                     {expandedOrgId === org.id && (
-                      <div className="px-2 pb-2 space-y-3">
+                      <div className="space-y-3 px-3 pb-3">
                         {showCreateAdminForOrgId === org.id ? (
                           <form
                             onSubmit={(e) => createOrgAdmin(e, org.id)}
-                            className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-gray-50 rounded-lg"
+                            className="grid grid-cols-1 gap-2 rounded-2xl bg-gray-50 p-3 sm:grid-cols-2"
                           >
                             <input
                               type="text"
                               value={newAdminDisplayName}
                               onChange={(e) => setNewAdminDisplayName(e.target.value)}
                               placeholder="Display name"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm"
                               required
                             />
                             <input
@@ -378,7 +378,7 @@ export default function OrgsPage() {
                               value={newAdminUsername}
                               onChange={(e) => setNewAdminUsername(e.target.value)}
                               placeholder="Username"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm"
                               required
                             />
                             <input
@@ -386,7 +386,7 @@ export default function OrgsPage() {
                               value={newAdminPassword}
                               onChange={(e) => setNewAdminPassword(e.target.value)}
                               placeholder="Password"
-                              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm"
                               minLength={4}
                               required
                             />
@@ -394,7 +394,7 @@ export default function OrgsPage() {
                               <button
                                 type="submit"
                                 disabled={saving}
-                                className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                                className="rounded-xl bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
                               >
                                 Create Admin
                               </button>
@@ -406,7 +406,7 @@ export default function OrgsPage() {
                                   setNewAdminUsername("");
                                   setNewAdminPassword("");
                                 }}
-                                className="px-3 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600"
                               >
                                 Cancel
                               </button>
@@ -416,7 +416,7 @@ export default function OrgsPage() {
                           <button
                             type="button"
                             onClick={() => setShowCreateAdminForOrgId(org.id)}
-                            className="inline-flex items-center gap-1 px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700"
+                            className="inline-flex items-center gap-1 rounded-xl bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             Add Org Admin
@@ -432,7 +432,7 @@ export default function OrgsPage() {
                               .map((u) => (
                                 <div
                                   key={u.id}
-                                  className="p-2 border border-gray-200 rounded-lg flex items-center gap-2 bg-white"
+                                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2"
                                 >
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -443,7 +443,7 @@ export default function OrgsPage() {
                                   <select
                                     value={u.organizationId || ""}
                                     onChange={(e) => reassignOrgAdmin(u.id, e.target.value)}
-                                    className="px-2 py-1.5 border border-gray-200 rounded text-xs"
+                                    className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
                                   >
                                     {orgs.map((o) => (
                                       <option key={o.id} value={o.id}>
@@ -457,14 +457,14 @@ export default function OrgsPage() {
                                       setResetAdminTarget(u);
                                       setResetAdminPassword("");
                                     }}
-                                    className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50"
+                                    className="rounded-lg p-2 text-gray-400 hover:bg-primary-50 hover:text-primary-600"
                                     title="Reset password"
                                   >
                                     <KeyRound className="w-4 h-4" />
                                   </button>
                                   <button
                                     onClick={() => removeOrgAdmin(u.id)}
-                                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                                    className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
                                     title="Remove org admin role"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -477,7 +477,7 @@ export default function OrgsPage() {
                           <button
                             type="button"
                             onClick={() => setEditing(org)}
-                            className="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50"
+                            className="rounded-lg p-2 text-gray-400 hover:bg-primary-50 hover:text-primary-600"
                             title="Edit organization"
                           >
                             <Pencil className="w-4 h-4" />
@@ -485,7 +485,7 @@ export default function OrgsPage() {
                           <button
                             type="button"
                             onClick={() => removeOrg(org)}
-                            className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                            className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
                             title="Delete organization"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -502,17 +502,17 @@ export default function OrgsPage() {
       )}
 
       {showCreateOrgModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={createOrg}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
           >
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">Create Organization</h3>
               <button
                 type="button"
                 onClick={() => setShowCreateOrgModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                className="rounded p-1 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -522,7 +522,7 @@ export default function OrgsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Organization name"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               required
             />
             <input
@@ -530,7 +530,7 @@ export default function OrgsPage() {
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
               placeholder="slug"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               required
             />
             {error && <p className="text-sm text-danger-500">{error}</p>}
@@ -538,14 +538,14 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {saving ? "Creating..." : "Create"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateOrgModal(false)}
-                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
               >
                 Cancel
               </button>
@@ -555,10 +555,10 @@ export default function OrgsPage() {
       )}
 
       {resetAdminTarget && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={resetOrgAdminPassword}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
           >
             <h3 className="font-bold text-gray-900">Reset Org Admin Password</h3>
             <p className="text-xs text-gray-500">
@@ -569,7 +569,7 @@ export default function OrgsPage() {
               value={resetAdminPassword}
               onChange={(e) => setResetAdminPassword(e.target.value)}
               placeholder="New password"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               minLength={4}
               required
             />
@@ -577,7 +577,7 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={resettingAdminPassword}
-                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {resettingAdminPassword ? "Updating..." : "Update Password"}
               </button>
@@ -587,7 +587,7 @@ export default function OrgsPage() {
                   setResetAdminTarget(null);
                   setResetAdminPassword("");
                 }}
-                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
               >
                 Cancel
               </button>
@@ -597,17 +597,17 @@ export default function OrgsPage() {
       )}
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={saveEdit}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in space-y-3"
+            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
           >
             <h3 className="font-bold text-gray-900">Edit Organization</h3>
             <input
               type="text"
               value={editing.name}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               required
             />
             <input
@@ -619,7 +619,7 @@ export default function OrgsPage() {
                   slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
                 })
               }
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm"
               required
             />
             <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -635,14 +635,14 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm"
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
               >
                 Cancel
               </button>

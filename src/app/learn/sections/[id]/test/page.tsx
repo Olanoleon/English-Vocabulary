@@ -249,8 +249,8 @@ export default function TestPage({
 
   if (!section || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
+      <div className="min-h-screen flex flex-col bg-white">
+        <div className="flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -268,7 +268,7 @@ export default function TestPage({
             <p className="text-gray-500">No test questions available yet.</p>
             <button
               onClick={() => router.push(`/learn/sections/${id}`)}
-              className="mt-4 bg-primary-600 text-white px-6 py-2 rounded-xl text-sm font-medium"
+              className="mt-4 rounded-2xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white"
             >
               Go Back
             </button>
@@ -281,7 +281,7 @@ export default function TestPage({
   // Result screen
   if (result) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
         <div className="animate-scale-in text-center w-full max-w-sm">
           <div
             className={cn(
@@ -337,14 +337,14 @@ export default function TestPage({
           <div className="mt-8 space-y-3">
             <button
               onClick={() => router.push(`/learn/sections/${id}/test/review`)}
-              className="w-full bg-white text-primary-600 border border-primary-200 py-3.5 rounded-xl font-semibold hover:bg-primary-50 transition-colors"
+                className="h-12 w-full rounded-2xl border border-primary-200 bg-white font-semibold text-primary-600 transition-colors hover:bg-primary-50"
             >
               Review Last Attempt
             </button>
             {result.passed ? (
               <button
                 onClick={() => router.push("/learn")}
-                className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700"
               >
                 Continue Learning
                 <ChevronRight className="w-5 h-5" />
@@ -367,13 +367,13 @@ export default function TestPage({
                       testModule.questions = shuffleArray(testModule.questions);
                     }
                   }}
-                  className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
+                  className="h-12 w-full rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700"
                 >
                   Try Again
                 </button>
                 <button
                   onClick={() => router.push(`/learn/sections/${id}`)}
-                  className="w-full bg-gray-100 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                  className="h-12 w-full rounded-2xl bg-gray-100 font-semibold text-gray-700 transition-colors hover:bg-gray-200"
                 >
                   Review Section
                 </button>
@@ -388,7 +388,7 @@ export default function TestPage({
   // Submitting screen
   if (submitting) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4" />
         <p className="text-gray-500 font-medium">Calculating your score...</p>
       </div>
@@ -398,8 +398,8 @@ export default function TestPage({
   // Start screen
   if (!started) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
+      <div className="min-h-screen flex flex-col bg-white">
+        <div className="flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -427,7 +427,7 @@ export default function TestPage({
               unlock the next section.
             </p>
 
-            <div className="mt-6 bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
+            <div className="mt-6 rounded-[24px] bg-gray-50 p-4 text-sm text-gray-600">
               <div className="flex items-center justify-between py-1">
                 <span>Questions</span>
                 <span className="font-bold">{questions.length}</span>
@@ -444,14 +444,14 @@ export default function TestPage({
 
             <button
               onClick={() => setStarted(true)}
-              className="mt-6 w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
+              className="mt-6 h-12 w-full rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700"
             >
               Start Test
             </button>
             {hasLastAttempt && (
               <button
                 onClick={() => router.push(`/learn/sections/${id}/test/review`)}
-                className="mt-2 w-full bg-white text-primary-600 border border-primary-200 py-3.5 rounded-xl font-semibold hover:bg-primary-50 transition-colors"
+                className="mt-2 h-12 w-full rounded-2xl border border-primary-200 bg-white font-semibold text-primary-600 transition-colors hover:bg-primary-50"
               >
                 Review Last Attempt
               </button>
@@ -464,9 +464,9 @@ export default function TestPage({
 
   // Test in progress
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
         <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
@@ -486,7 +486,7 @@ export default function TestPage({
       {/* Abort Confirmation Modal */}
       {showAbortModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+          <div className="animate-scale-in w-full max-w-sm rounded-[28px] bg-white p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -505,13 +505,13 @@ export default function TestPage({
             <div className="flex gap-2">
               <button
                 onClick={() => router.push(`/learn/sections/${id}`)}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                className="flex-1 rounded-2xl bg-red-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
               >
                 Quit Test
               </button>
               <button
                 onClick={() => setShowAbortModal(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                className="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
               >
                 Continue
               </button>
@@ -532,7 +532,7 @@ export default function TestPage({
 
       {/* Question */}
       <div className="flex-1 px-4 py-6" key={currentIndex}>
-        <div className="animate-slide-in bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="animate-slide-in rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
           <span className="inline-block bg-primary-50 text-primary-600 text-xs font-medium px-2.5 py-1 rounded-full mb-4 capitalize">
             {currentQuestion.type.replace("_", " ")}
           </span>
@@ -550,7 +550,7 @@ export default function TestPage({
                   key={option.id}
                   onClick={() => setSelectedOption(option.id)}
                   className={cn(
-                    "w-full text-left p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                    "w-full rounded-2xl border-2 p-4 text-left text-sm font-medium transition-all",
                     option.id === selectedOption
                       ? "border-primary-500 bg-primary-50"
                       : "border-gray-200 bg-white hover:border-primary-300"
@@ -569,7 +569,7 @@ export default function TestPage({
               value={fillAnswer}
               onChange={(e) => setFillAnswer(e.target.value)}
               placeholder="Type your answer..."
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg focus:outline-none focus:border-primary-500 transition-colors"
+              className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-lg transition-colors focus:border-primary-500 focus:outline-none"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && fillAnswer.trim()) {
@@ -605,7 +605,7 @@ export default function TestPage({
                         key={wIdx}
                         onClick={() => onMatchingWordTap(wIdx)}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all text-sm font-semibold",
+                          "w-full rounded-2xl border-2 px-3 py-2.5 text-left text-sm font-semibold transition-all",
                           style
                         )}
                       >
@@ -638,7 +638,7 @@ export default function TestPage({
                         onClick={() => onMatchingDefTap(defIdx)}
                         disabled={matchingSelectedWord === null}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all text-xs",
+                          "w-full rounded-2xl border-2 px-3 py-2.5 text-left text-xs transition-all",
                           style
                         )}
                       >
@@ -663,7 +663,7 @@ export default function TestPage({
                     ? !fillAnswer.trim()
                     : !selectedOption
               }
-              className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+              className="flex h-12 w-full items-center justify-center gap-1 rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {currentIndex + 1 >= questions.length ? "Submit Test" : "Next"}
               <ChevronRight className="w-5 h-5" />

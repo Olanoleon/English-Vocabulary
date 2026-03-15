@@ -52,14 +52,14 @@ export default function LearningAreasPage() {
   }
 
   return (
-    <div className="px-4 py-6">
+    <div className="space-y-4 px-4 py-6">
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">
+      <div>
+        <h1 className="text-[28px] font-bold leading-none text-gray-900">
           Areas of Knowledge
         </h1>
-        <p className="text-xs text-gray-400 mt-0.5">Áreas de Conocimiento</p>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="mt-1 text-xs text-gray-400">Áreas de Conocimiento</p>
+        <p className="mt-2 text-sm text-gray-500">
           {displayName
             ? `Welcome back, ${displayName}`
             : "Choose an area to start learning"}
@@ -75,7 +75,7 @@ export default function LearningAreasPage() {
           <Link
             key={area.id}
             href={`/learn/areas/${area.id}`}
-            className={`block bg-white border rounded-2xl p-4 shadow-sm transition-all ${
+            className={`block rounded-[28px] border bg-white p-4 shadow-sm transition-all ${
               area.isHot
                 ? "border-orange-300 ring-1 ring-orange-200 hover:border-orange-400 hover:shadow-md"
                 : "border-gray-100 hover:border-primary-300 hover:shadow-md"
@@ -102,7 +102,7 @@ export default function LearningAreasPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900">{area.name}</h3>
+                <h3 className="truncate text-[20px] font-bold leading-tight text-gray-900">{area.name}</h3>
                 <p className="text-xs text-gray-400">{area.nameEs}</p>
                 {area.description && (
                   <p className="text-xs text-gray-500 mt-1 truncate">
@@ -114,7 +114,7 @@ export default function LearningAreasPage() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-gray-100 p-1.5">
+              <div className="rounded-xl bg-gray-100 p-2">
                 <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function LearningAreasPage() {
       </div>
 
       {areas.length === 0 && (
-        <div className="text-center py-16">
+        <div className="rounded-[28px] border border-dashed border-gray-200 py-16 text-center">
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">
             No areas available yet. Please check back later!

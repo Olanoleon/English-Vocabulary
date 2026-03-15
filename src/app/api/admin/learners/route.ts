@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         id: true,
         username: true,
         displayName: true,
+        avatarGender: true,
         organizationId: true,
         createdAt: true,
         monthlyRate: true,
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
-    const { username, password, displayName, organizationId } = await request.json();
+    const { username, password, displayName, organizationId, avatarGender } = await request.json();
 
     if (!username || !password || !displayName) {
       return NextResponse.json(
@@ -147,6 +148,8 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const normalizedAvatarGender =
+      avatarGender === "male" || avatarGender === "female" ? avatarGender : "female";
 
     const user = await prisma.user.create({
       data: {
@@ -154,12 +157,14 @@ export async function POST(request: NextRequest) {
         passwordHash,
         role: "learner",
         displayName,
+        avatarGender: normalizedAvatarGender,
         organizationId: targetOrgId,
       },
       select: {
         id: true,
         username: true,
         displayName: true,
+        avatarGender: true,
         organizationId: true,
         createdAt: true,
       },

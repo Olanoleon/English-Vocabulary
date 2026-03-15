@@ -4,7 +4,7 @@ import https from "https";
 import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
-import { matchEmoji } from "@/lib/logo";
+import { getUnitImageByTitle } from "@/lib/unit-image";
 
 /** Shuffle an array in place (Fisher-Yates) */
 function shuffleArray<T>(array: T[]): T[] {
@@ -367,8 +367,10 @@ Return the JSON object now.`
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
 
-    // Match an emoji icon based on the unit title
-    const imageUrl = matchEmoji(generated.title);
+    // Fetch provider illustration by title (fallback to app logo)
+    const imageUrl = await getUnitImageByTitle(generated.title, {
+      kind: "section",
+    });
 
     // Create everything in the database
     // 1. Create section with modules

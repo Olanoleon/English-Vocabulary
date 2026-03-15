@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
-import { matchEmoji } from "@/lib/logo";
+import { getUnitImageByTitle } from "@/lib/unit-image";
 
 export async function GET(
   _request: NextRequest,
@@ -61,6 +61,11 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const nextImageUrl =
+      body.regenerateImage && body.name
+        ? await getUnitImageByTitle(body.name, { strict: true, kind: "area" })
+        : undefined;
+
     const area = await prisma.area.update({
       where: { id },
       data: {
@@ -68,7 +73,7 @@ export async function PUT(
         nameEs: body.nameEs,
         description: body.description,
         isActive: body.isActive,
-        ...(body.regenerateImage && body.name ? { imageUrl: matchEmoji(body.name) } : {}),
+        ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
       },
     });
 
@@ -78,7 +83,8 @@ export async function PUT(
     if (message === "Unauthorized" || message === "Forbidden") {
       return NextResponse.json({ error: message }, { status: 403 });
     }
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Update area error:", error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Building2,
   DollarSign,
   LayoutGrid,
-  LogOut,
   Settings,
   Users,
 } from "lucide-react";
@@ -23,7 +22,6 @@ const navItems = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,37 +47,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ? navItems.filter((item) => item.href !== "/admin/orgs")
       : navItems;
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">VocabPath</h1>
-          <p className="text-xs text-gray-500">Admin Panel</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-          title="Logout"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
-      </header>
-
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto pb-20">
+    <div className="min-h-screen bg-[#f5f7f8]">
+      <main className="mx-auto min-h-screen max-w-md overflow-y-auto pb-28">
         {children}
       </main>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-30">
-        <div className="max-w-lg mx-auto flex">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 pb-3 pt-2 backdrop-blur-md">
+        <div className="mx-auto flex max-w-md">
           {visibleNavItems.map((item) => {
             const isActive =
               item.href === "/admin"
@@ -94,13 +69,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex-1 flex flex-col items-center py-2 text-xs font-medium transition-colors",
+                  "flex flex-1 flex-col items-center justify-end gap-1 py-1 text-[10px] uppercase tracking-wider transition-colors",
                   isActive
-                    ? "text-primary-600"
-                    : "text-gray-400 hover:text-gray-600"
+                    ? "font-bold text-primary-600"
+                    : "font-medium text-slate-400 hover:text-slate-600"
                 )}
               >
-                <Icon className="w-5 h-5 mb-0.5" />
+                <Icon className="h-[18px] w-[18px]" />
                 {item.label}
               </Link>
             );

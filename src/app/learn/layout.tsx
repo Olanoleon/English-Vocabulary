@@ -40,16 +40,16 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-white">
       {/* Content */}
-      <main className={cn("flex-1 overflow-y-auto", showNav && "pb-20")}>
+      <main className={cn("mx-auto w-full max-w-md overflow-y-auto", showNav && "pb-24")}>
         {children}
       </main>
 
       {/* Bottom Nav */}
       {showNav && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-30">
-          <div className="max-w-lg mx-auto flex">
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-100 bg-white/95 pb-3 pt-2 backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-md">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -58,22 +58,22 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex-1 flex flex-col items-center py-2 text-xs font-medium transition-colors",
+                    "flex flex-1 flex-col items-center py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                     isActive
                       ? "text-primary-600"
                       : "text-gray-400 hover:text-gray-600"
                   )}
                 >
-                  <Icon className="w-5 h-5 mb-0.5" />
+                  <Icon className="mb-1 h-[18px] w-[18px]" />
                   {item.label}
                 </Link>
               );
             })}
             <button
               onClick={handleLogout}
-              className="flex-1 flex flex-col items-center py-2 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex flex-1 flex-col items-center py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 transition-colors hover:text-gray-600"
             >
-              <LogOut className="w-5 h-5 mb-0.5" />
+              <LogOut className="mb-1 h-[18px] w-[18px]" />
               Logout
             </button>
           </div>

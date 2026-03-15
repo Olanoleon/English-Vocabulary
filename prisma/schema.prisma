@@ -33,6 +33,7 @@ model User {
   nextPaymentDue  DateTime?                @map("next_payment_due")
   lastPaymentDate DateTime?                @map("last_payment_date")
   accessOverride  String?                  @map("access_override")
+  avatarGender    String?                  @map("avatar_gender")
   organizationId  String?                  @map("organization_id")
   attempts        LearnerAttempt[]
   sectionProgress LearnerSectionProgress[]

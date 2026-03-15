@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Plus,
   Loader2,
   BookOpen,
-  GripVertical,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
@@ -43,8 +46,12 @@ interface Area {
 
 function SortableAreaCard({
   area,
+  regenerating,
+  onRegenerate,
 }: {
   area: Area;
+  regenerating: boolean;
+  onRegenerate: (area: Area) => void;
 }) {
   const {
     attributes,
@@ -64,67 +71,90 @@ function SortableAreaCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "bg-white border rounded-2xl p-4 transition-all",
-        area.isActive ? "border-gray-100 shadow-sm" : "border-gray-100 opacity-60",
-        isDragging && "opacity-40 shadow-xl scale-[1.02]"
-      )}
+      className={cn("flex items-center gap-2 transition-all", isDragging && "opacity-40 scale-[1.02]")}
     >
-      <div className="flex items-center gap-3">
-        {/* Drag Handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="touch-none p-1 -ml-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-50 transition-colors"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-
-        {/* Area Logo */}
-        <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{area.name}</p>
-          {area.description && (
-            <p className="text-xs text-gray-500 truncate">{area.description}</p>
-          )}
-          <p className="text-xs text-primary-700 truncate mt-0.5">
-            {area.nameEs} · {area._count.sections}{" "}
-            {area._count.sections === 1 ? "unit" : "units"}
-          </p>
+      <div
+        {...attributes}
+        {...listeners}
+        className={cn(
+          "flex-1 cursor-grab overflow-hidden rounded-[28px] border bg-white p-4 active:cursor-grabbing",
+          area.isActive ? "border-slate-100 shadow-sm" : "border-slate-100 opacity-60"
+        )}
+      >
+        <div className="flex min-w-0 items-stretch justify-between gap-4">
+          <div className="flex min-w-0 flex-[2_2_0px] flex-col justify-between py-1">
+            <div>
+              <div className="mb-1 flex items-start justify-between gap-2">
+                <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[20px] font-bold leading-[1.2] tracking-tight text-slate-900">
+                  {area.name}
+                </p>
+              </div>
+              <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-slate-500">
+                {area._count.sections} {area._count.sections === 1 ? "unit" : "units"} learned
+              </p>
+              <p className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-primary-700">
+                {area.nameEs}
+              </p>
+            </div>
+            <Link
+              href={`/admin/areas/${area.id}`}
+              className="mt-4 inline-flex h-11 w-fit shrink-0 items-center justify-center rounded-full bg-primary-50 px-5 text-base font-bold text-primary-600 transition-colors hover:bg-primary-100"
+            >
+              View Details
+            </Link>
+          </div>
+          <div className="relative h-32 w-36 shrink-0 overflow-hidden rounded-3xl bg-primary-50">
+            {area.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={area.imageUrl}
+                alt={area.name}
+                className="h-full w-full object-cover object-center"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <LogoBadge logo={null} fallback={area.name.slice(0, 1)} size="md" tone="primary" />
+              </div>
+            )}
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRegenerate(area);
+              }}
+              disabled={regenerating}
+              className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-md transition hover:bg-primary-700 disabled:opacity-60"
+              title="Refresh area image"
+              aria-label="Refresh area image"
+            >
+              {regenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
-
-        <Link
-          href={`/admin/areas/${area.id}`}
-          className={cn(
-            "px-4 py-2 rounded-xl text-xs font-semibold transition-colors",
-            area.isActive
-              ? "bg-primary-600 text-white hover:bg-primary-700"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          )}
-        >
-          Manage
-        </Link>
+        {!area.isActive && (
+          <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
+            Hidden
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Drag Overlay Card ─────────────────────────────────────────────────────────
-
 function AreaDragOverlayCard({ area }: { area: Area }) {
   return (
-    <div className="bg-white border-2 border-primary-300 rounded-2xl p-4 shadow-xl rotate-1 scale-[1.03]">
+    <div className="rounded-3xl border-2 border-primary-300 bg-white p-4 shadow-xl">
       <div className="flex items-center gap-3">
-        <div className="p-1 -ml-1 text-primary-500">
-          <GripVertical className="w-4 h-4" />
-        </div>
-        <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{area.name}</p>
-          <p className="text-xs text-primary-700 truncate">
+          <p className="truncate font-semibold text-gray-900">{area.name}</p>
+          <p className="truncate text-xs text-primary-700">
             {area.nameEs} · {area._count.sections}{" "}
             {area._count.sections === 1 ? "unit" : "units"}
           </p>
@@ -137,6 +167,7 @@ function AreaDragOverlayCard({ area }: { area: Area }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminAreasPage() {
+  const router = useRouter();
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState("");
@@ -145,6 +176,10 @@ export default function AdminAreasPage() {
   const [createProgress, setCreateProgress] = useState("");
   const [createError, setCreateError] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [regeneratingAreaId, setRegeneratingAreaId] = useState<string | null>(
+    null
+  );
 
   // Create form
   const [name, setName] = useState("");
@@ -264,6 +299,44 @@ export default function AdminAreasPage() {
     }
   }
 
+  async function handleRegenerateAreaImage(area: Area) {
+    setApiError("");
+    setRegeneratingAreaId(area.id);
+    try {
+      const res = await fetch(`/api/admin/areas/${area.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: area.name,
+          nameEs: area.nameEs,
+          description: area.description,
+          isActive: area.isActive,
+          regenerateImage: true,
+        }),
+      });
+
+      if (!res.ok) {
+        setApiError(await readApiError(res, "Failed to refresh area image."));
+        return;
+      }
+
+      const updated = (await res.json()) as { id: string; imageUrl?: string | null };
+      if (updated.imageUrl) {
+        setAreas((prev) =>
+          prev.map((item) =>
+            item.id === area.id ? { ...item, imageUrl: updated.imageUrl || item.imageUrl } : item
+          )
+        );
+      } else {
+        await fetchAreas();
+      }
+    } catch {
+      setApiError("Connection error. Please try again.");
+    } finally {
+      setRegeneratingAreaId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -272,25 +345,52 @@ export default function AdminAreasPage() {
     );
   }
 
+  const filteredAreas = areas.filter((area) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      area.name.toLowerCase().includes(q) ||
+      area.nameEs.toLowerCase().includes(q) ||
+      (area.description || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div className="px-4 py-6">
-      {/* Header */}
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">
+    <div className="mx-auto max-w-md px-4 py-4 pb-32">
+      <header className="mb-5 flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="flex size-10 items-center justify-center rounded-xl text-primary-600 hover:bg-primary-50"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h2 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900">
           Areas of Knowledge
         </h2>
-        <div className="mt-2 inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-          {areas.length} {areas.length === 1 ? "Area" : "Areas"} Total
+        <div className="size-10" />
+      </header>
+
+      <div className="mb-5 rounded-full bg-slate-100 px-4 py-3">
+        <div className="flex items-center gap-2 text-slate-500">
+          <Search className="h-5 w-5 text-primary-600" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search areas..."
+            className="w-full border-none bg-transparent p-0 text-lg text-slate-700 placeholder:text-slate-400 focus:ring-0"
+          />
         </div>
       </div>
+
       {apiError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {apiError}
         </div>
       )}
 
-      {/* Area Cards Header */}
-      {areas.length > 1 && (
+      {areas.length > 1 && search.trim() === "" && (
         <div className="mb-2 mt-4 flex items-center justify-end">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider">
             Drag to reorder
@@ -298,7 +398,6 @@ export default function AdminAreasPage() {
         </div>
       )}
 
-      {/* Area Cards (sortable) */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -306,15 +405,18 @@ export default function AdminAreasPage() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={areas.map((a) => a.id)}
+          items={filteredAreas.map((a) => a.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-3 mb-4">
-            {areas.map((area) => (
-              <SortableAreaCard
-                key={area.id}
-                area={area}
-              />
+          <div className="mb-4 space-y-4">
+            {filteredAreas.map((area) => (
+              <div key={area.id} className="relative">
+                <SortableAreaCard
+                  area={area}
+                  regenerating={regeneratingAreaId === area.id}
+                  onRegenerate={handleRegenerateAreaImage}
+                />
+              </div>
             ))}
           </div>
         </SortableContext>
@@ -328,11 +430,13 @@ export default function AdminAreasPage() {
         </DragOverlay>
       </DndContext>
 
-      {areas.length === 0 && !showCreate && (
+      {filteredAreas.length === 0 && !showCreate && (
         <div className="text-center py-12">
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">
-            No areas yet. Create your first one!
+            {areas.length === 0
+              ? "No areas yet. Create your first one!"
+              : "No areas match your search."}
           </p>
         </div>
       )}
@@ -416,16 +520,21 @@ export default function AdminAreasPage() {
             </div>
           </div>
         </form>
-      ) : (
+      ) : areas.length > 0 ? (
         <button
           onClick={() => setShowCreate(true)}
-          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-primary-600 text-white py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:from-purple-700 hover:to-primary-700 transition-all"
+          className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-center gap-2 rounded-2xl bg-primary-600 px-4 py-3.5 text-lg font-bold tracking-tight text-white shadow-lg shadow-primary-300/40 transition-all hover:bg-primary-700"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="h-6 w-6" />
           Create New Area
         </button>
+      ) : null}
+      {showCreate && areas.length > 0 ? (
+        <div className="h-4" />
+      ) : null}
+      {showCreate && (
+        <div className="pt-2" />
       )}
-
     </div>
   );
 }

@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         id: true,
         username: true,
         displayName: true,
+        avatarGender: true,
         monthlyRate: true,
         nextPaymentDue: true,
         lastPaymentDate: true,

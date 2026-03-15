@@ -243,8 +243,8 @@ export default function PracticePage({
 
   if (!section || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
+      <div className="min-h-screen flex flex-col bg-white">
+        <div className="flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
           <button
             onClick={() => router.push(`/learn/sections/${id}`)}
             className="p-1 -ml-1 text-gray-400"
@@ -264,7 +264,7 @@ export default function PracticePage({
             </p>
             <button
               onClick={() => router.push(`/learn/sections/${id}`)}
-              className="mt-4 bg-primary-600 text-white px-6 py-2 rounded-xl text-sm font-medium"
+                className="mt-4 rounded-2xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white"
             >
               Go Back
             </button>
@@ -279,7 +279,7 @@ export default function PracticePage({
     const percentage =
       score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
         <div className="animate-scale-in text-center">
           <div
             className={cn(
@@ -302,7 +302,7 @@ export default function PracticePage({
           <div className="mt-8 space-y-3 w-full">
             <button
               onClick={() => router.push(`/learn/sections/${id}`)}
-              className="w-full bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
+              className="h-12 w-full rounded-2xl bg-primary-600 font-semibold text-white hover:bg-primary-700 transition-colors"
             >
               Continue
             </button>
@@ -321,7 +321,7 @@ export default function PracticePage({
                 setMatchingDefOrder([]);
                 setMatchingResults({});
               }}
-              className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+              className="h-12 w-full rounded-2xl bg-gray-100 font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
             >
               Practice Again
             </button>
@@ -332,9 +332,9 @@ export default function PracticePage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -362,7 +362,7 @@ export default function PracticePage({
 
       {/* Question */}
       <div className="flex-1 px-4 py-6" key={currentIndex}>
-        <div className="animate-slide-in bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="animate-slide-in rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
           <span className="inline-block bg-primary-50 text-primary-600 text-xs font-medium px-2.5 py-1 rounded-full mb-4 capitalize">
             {currentQuestion.type.replace("_", " ")}
           </span>
@@ -398,7 +398,7 @@ export default function PracticePage({
                     onClick={() => !revealed && setSelectedOption(option.id)}
                     disabled={revealed}
                     className={cn(
-                      "w-full text-left p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                      "w-full rounded-2xl border-2 p-4 text-left text-sm font-medium transition-all",
                       optionStyle
                     )}
                   >
@@ -429,7 +429,7 @@ export default function PracticePage({
                 disabled={revealed}
                 placeholder="Type your answer..."
                 className={cn(
-                  "w-full px-4 py-3 border-2 rounded-xl text-lg focus:outline-none transition-colors",
+                  "w-full rounded-2xl border-2 px-4 py-3 text-lg transition-colors focus:outline-none",
                   revealed
                     ? isCorrect
                       ? "border-success-500 bg-green-50"
@@ -481,7 +481,7 @@ export default function PracticePage({
                         onClick={() => onMatchingWordTap(wIdx)}
                         disabled={revealed}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all text-sm font-semibold",
+                          "w-full rounded-2xl border-2 px-3 py-2.5 text-left text-sm font-semibold transition-all",
                           style
                         )}
                       >
@@ -526,7 +526,7 @@ export default function PracticePage({
                         onClick={() => onMatchingDefTap(defIdx)}
                         disabled={revealed || matchingSelectedWord === null}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all text-xs",
+                          "w-full rounded-2xl border-2 px-3 py-2.5 text-left text-xs transition-all",
                           style
                         )}
                       >
@@ -587,14 +587,14 @@ export default function PracticePage({
                       ? !fillAnswer.trim()
                       : !selectedOption
                 }
-                className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-12 w-full rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Check Answer
               </button>
             ) : (
               <button
                 onClick={nextQuestion}
-                className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
+                className="flex h-12 w-full items-center justify-center gap-1 rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700"
               >
                 {currentIndex + 1 >= questions.length ? "Finish" : "Next"}
                 <ChevronRight className="w-5 h-5" />

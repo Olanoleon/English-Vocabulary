@@ -7,6 +7,7 @@ import {
   Plus,
   Trash2,
   Save,
+  Sparkles,
   BookOpen,
   Dumbbell,
   ClipboardCheck,
@@ -117,10 +118,9 @@ export default function SectionEditorPage({
   // Expanded question sections
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
-  // Regenerate questions
-  const [showRegenModal, setShowRegenModal] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [regenError, setRegenError] = useState("");
+  const [showRecreateModal, setShowRecreateModal] = useState(false);
+  const [recreating, setRecreating] = useState(false);
+  const [recreateError, setRecreateError] = useState("");
   const [apiError, setApiError] = useState("");
 
   useEffect(() => {
@@ -201,24 +201,24 @@ export default function SectionEditorPage({
     setSaving(false);
   }
 
-  async function regenerateQuestions() {
-    setRegenerating(true);
-    setRegenError("");
+  async function recreateUnit() {
+    setRecreating(true);
+    setRecreateError("");
     try {
-      const res = await fetch(`/api/admin/sections/${id}/regenerate`, {
+      const res = await fetch(`/api/admin/sections/${id}/recreate`, {
         method: "POST",
       });
       if (res.ok) {
-        setShowRegenModal(false);
-        fetchSection();
+        setShowRecreateModal(false);
+        await fetchSection();
       } else {
-        const data = await res.json();
-        setRegenError(data.error || "Failed to regenerate questions");
+        const data = (await res.json()) as { error?: string };
+        setRecreateError(data.error || "Failed to recreate unit");
       }
     } catch {
-      setRegenError("Connection error. Please try again.");
+      setRecreateError("Connection error. Please try again.");
     }
-    setRegenerating(false);
+    setRecreating(false);
   }
 
   async function saveIntroContent() {
@@ -362,89 +362,100 @@ export default function SectionEditorPage({
   ];
 
   return (
-    <div className="px-4 py-4">
-      {/* Back + Title */}
-      <div className="flex items-center gap-3 mb-4">
+    <div className="mx-auto max-w-md px-4 py-4 pb-32">
+      <header className="mb-4 flex items-center gap-3">
         <button
           onClick={() => router.push(`/admin/areas/${section?.areaId}`)}
-          className="p-2 -ml-2 text-gray-400 hover:text-gray-600 rounded-lg"
+          className="rounded-xl p-2 text-slate-700 hover:bg-slate-100"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
-        <div className="flex-1">
-          <h2 className="text-lg font-bold text-gray-900">{section.title}</h2>
-          <p className="text-xs text-gray-500">{section.titleEs}</p>
-        </div>
-      </div>
+        <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">Edit Unit</h2>
+      </header>
 
-      {/* Section Details */}
-      <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
+      <section className="mb-5 rounded-[28px] border border-slate-100 bg-white p-6 text-center shadow-sm">
+        <div className="relative mx-auto w-fit">
+          <div className="h-32 w-32 overflow-hidden rounded-2xl bg-primary-50 shadow-sm">
+            {section.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={section.imageUrl}
+                alt={section.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <LogoBadge
+                  logo={null}
+                  fallback={section.title.slice(0, 2)}
+                  size="lg"
+                  tone="primary"
+                />
+              </div>
+            )}
+          </div>
+          <button
+            onClick={regenerateLogo}
+            disabled={saving}
+            className="absolute -bottom-2 -right-2 rounded-full bg-primary-600 p-2.5 text-white shadow-md disabled:opacity-50"
+            title="Regenerate image"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
+        <h3 className="mt-4 text-2xl font-bold leading-tight text-slate-900">{section.title}</h3>
+        <p className="text-base font-medium leading-tight text-primary-600">{section.titleEs}</p>
+        <p className="text-sm text-slate-500">VocabPath Unit • {section.sectionVocabulary.length} Items</p>
+      </section>
+
+      <div className="mb-4 space-y-3">
         {apiError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {apiError}
           </div>
         )}
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-slate-600">Unit Title</span>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500"
           placeholder="Title (English)"
         />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-slate-600">Subtitle</span>
         <input
           type="text"
           value={titleEs}
           onChange={(e) => setTitleEs(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
           placeholder="Título (Spanish)"
         />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-slate-600">Description</span>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          className="min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
           placeholder="Description"
-          rows={2}
+          rows={4}
         />
-        <div className="flex gap-2">
-          <button
-            onClick={saveSection}
-            disabled={saving}
-            className="flex items-center gap-1 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save"}
-          </button>
-          <button
-            onClick={regenerateLogo}
-            disabled={saving}
-            className="flex items-center gap-1 bg-white text-gray-600 border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-            title="Regenerate logo based on current title"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Logo
-          </button>
-          <button
-            onClick={deleteSection}
-            className="flex items-center gap-1 bg-white text-danger-500 border border-danger-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete Unit
-          </button>
-        </div>
+        </label>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-4">
+      <div className="mb-5 flex border-b border-slate-200">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              "flex-1 py-2 text-sm font-medium border-b-2 transition-colors",
+              "flex-1 border-b-[3px] py-3 text-[14px] font-bold transition-colors",
               activeTab === tab.key
                 ? "border-primary-600 text-primary-600"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
             {tab.label}
@@ -631,15 +642,6 @@ export default function SectionEditorPage({
       {/* Questions Tab */}
       {activeTab === "questions" && (
         <div>
-          {/* Regenerate Questions Button */}
-          <button
-            onClick={() => setShowRegenModal(true)}
-            className="w-full mb-4 flex items-center justify-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 py-2.5 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Regenerate All Questions
-          </button>
-
           {["practice", "test"].map((moduleType) => {
             const mod = section.modules.find((m) => m.type === moduleType);
             if (!mod) return null;
@@ -851,53 +853,111 @@ export default function SectionEditorPage({
         </div>
       )}
 
-      {/* Regenerate Confirmation Modal */}
-      {showRegenModal && (
+      <div className="relative mt-6 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-600 to-primary-700 p-5 text-white shadow-lg">
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-100">AI Assistant</p>
+            <h4 className="mt-1 text-[30px] font-bold leading-tight tracking-tight">Smart Regenerate</h4>
+            <p className="mt-1 text-[15px] text-primary-100">
+              Use AI to refresh your modules with new context and examples.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowRecreateModal(true)}
+            className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-primary-700 shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" />
+            Start
+          </button>
+        </div>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-8 -top-12 h-28 w-32 rotate-12 rounded-3xl bg-white/10" />
+          <div className="absolute right-6 top-2 h-16 w-20 rotate-12 rounded-2xl bg-white/5" />
+          <span className="absolute right-5 top-4 text-sm font-bold text-white/70">✦</span>
+          <span className="absolute right-12 top-10 text-xs font-bold text-white/55">✦</span>
+          <span className="absolute right-8 bottom-7 text-[10px] font-bold text-white/45">✦</span>
+          <div className="absolute -right-8 -bottom-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -left-6 -top-6 h-16 w-16 rounded-full bg-white/10 blur-xl" />
+        </div>
+      </div>
+
+      <button
+        onClick={deleteSection}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-red-200 py-4 text-base font-bold text-red-500 transition-colors hover:bg-red-50"
+        title="Delete this unit"
+      >
+        <Trash2 className="h-4 w-4" />
+        Delete Unit
+      </button>
+
+      <div className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 backdrop-blur">
+        <button
+          onClick={saveSection}
+          disabled={saving}
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+        >
+          <Save className="h-4 w-4" />
+          {saving ? "Saving..." : "Save Draft"}
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("questions");
+            setShowQuestionForm(true);
+          }}
+          className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-xl bg-primary-600 text-sm font-bold text-white shadow-lg shadow-primary-300/40 transition hover:bg-primary-700"
+        >
+          <Plus className="h-4 w-4" />
+          Add Question
+        </button>
+      </div>
+
+      {/* Recreate Unit Confirmation Modal */}
+      {showRecreateModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
-              <h3 className="font-bold text-gray-900">Regenerate Questions?</h3>
+              <h3 className="font-bold text-gray-900">Recreate Entire Unit?</h3>
             </div>
 
             <p className="text-sm text-gray-600 mb-1">
-              This will use AI to generate entirely new practice and test questions based on the current vocabulary words.
+              This will regenerate the full unit with current AI logic: vocabulary, intro reading, practice questions, and test questions.
             </p>
-            <p className="text-xs text-amber-600 mb-4">
-              All existing questions will be replaced. Learner practice and test progress for this unit will be reset so they can retake with the new questions.
+            <p className="text-xs text-red-600 mb-4">
+              Existing learner attempts/progress for this unit will be reset. This action is intended for content migrations and cannot be undone.
             </p>
 
-            {regenError && (
+            {recreateError && (
               <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs mb-3">
-                {regenError}
+                {recreateError}
               </div>
             )}
 
             <div className="flex gap-2">
               <button
-                onClick={regenerateQuestions}
-                disabled={regenerating}
-                className="flex-1 bg-amber-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                onClick={recreateUnit}
+                disabled={recreating}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
               >
-                {regenerating ? (
+                {recreating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Generating...
+                    Recreating...
                   </>
                 ) : (
                   <>
                     <RefreshCw className="w-4 h-4" />
-                    Regenerate
+                    Recreate Unit
                   </>
                 )}
               </button>
-              {!regenerating && (
+              {!recreating && (
                 <button
                   onClick={() => {
-                    setShowRegenModal(false);
-                    setRegenError("");
+                    setShowRecreateModal(false);
+                    setRecreateError("");
                   }}
                   className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
                 >

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
-import { matchEmoji } from "@/lib/logo";
+import { getUnitImageByTitle } from "@/lib/unit-image";
 
 export async function GET(
   _request: NextRequest,
@@ -89,6 +89,11 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const nextImageUrl =
+      body.regenerateImage && body.title
+        ? await getUnitImageByTitle(body.title, { strict: true, kind: "section" })
+        : undefined;
+
     const section = await prisma.section.update({
       where: { id },
       data: {
@@ -96,7 +101,7 @@ export async function PUT(
         titleEs: body.titleEs,
         description: body.description,
         isActive: body.isActive,
-        ...(body.regenerateImage && body.title ? { imageUrl: matchEmoji(body.title) } : {}),
+        ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
       },
     });
 
@@ -106,7 +111,8 @@ export async function PUT(
     if (message === "Unauthorized" || message === "Forbidden") {
       return NextResponse.json({ error: message }, { status: 403 });
     }
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Update section error:", error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

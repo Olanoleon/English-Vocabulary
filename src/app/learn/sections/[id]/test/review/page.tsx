@@ -109,8 +109,8 @@ export default function TestReviewPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+    <div className="min-h-screen bg-white">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
         <button
           onClick={() => router.push(`/learn/sections/${id}/test`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -123,22 +123,22 @@ export default function TestReviewPage({
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-4">
+      <div className="space-y-4 px-4 py-6">
         {apiError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {apiError}
           </div>
         )}
 
         {!apiError && !attempt && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-4 text-sm text-gray-500">
             No completed test attempt found yet.
           </div>
         )}
 
         {attempt && (
           <>
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm">
               <p className="text-xs text-gray-500">
                 Score: <span className="font-semibold text-gray-900">{Math.round(attempt.score || 0)}%</span>
               </p>
@@ -158,7 +158,7 @@ export default function TestReviewPage({
                   <div
                     key={item.answerId}
                     className={cn(
-                      "rounded-xl border p-4 bg-white",
+                      "rounded-[28px] border bg-white p-4",
                       item.isCorrect ? "border-green-200" : "border-red-200"
                     )}
                   >
@@ -178,7 +178,7 @@ export default function TestReviewPage({
                           <div
                             key={opt.id}
                             className={cn(
-                              "px-3 py-2 rounded-lg border text-xs",
+                              "rounded-xl border px-3 py-2 text-xs",
                               opt.isCorrect
                                 ? "border-green-300 bg-green-50"
                                 : opt.id === item.learnerAnswer.selectedOptionId

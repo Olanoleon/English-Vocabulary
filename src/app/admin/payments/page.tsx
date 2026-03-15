@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import {
   DollarSign,
-  UserCircle,
   CheckCircle2,
   AlertTriangle,
   Gift,
@@ -29,6 +28,7 @@ interface Learner {
   id: string;
   username: string;
   displayName: string;
+  avatarGender: "female" | "male" | null;
   monthlyRate: number;
   nextPaymentDue: string | null;
   lastPaymentDate: string | null;
@@ -95,7 +95,7 @@ function StatusBadge({ status }: { status: PaymentStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
+        "inline-flex h-10 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold leading-none",
         config.bg,
         config.color
       )}
@@ -146,8 +146,8 @@ function RecordPaymentForm({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 animate-fade-in">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 animate-scale-in">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center animate-fade-in">
+      <div className="animate-scale-in w-full max-w-md rounded-t-[28px] bg-white p-5 sm:rounded-[28px]">
         <h3 className="text-lg font-bold text-gray-900 mb-1">
           Record Payment
         </h3>
@@ -157,7 +157,7 @@ function RecordPaymentForm({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">
               Amount ($)
             </label>
             <input
@@ -166,21 +166,21 @@ function RecordPaymentForm({
               min="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="0.00"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">
               Note (optional)
             </label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="e.g. Cash payment, Bank transfer"
             />
           </div>
@@ -189,14 +189,14 @@ function RecordPaymentForm({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-green-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-2xl bg-green-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Record Payment"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -240,8 +240,8 @@ function EditRateForm({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 animate-fade-in">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 animate-scale-in">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center animate-fade-in">
+      <div className="animate-scale-in w-full max-w-md rounded-t-[28px] bg-white p-5 sm:rounded-[28px]">
         <h3 className="text-lg font-bold text-gray-900 mb-1">
           Set Monthly Rate
         </h3>
@@ -251,7 +251,7 @@ function EditRateForm({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">
               Monthly Rate ($)
             </label>
             <input
@@ -260,7 +260,7 @@ function EditRateForm({
               min="0"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="0.00"
               required
             />
@@ -270,14 +270,14 @@ function EditRateForm({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Update Rate"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -300,47 +300,40 @@ function LearnerCard({
   onEditRate: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const avatarSrc =
+    learner.avatarGender === "male"
+      ? "/images/library/humanbody_male.png"
+      : "/images/library/humanbody_femaleface.png";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
       {/* Main row */}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "rounded-full p-2",
-                learner.paymentStatus === "past_due"
-                  ? "bg-red-100"
-                  : learner.paymentStatus === "settled"
-                  ? "bg-green-100"
-                  : "bg-blue-100"
-              )}
-            >
-              <UserCircle
-                className={cn(
-                  "w-5 h-5",
-                  learner.paymentStatus === "past_due"
-                    ? "text-red-600"
-                    : learner.paymentStatus === "settled"
-                    ? "text-green-600"
-                    : "text-blue-600"
-                )}
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
+              <img
+                src={avatarSrc}
+                alt={`${learner.displayName} avatar`}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/images/library/humanbody_femaleface.png";
+                }}
               />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">
+              <p className="truncate font-semibold text-gray-900">
                 {learner.displayName}
               </p>
-              <p className="text-xs text-gray-500">@{learner.username}</p>
+              <p className="truncate text-xs text-gray-500">@{learner.username}</p>
             </div>
           </div>
-          <StatusBadge status={learner.paymentStatus} />
         </div>
 
         {/* Payment info */}
-        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-          <div className="bg-gray-50 rounded-lg px-3 py-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-2xl bg-gray-50 px-3 py-2">
             <p className="text-gray-500">Monthly Rate</p>
             <p className="font-semibold text-gray-900">
               {learner.monthlyRate > 0
@@ -348,7 +341,7 @@ function LearnerCard({
                 : "Free"}
             </p>
           </div>
-          <div className="bg-gray-50 rounded-lg px-3 py-2">
+          <div className="rounded-2xl bg-gray-50 px-3 py-2">
             <p className="text-gray-500">Next Due</p>
             <p
               className={cn(
@@ -366,11 +359,11 @@ function LearnerCard({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 mt-3">
+        <div className="mt-3 flex items-center gap-2">
           {learner.monthlyRate > 0 && (
             <button
               onClick={onRecordPayment}
-              className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
+              className="flex h-10 flex-1 items-center justify-center gap-1 rounded-2xl bg-green-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-green-700"
             >
               <DollarSign className="w-3.5 h-3.5" />
               Record Payment
@@ -378,14 +371,15 @@ function LearnerCard({
           )}
           <button
             onClick={onEditRate}
-            className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
+            className="h-10 flex-1 rounded-2xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
           >
             {learner.monthlyRate > 0 ? "Edit Rate" : "Set Rate"}
           </button>
+          <StatusBadge status={learner.paymentStatus} />
           {learner.payments.length > 0 && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               title="Payment history"
             >
               {expanded ? (
@@ -400,7 +394,7 @@ function LearnerCard({
 
       {/* Payment history (expanded) */}
       {expanded && learner.payments.length > 0 && (
-        <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 animate-scale-in">
+        <div className="animate-scale-in border-t border-gray-100 bg-gray-50 px-4 py-3">
           <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
             <Receipt className="w-3 h-3" /> Recent Payments
           </p>
@@ -562,24 +556,24 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="px-4 py-6">
+    <div className="space-y-4 px-4 py-6 pb-24">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Payments</h2>
-        <p className="text-sm text-gray-500 mt-1">
+      <div>
+        <h2 className="text-[28px] font-bold leading-none text-gray-900">Payments</h2>
+        <p className="mt-2 text-sm text-gray-500">
           Track and manage monthly learner payments
         </p>
       </div>
       {apiError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {apiError}
         </div>
       )}
 
       {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
         organizations.length > 0 && (
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">
               Organization Scope
             </label>
             <select
@@ -589,7 +583,7 @@ export default function PaymentsPage() {
                 setSelectedOrgId(orgId);
                 void fetchData(orgId || undefined);
               }}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">All organizations</option>
               {organizations.map((org) => (
@@ -602,8 +596,8 @@ export default function PaymentsPage() {
         )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-green-50 rounded-xl p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-[24px] bg-green-50 p-4">
           <p className="text-xs font-medium text-green-600 uppercase">
             Monthly Revenue
           </p>
@@ -611,7 +605,7 @@ export default function PaymentsPage() {
             {formatCurrency(counts.monthlyRevenue)}
           </p>
         </div>
-        <div className="bg-red-50 rounded-xl p-4">
+        <div className="rounded-[24px] bg-red-50 p-4">
           <p className="text-xs font-medium text-red-600 uppercase">
             Past Due
           </p>
@@ -625,13 +619,13 @@ export default function PaymentsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
+      <div className="flex gap-1 rounded-2xl bg-gray-100 p-1">
         {filterTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveFilter(tab.key)}
             className={cn(
-              "flex-1 py-2 rounded-lg text-xs font-medium transition-all",
+              "flex-1 rounded-xl py-2 text-xs font-semibold transition-all",
               activeFilter === tab.key
                 ? "bg-white text-gray-900 shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
@@ -663,7 +657,7 @@ export default function PaymentsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12">
+        <div className="rounded-[28px] border border-dashed border-gray-200 py-12 text-center">
           <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">
             {activeFilter === "all"

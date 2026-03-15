@@ -132,9 +132,9 @@ export default function SectionDetailPage({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
         <button
           onClick={() => router.push(backHref)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -151,9 +151,9 @@ export default function SectionDetailPage({
         </button>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="space-y-4 px-4 py-6">
         {/* Progress */}
-        <div className="mb-6">
+        <div>
           <p className="text-xs text-primary-600 uppercase font-medium">
             Unit Progress
           </p>
@@ -163,7 +163,7 @@ export default function SectionDetailPage({
               {totalPercent}%
             </span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full mt-2 overflow-hidden">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
             <div
               className="h-full bg-primary-600 rounded-full transition-all duration-500"
               style={{ width: `${totalPercent}%` }}
@@ -172,12 +172,12 @@ export default function SectionDetailPage({
         </div>
 
         {/* Module Cards */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {modules.map((mod) => (
             <div
               key={mod.label}
               className={cn(
-                "bg-white rounded-2xl border p-4 transition-all shadow-sm",
+                "rounded-[28px] border bg-white p-4 shadow-sm transition-all",
                 !mod.completed &&
                   mod.label !== "Unit Test" &&
                   "border-primary-200 shadow-sm"
@@ -189,7 +189,7 @@ export default function SectionDetailPage({
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                     mod.completed ? "bg-success-500" : "bg-primary-100"
                   )}
                 >
@@ -217,7 +217,7 @@ export default function SectionDetailPage({
                   <button
                     onClick={() => router.push(mod.href)}
                     className={cn(
-                      "mt-3 w-full py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-1 transition-colors",
+                      "mt-3 flex h-11 w-full items-center justify-center gap-1 rounded-2xl text-sm font-semibold transition-colors",
                       mod.completed
                         ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         : "bg-primary-600 text-white hover:bg-primary-700"

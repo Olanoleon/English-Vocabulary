@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
+import { getUnitImageByTitle } from "@/lib/unit-image";
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
       orderBy: { sortOrder: "desc" },
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
+    const imageUrl = await getUnitImageByTitle(title, { kind: "section" });
 
     // Create section with 3 modules
     const ownerOrgIdForSection =
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
         title,
         titleEs,
         description: description || "",
+        imageUrl,
         sortOrder,
         areaId,
         organizationId: ownerOrgIdForSection,

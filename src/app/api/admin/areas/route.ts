@@ -4,7 +4,7 @@ import https from "https";
 import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
-import { matchEmoji } from "@/lib/logo";
+import { getUnitImageByTitle } from "@/lib/unit-image";
 
 function getOpenAIKey(): string {
   try {
@@ -178,15 +178,15 @@ export async function POST(request: NextRequest) {
     });
     const sortOrder = (lastArea?.sortOrder ?? 0) + 1;
 
-    // Match an emoji icon based on the area name
-    const emoji = matchEmoji(name);
+    // Fetch provider illustration by title (fallback to app logo)
+    const imageUrl = await getUnitImageByTitle(name, { kind: "area" });
 
     const area = await prisma.area.create({
       data: {
         name,
         nameEs,
         description,
-        imageUrl: emoji,
+        imageUrl,
         sortOrder,
         scopeType,
         organizationId,

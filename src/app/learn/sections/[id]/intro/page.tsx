@@ -115,9 +115,9 @@ export default function IntroductionPage({
   const vocabulary = section.sectionVocabulary.map((sv) => sv.vocabulary);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -131,9 +131,9 @@ export default function IntroductionPage({
         </div>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="space-y-6 px-4 py-6">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2">
           <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-medium">
             Introduction
           </span>
@@ -147,7 +147,7 @@ export default function IntroductionPage({
 
         {/* Reading Context */}
         {content?.readingText && (
-          <div className="mb-8">
+          <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -168,14 +168,14 @@ export default function IntroductionPage({
                 {content.readingTitle}
               </h3>
             )}
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-sm leading-relaxed text-gray-700 shadow-sm">
+            <div className="rounded-[28px] border border-gray-100 bg-white p-4 text-sm leading-relaxed text-gray-700 shadow-sm">
               {renderReadingText(content.readingText)}
             </div>
           </div>
         )}
 
         {/* Key Vocabulary */}
-        <div className="mb-8">
+        <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Key Vocabulary
@@ -189,7 +189,7 @@ export default function IntroductionPage({
             {vocabulary.map((word) => (
               <div
                 key={word.id}
-                className="bg-white border border-gray-100 rounded-2xl p-4 animate-fade-in shadow-sm"
+                className="animate-fade-in rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -219,7 +219,7 @@ export default function IntroductionPage({
                 </p>
                 <p className="text-sm text-gray-700">{word.definitionEs}</p>
 
-                <div className="mt-2 bg-gray-50 rounded-xl px-3 py-2">
+                <div className="mt-2 rounded-2xl bg-gray-50 px-3 py-2">
                   <p className="text-xs text-gray-500 italic">
                     &ldquo;{word.exampleSentence}&rdquo;
                   </p>
@@ -233,7 +233,7 @@ export default function IntroductionPage({
         <button
           onClick={markCompleted}
           disabled={marking}
-          className="w-full bg-primary-600 text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors disabled:opacity-50"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
         >
           {marking ? "Saving..." : "Continue to Unit Practice"}
           <ChevronRight className="w-5 h-5" />
