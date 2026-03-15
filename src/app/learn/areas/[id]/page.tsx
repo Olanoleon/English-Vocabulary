@@ -12,7 +12,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LogoBadge } from "@/components/logo-badge";
 import { APP_IMAGE_FALLBACK } from "@/lib/image-fallback";
 
 const IMAGE_FALLBACK_SRC = APP_IMAGE_FALLBACK;
@@ -103,19 +102,8 @@ export default function AreaLearningPathPage({
     return total;
   }
 
-  function isImageLike(value: string | null | undefined): boolean {
-    if (!value) return false;
-    const normalized = value.trim().toLowerCase();
-    return (
-      normalized.startsWith("/") ||
-      normalized.startsWith("http://") ||
-      normalized.startsWith("https://") ||
-      /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/.test(normalized)
-    );
-  }
-
   function normalizeImageSrc(value: string | null | undefined): string {
-    if (!value) return "";
+    if (!value) return IMAGE_FALLBACK_SRC;
     const trimmed = value.trim();
     const normalizedWithLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
     if (LEGACY_IMAGE_PATH_MAP[normalizedWithLeadingSlash]) {
@@ -131,6 +119,18 @@ export default function AreaLearningPathPage({
       return `/${trimmed.replace(/^public\//, "")}`;
     }
     return `/${trimmed}`;
+  }
+
+  function resolveAreaImageSrc(areaInfo: AreaInfo | null): string {
+    if (!areaInfo) return IMAGE_FALLBACK_SRC;
+    const normalized = normalizeImageSrc(areaInfo.imageUrl);
+    if (
+      areaInfo.name.toLowerCase().includes("human body") &&
+      (normalized.includes("humanbody_femaleface") || normalized.includes("humanbody_male"))
+    ) {
+      return "/images/library/humanbody_torso.png";
+    }
+    return normalized;
   }
 
   if (loading) {
@@ -163,7 +163,17 @@ export default function AreaLearningPathPage({
         </button>
         {area ? (
           <div className="flex items-center gap-3">
-            <LogoBadge logo={area.imageUrl} size="md" tone="primary" />
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
+              <img
+                src={resolveAreaImageSrc(area)}
+                alt={area.name}
+                className="h-full w-full object-cover object-center"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                }}
+              />
+            </div>
             <div>
               <h1 className="text-[28px] font-bold leading-none text-gray-900">{area.name}</h1>
               <p className="text-xs text-gray-400">{area.nameEs}</p>
@@ -195,125 +205,88 @@ export default function AreaLearningPathPage({
         </div>
       </div>
 
-      {/* Section Timeline */}
-      <div className="relative">
-        <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" />
-
-        <div className="space-y-4">
+      {/* Sections */}
+      <div className="space-y-4">
           {sections.map((section, index) => {
             const status = getSectionStatus(section, index);
             const completion = getCompletionPercent(section.progress);
 
             return (
-              <div
-                key={section.id}
-                className="relative flex gap-4 animate-fade-in"
-              >
-                {/* Timeline dot */}
-                <div className="relative z-10 flex-shrink-0">
-                  {status === "completed" ? (
-                    <div className="w-10 h-10 rounded-full bg-success-500 flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-5 h-5 text-white" />
-                    </div>
-                  ) : status === "active" ? (
-                    <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center shadow-md ring-4 ring-primary-100">
-                      <PlayCircle className="w-5 h-5 text-white" />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <Lock className="w-4 h-4 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Card */}
+              <div key={section.id} className="animate-fade-in">
                 {status === "locked" ? (
-                  <div className="flex-1 rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-70">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
-                          {isImageLike(section.imageUrl) ? (
-                            <img
-                              src={normalizeImageSrc(section.imageUrl)}
-                              alt={section.title}
-                              className="h-full w-full object-cover object-center"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = IMAGE_FALLBACK_SRC;
-                              }}
-                            />
-                          ) : (
-                            <LogoBadge
-                              logo={section.imageUrl}
-                              fallback={String(index + 1).padStart(2, "0")}
-                              size="md"
-                              tone="primary"
-                              className="h-full w-full rounded-2xl"
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase font-medium">
-                            Unit {String(index + 1).padStart(2, "0")}
-                          </p>
-                          <h3 className="font-bold text-gray-900 mt-0.5">
-                            {section.title}
-                          </h3>
-                          <p className="text-xs text-gray-400">
-                            {section.titleEs}
-                          </p>
-                        </div>
+                  <div className="rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-70">
+                    <div className="mb-3 flex justify-end">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        <Lock className="h-3.5 w-3.5" />
+                        Locked
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                        <img
+                          src={normalizeImageSrc(section.imageUrl)}
+                          alt={section.title}
+                          className="h-full w-full object-cover object-center"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                          }}
+                        />
                       </div>
-                      <Lock className="h-4 w-4 text-gray-300" />
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase font-medium">
+                          Unit {String(index + 1).padStart(2, "0")}
+                        </p>
+                        <h3 className="font-bold text-gray-900 mt-0.5">
+                          {section.title}
+                        </h3>
+                        <p className="text-xs text-gray-400">
+                          {section.titleEs}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <Link
                     href={`/learn/sections/${section.id}`}
                     className={cn(
-                      "flex-1 rounded-[28px] p-4 shadow-sm transition-all",
+                      "block rounded-[28px] p-4 shadow-sm transition-all",
                       status === "active"
                         ? "bg-white border-2 border-primary-500 shadow-sm"
                         : "bg-white border border-gray-200"
                     )}
                   >
+                    <div className="mb-3 flex justify-end">
+                      {status === "active" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#166534]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Completed
+                        </span>
+                      )}
+                    </div>
+
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
-                          {isImageLike(section.imageUrl) ? (
-                            <img
-                              src={normalizeImageSrc(section.imageUrl)}
-                              alt={section.title}
-                              className="h-full w-full object-cover object-center"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = IMAGE_FALLBACK_SRC;
-                              }}
-                            />
-                          ) : (
-                            <LogoBadge
-                              logo={section.imageUrl}
-                              fallback={String(index + 1).padStart(2, "0")}
-                              size="md"
-                              tone="primary"
-                              className="h-full w-full rounded-2xl"
-                            />
-                          )}
+                          <img
+                            src={normalizeImageSrc(section.imageUrl)}
+                            alt={section.title}
+                            className="h-full w-full object-cover object-center"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                            }}
+                          />
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">
-                              Unit {String(index + 1).padStart(2, "0")}
-                              {status === "active" && " · Active"}
-                            </p>
-                            {status === "completed" &&
-                              section.progress?.testScore && (
-                                <span className="rounded-full bg-success-500 px-2 py-0.5 text-xs font-medium text-white">
-                                  {Math.round(section.progress.testScore)}%
-                                  Score
-                                </span>
-                              )}
-                          </div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">
+                            Unit {String(index + 1).padStart(2, "0")}
+                          </p>
                           <h3 className="mt-1 truncate text-3xl leading-none font-bold text-gray-900">
                             {section.title}
                           </h3>
@@ -354,7 +327,6 @@ export default function AreaLearningPathPage({
               </div>
             );
           })}
-        </div>
       </div>
 
       {sections.length === 0 && (
