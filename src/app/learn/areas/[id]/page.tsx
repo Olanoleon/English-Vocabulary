@@ -206,15 +206,21 @@ export default function AreaLearningPathPage({
       </div>
 
       {/* Sections */}
-      <div className="space-y-4">
+      <div className="space-y-5">
           {sections.map((section, index) => {
             const status = getSectionStatus(section, index);
             const completion = getCompletionPercent(section.progress);
+            const hasNext = index < sections.length - 1;
+            const nextStatus = hasNext
+              ? getSectionStatus(sections[index + 1], index + 1)
+              : null;
+            const connectorColor =
+              nextStatus && nextStatus !== "locked" ? "bg-primary-500" : "bg-gray-200";
 
             return (
-              <div key={section.id} className="animate-fade-in">
+              <div key={section.id} className="relative animate-fade-in">
                 {status === "locked" ? (
-                  <div className="rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-70">
+                  <div className="rounded-[28px] border border-gray-100 bg-gray-50 p-4 shadow-sm opacity-70">
                     <div className="mb-3 flex justify-end">
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                         <Lock className="h-3.5 w-3.5" />
@@ -253,7 +259,9 @@ export default function AreaLearningPathPage({
                       "block rounded-[28px] p-4 shadow-sm transition-all",
                       status === "active"
                         ? "bg-white border-2 border-primary-500 shadow-sm"
-                        : "bg-white border border-gray-200"
+                        : status === "completed"
+                          ? "bg-white border border-primary-200 shadow-sm"
+                          : "bg-white border border-gray-200"
                     )}
                   >
                     <div className="mb-3 flex justify-end">
@@ -323,6 +331,14 @@ export default function AreaLearningPathPage({
                       )}
                     </div>
                   </Link>
+                )}
+                {hasNext && (
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute left-1/2 top-full -mt-px h-[18px] w-0.5 -translate-x-1/2 rounded-full transition-colors duration-300",
+                      connectorColor
+                    )}
+                  />
                 )}
               </div>
             );
