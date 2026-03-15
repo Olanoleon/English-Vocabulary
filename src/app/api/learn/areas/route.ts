@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { resolveLearnAreaImageUrl } from "@/lib/learn-image-url";
 
 export async function GET() {
   try {
@@ -106,7 +107,7 @@ export async function GET() {
           name: area.name,
           nameEs: area.nameEs,
           description: area.description,
-          imageUrl: area.imageUrl,
+          imageUrl: resolveLearnAreaImageUrl(area.name, area.imageUrl),
           unitCount: area.visibleSections.length,
           recentCompletions: recentCount,
           isHot: recentCount >= 3,

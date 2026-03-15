@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { normalizeLearnImageUrl } from "@/lib/learn-image-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
         titleEs: section.titleEs,
         description: section.description,
         sortOrder: orgId ? (section.orgConfigs[0]?.sortOrder ?? section.sortOrder) : section.sortOrder,
-        imageUrl: section.imageUrl,
+        imageUrl: normalizeLearnImageUrl(section.imageUrl),
         wordCount: section._count.sectionVocabulary,
         modules: section.modules,
         progress: progress
