@@ -2,7 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, ShieldCheck, ArrowLeft } from "lucide-react";
+import { ShieldCheck, ArrowLeft } from "lucide-react";
+import { isAdminRole } from "@/lib/roles";
+
+interface LoginMembershipOption {
+  membershipId: string;
+  role: string;
+  organizationId: string | null;
+  organizationName: string | null;
+}
 
 // ─── Verification Code Input ──────────────────────────────────────────────────
 
@@ -87,10 +95,16 @@ function CodeInput({
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Role selection step state
+  const [roleStep, setRoleStep] = useState(false);
+  const [challengeToken, setChallengeToken] = useState("");
+  const [membershipOptions, setMembershipOptions] = useState<LoginMembershipOption[]>([]);
+  const [selectingRole, setSelectingRole] = useState(false);
 
   // Verification step state
   const [verifyStep, setVerifyStep] = useState(false);
@@ -115,13 +129,21 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         setError(data.error || "Login failed");
+        setLoading(false);
+        return;
+      }
+
+      if (data.requireRoleSelection) {
+        setChallengeToken(data.challengeToken);
+        setMembershipOptions(Array.isArray(data.memberships) ? data.memberships : []);
+        setRoleStep(true);
         setLoading(false);
         return;
       }
@@ -136,15 +158,43 @@ export default function LoginPage() {
       }
 
       // Route by role
-      const isAdminRole =
-        data.role === "admin" ||
-        data.role === "super_admin" ||
-        data.role === "org_admin";
-      router.push(isAdminRole ? "/admin" : "/learn");
+      router.push(isAdminRole(data.activeRole || data.role) ? "/admin" : "/learn");
       router.refresh();
     } catch {
       setError("Connection error. Please try again.");
       setLoading(false);
+    }
+  }
+
+  async function handleSelectRole(membershipId: string) {
+    if (!challengeToken || selectingRole) return;
+    setSelectingRole(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/select-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeToken, membershipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to continue login");
+        setSelectingRole(false);
+        return;
+      }
+      if (data.requireVerification) {
+        setPendingUserId(data.userId);
+        setRoleStep(false);
+        setVerifyStep(true);
+        setResendCooldown(30);
+        setSelectingRole(false);
+        return;
+      }
+      router.push(isAdminRole(data.activeRole || data.role) ? "/admin" : "/learn");
+      router.refresh();
+    } catch {
+      setError("Connection error. Please try again.");
+      setSelectingRole(false);
     }
   }
 
@@ -199,9 +249,20 @@ export default function LoginPage() {
 
   function handleBack() {
     setVerifyStep(false);
+    setRoleStep(false);
+    setChallengeToken("");
+    setMembershipOptions([]);
     setPendingUserId("");
     setVerifyError("");
     setPassword("");
+  }
+
+  function formatRoleLabel(role: string) {
+    if (role === "super_admin") return "Super Admin";
+    if (role === "org_admin") return "Org Admin";
+    if (role === "admin") return "Admin";
+    if (role === "learner") return "Learner";
+    return role;
   }
 
   // ── Verification Step UI ─────────────────────────────────────────────
@@ -265,16 +326,71 @@ export default function LoginPage() {
     );
   }
 
+  if (roleStep) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-primary-50 to-white">
+        <div className="w-full max-w-sm">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+              <ShieldCheck className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Choose Role</h1>
+            <p className="text-sm text-gray-500 mt-2 text-center">
+              This e-mail has multiple memberships.
+              <br />
+              Select one to continue.
+            </p>
+          </div>
+          <div className="space-y-2 mb-4">
+            {membershipOptions.map((option) => (
+              <button
+                key={option.membershipId}
+                type="button"
+                onClick={() => handleSelectRole(option.membershipId)}
+                disabled={selectingRole}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 disabled:opacity-60"
+              >
+                <p className="text-sm font-semibold text-gray-900">{formatRoleLabel(option.role)}</p>
+                {option.organizationName ? (
+                  <p className="text-xs text-gray-500 mt-0.5">{option.organizationName}</p>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          {error && (
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm animate-scale-in mb-4 text-center">
+              {error}
+            </div>
+          )}
+          <button
+            onClick={handleBack}
+            className="text-sm text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1 mx-auto transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Login Form UI ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-primary-50 to-white">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <BookOpen className="w-8 h-8 text-white" />
+          <div className="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 shadow-lg overflow-hidden bg-white border border-primary-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/library/english_flags.png"
+              alt="VocabPath logo"
+              className="h-full w-full object-cover"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">VocabPath</h1>
+          <h1 className="text-[2.05rem] font-bold tracking-tight text-primary-700">
+            <span className="inline-block animate-title-breathe">VocabPath</span>
+          </h1>
           <p className="text-sm text-gray-500 mt-1">
             English Vocabulary Practice
           </p>
@@ -284,20 +400,20 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Username
+              E-mail
             </label>
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-gray-50 text-gray-900 placeholder-gray-400"
-              placeholder="Enter your username"
+              placeholder="Enter your e-mail"
               required
-              autoComplete="username"
+              autoComplete="email"
             />
           </div>
 

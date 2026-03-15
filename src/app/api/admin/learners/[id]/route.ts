@@ -9,24 +9,52 @@ export async function DELETE(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
 
     // Org admins can only manage learners in their own organization.
     const target = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, organizationId: true },
+      select: {
+        id: true,
+        organizationId: true,
+        roleMemberships: {
+          where: { role: "learner" },
+          select: { id: true, organizationId: true },
+        },
+      },
     });
-    if (!target || target.role !== "learner") {
+    if (!target || target.roleMemberships.length === 0) {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
-      target.organizationId !== session.organizationId
+      activeRole === "org_admin" &&
+      !target.roleMemberships.some((m) => m.organizationId === session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.userRoleMembership.deleteMany({
+        where: { userId: id, role: "learner" },
+      });
+      const remaining = await tx.userRoleMembership.findFirst({
+        where: { userId: id },
+        orderBy: { createdAt: "asc" },
+        select: { role: true, organizationId: true },
+      });
+      if (remaining) {
+        await tx.user.update({
+          where: { id },
+          data: {
+            role: remaining.role,
+            organizationId: remaining.organizationId ?? null,
+          },
+        });
+      } else {
+        await tx.user.delete({ where: { id } });
+      }
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
@@ -44,19 +72,27 @@ export async function PATCH(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
 
     const target = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, organizationId: true },
+      select: {
+        id: true,
+        organizationId: true,
+        roleMemberships: {
+          where: { role: "learner" },
+          select: { id: true, organizationId: true },
+        },
+      },
     });
-    if (!target || target.role !== "learner") {
+    if (!target || target.roleMemberships.length === 0) {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
-      target.organizationId !== session.organizationId
+      activeRole === "org_admin" &&
+      !target.roleMemberships.some((m) => m.organizationId === session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -77,7 +113,7 @@ export async function PATCH(
 
     if (body.password !== undefined) {
       const newPassword = String(body.password || "").trim();
-      if (session.role === "org_admin") {
+      if (activeRole === "org_admin") {
         return NextResponse.json(
           { error: "Only super admin can change learner passwords" },
           { status: 403 }
@@ -93,7 +129,7 @@ export async function PATCH(
     }
 
     if (body.organizationId !== undefined) {
-      if (session.role === "org_admin") {
+      if (activeRole === "org_admin") {
         return NextResponse.json(
           { error: "Only super admin can reassign learner organization" },
           { status: 403 }
@@ -117,6 +153,17 @@ export async function PATCH(
         );
       }
       updateData.organizationId = org.id;
+      const membershipToMove = target.roleMemberships[0];
+      if (membershipToMove) {
+        await prisma.userRoleMembership.update({
+          where: { id: membershipToMove.id },
+          data: { organizationId: org.id },
+        });
+      } else {
+        await prisma.userRoleMembership.create({
+          data: { userId: id, role: "learner", organizationId: org.id },
+        });
+      }
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -44,6 +44,7 @@ interface Organization {
 
 interface SessionMe {
   role: string;
+  activeRole?: string;
   organizationId: string | null;
 }
 
@@ -182,7 +183,7 @@ export default function LearnersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newAvatarGender, setNewAvatarGender] = useState<"female" | "male">("female");
@@ -258,9 +259,10 @@ export default function LearnersPage() {
         setApiError(await readApiError(orgRes, "Failed to load organizations."));
       }
 
+      const activeRole = me?.activeRole || me?.role;
       const initialOrgId =
-        me?.role === "org_admin"
-          ? me.organizationId || ""
+        activeRole === "org_admin"
+          ? me?.organizationId || ""
           : "";
       setSelectedOrgId(initialOrgId);
       setCreateOrgId(initialOrgId);
@@ -290,7 +292,8 @@ export default function LearnersPage() {
     setError("");
     setApiError("");
     if (
-      (sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
+      ((sessionMe?.activeRole || sessionMe?.role) === "super_admin" ||
+        (sessionMe?.activeRole || sessionMe?.role) === "admin") &&
       !createOrgId
     ) {
       setError("Please choose an organization for this learner.");
@@ -301,18 +304,18 @@ export default function LearnersPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: newUsername,
+        email: newEmail,
         password: newPassword,
         displayName: newDisplayName,
         avatarGender: newAvatarGender,
         organizationId:
-          sessionMe?.role === "org_admin"
-            ? sessionMe.organizationId
+          (sessionMe?.activeRole || sessionMe?.role) === "org_admin"
+            ? sessionMe?.organizationId
             : createOrgId || undefined,
       }),
     });
     if (res.ok) {
-      setNewUsername("");
+      setNewEmail("");
       setNewPassword("");
       setNewDisplayName("");
       setNewAvatarGender("female");
@@ -408,10 +411,11 @@ export default function LearnersPage() {
       learner.username.toLowerCase().includes(normalizedSearch)
     );
   });
+  const activeSessionRole = sessionMe?.activeRole || sessionMe?.role;
   const canResetPasswords =
-    sessionMe?.role === "super_admin" || sessionMe?.role === "admin";
+    activeSessionRole === "super_admin" || activeSessionRole === "admin";
   const canReassignOrganization =
-    sessionMe?.role === "super_admin" || sessionMe?.role === "admin";
+    activeSessionRole === "super_admin" || activeSessionRole === "admin";
   const organizationNameById = new Map(
     organizations.map((org) => [org.id, org.name])
   );
@@ -463,7 +467,7 @@ export default function LearnersPage() {
           className="animate-scale-in space-y-3 rounded-[28px] border border-primary-100 bg-white p-4 shadow-sm"
         >
           <h4 className="text-base font-semibold text-gray-900">New Learner Account</h4>
-          {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") && (
+          {(activeSessionRole === "super_admin" || activeSessionRole === "admin") && (
             <select
               value={createOrgId}
               onChange={(e) => setCreateOrgId(e.target.value)}
@@ -487,10 +491,10 @@ export default function LearnersPage() {
             required
           />
           <input
-            type="text"
-            placeholder="Username"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
+            type="email"
+            placeholder="E-mail"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
             className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             required
           />
@@ -535,7 +539,7 @@ export default function LearnersPage() {
         </form>
       )}
 
-      {(sessionMe?.role === "super_admin" || sessionMe?.role === "admin") &&
+      {(activeSessionRole === "super_admin" || activeSessionRole === "admin") &&
         organizations.length > 0 && (
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">

@@ -6,20 +6,25 @@ import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { searchParams } = new URL(request.url);
     const requestedOrgId = searchParams.get("organizationId");
 
     const where: {
-      role: string;
-      organizationId?: string;
-    } = { role: "learner" };
-    if (session.role === "org_admin") {
+      roleMemberships: {
+        some: {
+          role: string;
+          organizationId?: string;
+        };
+      };
+    } = { roleMemberships: { some: { role: "learner" } } };
+    if (activeRole === "org_admin") {
       if (!session.organizationId) {
         return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
       }
-      where.organizationId = session.organizationId;
+      where.roleMemberships.some.organizationId = session.organizationId;
     } else if (requestedOrgId) {
-      where.organizationId = requestedOrgId;
+      where.roleMemberships.some.organizationId = requestedOrgId;
     }
 
     const learners = await prisma.user.findMany({
@@ -82,6 +87,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { userId, amount, note } = await request.json();
 
     if (!userId || amount === undefined) {
@@ -92,12 +98,19 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== "learner") {
+    if (!user) {
+      return NextResponse.json({ error: "Learner not found" }, { status: 404 });
+    }
+    const learnerMembership = await prisma.userRoleMembership.findFirst({
+      where: { userId, role: "learner" },
+      select: { organizationId: true },
+    });
+    if (!learnerMembership) {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
-      user.organizationId !== session.organizationId
+      activeRole === "org_admin" &&
+      learnerMembership.organizationId !== session.organizationId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

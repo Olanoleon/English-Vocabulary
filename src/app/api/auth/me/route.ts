@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     isLoggedIn: true,
     userId: session.userId,
     username: session.username,
-    role: session.role,
+    role: session.activeRole || session.role,
+    activeRole: session.activeRole || session.role,
     displayName: session.displayName,
     organizationId: session.organizationId ?? null,
   });

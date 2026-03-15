@@ -2,26 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
+import { isValidEmail, normalizeEmail } from "@/lib/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const url = new URL(request.url);
     const requestedOrgId = url.searchParams.get("organizationId");
 
-    // org_admin can only query learners in their own org.
-    // super_admin/admin can query all learners, or a specific org via query param.
     const learnerWhere: {
-      role: string;
-      organizationId?: string;
-    } = { role: "learner" };
-    if (session.role === "org_admin") {
+      roleMemberships: {
+        some: {
+          role: string;
+          organizationId?: string;
+        };
+      };
+    } = { roleMemberships: { some: { role: "learner" } } };
+    if (activeRole === "org_admin") {
       if (!session.organizationId) {
         return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
       }
-      learnerWhere.organizationId = session.organizationId;
+      learnerWhere.roleMemberships.some.organizationId = session.organizationId;
     } else if (requestedOrgId) {
-      learnerWhere.organizationId = requestedOrgId;
+      learnerWhere.roleMemberships.some.organizationId = requestedOrgId;
     }
 
     const learners = await prisma.user.findMany({
@@ -93,20 +97,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
-    const { username, password, displayName, organizationId, avatarGender } = await request.json();
+    const activeRole = session.activeRole || session.role;
+    const { email, password, displayName, organizationId, avatarGender } = await request.json();
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!username || !password || !displayName) {
+    if (!normalizedEmail || !password || !displayName) {
       return NextResponse.json(
-        { error: "Username, password, and display name are required" },
+        { error: "E-mail, password, and display name are required" },
         { status: 400 }
       );
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      return NextResponse.json({ error: "A valid e-mail is required" }, { status: 400 });
     }
 
     // Determine target org:
     // - org_admin: forced to own org
     // - super_admin/admin: can pass organizationId, else defaults to fallback "Independent" org
     let targetOrgId: string | null = null;
-    if (session.role === "org_admin") {
+    if (activeRole === "org_admin") {
       if (!session.organizationId) {
         return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
       }
@@ -137,37 +146,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Check existing
-    const existing = await prisma.user.findUnique({
-      where: { username: username.toLowerCase().trim() },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Username already exists" },
-        { status: 409 }
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
     const normalizedAvatarGender =
       avatarGender === "male" || avatarGender === "female" ? avatarGender : "female";
-
-    const user = await prisma.user.create({
-      data: {
-        username: username.toLowerCase().trim(),
-        passwordHash,
-        role: "learner",
-        displayName,
-        avatarGender: normalizedAvatarGender,
-        organizationId: targetOrgId,
-      },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatarGender: true,
-        organizationId: true,
-        createdAt: true,
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true, email: true },
+      });
+      const passwordHash = await bcrypt.hash(String(password), 10);
+      const targetUser = existing
+        ? await tx.user.update({
+            where: { id: existing.id },
+            data: {
+              username: normalizedEmail,
+              email: normalizedEmail,
+              passwordHash,
+              displayName: String(displayName).trim(),
+              avatarGender: normalizedAvatarGender,
+              organizationId: targetOrgId,
+            },
+            select: { id: true, username: true, displayName: true, avatarGender: true, organizationId: true, createdAt: true },
+          })
+        : await tx.user.create({
+            data: {
+              username: normalizedEmail,
+              email: normalizedEmail,
+              passwordHash,
+              role: "learner",
+              displayName: String(displayName).trim(),
+              avatarGender: normalizedAvatarGender,
+              organizationId: targetOrgId,
+            },
+            select: { id: true, username: true, displayName: true, avatarGender: true, organizationId: true, createdAt: true },
+          });
+      const existingLearnerMembership = await tx.userRoleMembership.findFirst({
+        where: { userId: targetUser.id, role: "learner", organizationId: targetOrgId },
+        select: { id: true },
+      });
+      if (!existingLearnerMembership) {
+        await tx.userRoleMembership.create({
+          data: {
+            userId: targetUser.id,
+            role: "learner",
+            organizationId: targetOrgId,
+          },
+        });
+      }
+      await tx.user.update({
+        where: { id: targetUser.id },
+        data: { role: "learner" },
+      });
+      return targetUser;
     });
 
     // Auto-unlock first section visible to the learner's org
@@ -186,8 +215,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (firstSection) {
-      await prisma.learnerSectionProgress.create({
-        data: {
+      await prisma.learnerSectionProgress.upsert({
+        where: {
+          userId_sectionId: {
+            userId: user.id,
+            sectionId: firstSection.id,
+          },
+        },
+        update: {
+          unlocked: true,
+          unlockedAt: new Date(),
+        },
+        create: {
           userId: user.id,
           sectionId: firstSection.id,
           unlocked: true,

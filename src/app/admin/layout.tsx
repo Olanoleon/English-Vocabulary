@@ -30,9 +30,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         try {
           const res = await fetch("/api/auth/me");
           if (!res.ok) return;
-          const data = (await res.json()) as { role?: string };
-          if (typeof data.role === "string") {
-            setRole(data.role);
+          const data = (await res.json()) as { role?: string; activeRole?: string };
+          const nextRole = data.activeRole || data.role;
+          if (typeof nextRole === "string") {
+            setRole(nextRole);
           }
         } catch {
           // Ignore fetch errors and keep default navigation.

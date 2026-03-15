@@ -9,19 +9,27 @@ export async function PATCH(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
 
     const target = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, organizationId: true },
+      select: {
+        id: true,
+        organizationId: true,
+        roleMemberships: {
+          where: { role: "learner" },
+          select: { organizationId: true },
+        },
+      },
     });
-    if (!target || target.role !== "learner") {
+    if (!target || target.roleMemberships.length === 0) {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
-      target.organizationId !== session.organizationId
+      activeRole === "org_admin" &&
+      !target.roleMemberships.some((m) => m.organizationId === session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -67,18 +75,26 @@ export async function GET(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
 
     const target = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, organizationId: true },
+      select: {
+        id: true,
+        organizationId: true,
+        roleMemberships: {
+          where: { role: "learner" },
+          select: { organizationId: true },
+        },
+      },
     });
-    if (!target || target.role !== "learner") {
+    if (!target || target.roleMemberships.length === 0) {
       return NextResponse.json({ error: "Learner not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
-      target.organizationId !== session.organizationId
+      activeRole === "org_admin" &&
+      !target.roleMemberships.some((m) => m.organizationId === session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

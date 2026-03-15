@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAuth, checkLearnerAccess } from "@/lib/auth";
+import { isAdminRole } from "@/lib/roles";
 
 export async function GET() {
   try {
     const session = await requireAuth();
 
     // Admin roles always have access
-    if (
-      session.role === "admin" ||
-      session.role === "super_admin" ||
-      session.role === "org_admin"
-    ) {
+    if (isAdminRole(session.activeRole || session.role)) {
       return NextResponse.json({ hasAccess: true });
     }
 

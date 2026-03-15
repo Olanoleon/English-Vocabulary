@@ -10,10 +10,14 @@ function getResend() {
   return _resend;
 }
 
-export async function sendVerificationCode(code: string) {
+export async function sendVerificationCode(code: string, recipientEmail?: string | null) {
+  const toEmail = (recipientEmail || ADMIN_EMAIL).trim();
+  if (!toEmail) {
+    throw new Error("Missing recipient email");
+  }
   const { error } = await getResend().emails.send({
     from: "VocabPath <onboarding@resend.dev>",
-    to: ADMIN_EMAIL,
+    to: toEmail,
     subject: `${code} — VocabPath Admin Verification`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">

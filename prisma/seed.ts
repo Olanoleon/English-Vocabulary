@@ -6,604 +6,434 @@ import "dotenv/config";
 const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
+type SeedVocab = {
+  word: string;
+  partOfSpeech: string;
+  definitionEs: string;
+  exampleSentence: string;
+  phoneticIpa?: string;
+  stressedSyllable?: string;
+};
+
+async function clearSeedData() {
+  await prisma.$transaction([
+    prisma.learnerAnswer.deleteMany(),
+    prisma.learnerAttempt.deleteMany(),
+    prisma.learnerSectionProgress.deleteMany(),
+    prisma.questionOption.deleteMany(),
+    prisma.question.deleteMany(),
+    prisma.module.deleteMany(),
+    prisma.sectionVocabulary.deleteMany(),
+    prisma.vocabulary.deleteMany(),
+    prisma.section.deleteMany(),
+    prisma.area.deleteMany(),
+    prisma.payment.deleteMany(),
+    prisma.userRoleMembership.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
+}
+
+async function setGlobalAreaVisibilityForAllOrgs(
+  areaId: string,
+  sortOrder: number,
+  isVisible: boolean
+) {
+  const orgs = await prisma.organization.findMany({
+    select: { id: true },
+  });
+  if (orgs.length === 0) return;
+
+  await prisma.organizationAreaConfig.createMany({
+    data: orgs.map((org) => ({
+      organizationId: org.id,
+      areaId,
+      isVisible,
+      sortOrder,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function seedSectionData(
+  sectionId: string,
+  vocabulary: SeedVocab[],
+  practiceModuleId: string,
+  testModuleId: string
+) {
+  for (let i = 0; i < vocabulary.length; i++) {
+    const v = vocabulary[i];
+    await prisma.vocabulary.create({
+      data: {
+        word: v.word,
+        partOfSpeech: v.partOfSpeech,
+        definitionEs: v.definitionEs,
+        exampleSentence: v.exampleSentence,
+        phoneticIpa: v.phoneticIpa || null,
+        stressedSyllable: v.stressedSyllable || null,
+        sectionVocabulary: {
+          create: {
+            sectionId,
+            sortOrder: i + 1,
+          },
+        },
+      },
+    });
+  }
+
+  // Simple practice questions
+  await prisma.question.create({
+    data: {
+      moduleId: practiceModuleId,
+      type: "multiple_choice",
+      prompt: `What is the meaning of "${vocabulary[0].word}"?`,
+      sortOrder: 1,
+      options: {
+        create: [
+          { optionText: vocabulary[0].definitionEs, isCorrect: true, sortOrder: 1 },
+          { optionText: vocabulary[1].definitionEs, isCorrect: false, sortOrder: 2 },
+          { optionText: vocabulary[2].definitionEs, isCorrect: false, sortOrder: 3 },
+          { optionText: vocabulary[3].definitionEs, isCorrect: false, sortOrder: 4 },
+        ],
+      },
+    },
+  });
+
+  await prisma.question.create({
+    data: {
+      moduleId: practiceModuleId,
+      type: "fill_blank",
+      prompt: vocabulary[1].exampleSentence.replace(vocabulary[1].word, "___"),
+      correctAnswer: vocabulary[1].word,
+      sortOrder: 2,
+    },
+  });
+
+  // Simple test questions
+  await prisma.question.create({
+    data: {
+      moduleId: testModuleId,
+      type: "multiple_choice",
+      prompt: `Which word means "${vocabulary[2].definitionEs}"?`,
+      sortOrder: 1,
+      options: {
+        create: [
+          { optionText: vocabulary[2].word, isCorrect: true, sortOrder: 1 },
+          { optionText: vocabulary[0].word, isCorrect: false, sortOrder: 2 },
+          { optionText: vocabulary[1].word, isCorrect: false, sortOrder: 3 },
+          { optionText: vocabulary[4].word, isCorrect: false, sortOrder: 4 },
+        ],
+      },
+    },
+  });
+
+  await prisma.question.create({
+    data: {
+      moduleId: testModuleId,
+      type: "fill_blank",
+      prompt: vocabulary[4].exampleSentence.replace(vocabulary[4].word, "___"),
+      correctAnswer: vocabulary[4].word,
+      sortOrder: 2,
+    },
+  });
+}
+
 async function main() {
   console.log("Seeding database...");
+  await clearSeedData();
 
-  // Create admin user
-  const adminPasswordHash = await bcrypt.hash("admin123", 10);
-  const admin = await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {},
+  const SUPER_ADMIN_EMAIL = "olanoleon@gmail.com";
+
+  const defaultOrg = await prisma.organization.upsert({
+    where: { slug: "default-organization" },
+    update: { name: "Default Organization", isActive: true },
     create: {
-      username: "admin",
+      name: "Default Organization",
+      slug: "default-organization",
+      isActive: true,
+    },
+  });
+
+  const adminPasswordHash = await bcrypt.hash("admin123", 10);
+  const admin = await prisma.user.create({
+    data: {
+      username: SUPER_ADMIN_EMAIL,
+      email: SUPER_ADMIN_EMAIL,
       passwordHash: adminPasswordHash,
-      role: "admin",
+      role: "super_admin",
       displayName: "Administrator",
     },
   });
-  console.log("Admin user created:", admin.username);
+  await prisma.userRoleMembership.create({
+    data: {
+      userId: admin.id,
+      role: "super_admin",
+      organizationId: null,
+    },
+  });
+  console.log("Admin user created:", admin.email);
 
-  // Create a demo learner
   const learnerPasswordHash = await bcrypt.hash("learner123", 10);
-  const learner = await prisma.user.upsert({
-    where: { username: "maria" },
-    update: {},
-    create: {
-      username: "maria",
+  const learner = await prisma.user.create({
+    data: {
+      username: "maria@vocabpath.local",
+      email: "maria@vocabpath.local",
       passwordHash: learnerPasswordHash,
       role: "learner",
-      displayName: "María García",
+      displayName: "Maria Garcia",
+      organizationId: defaultOrg.id,
     },
   });
-  console.log("Learner user created:", learner.username);
-
-  // Create a default Area of Knowledge
-  const generalArea = await prisma.area.create({
+  await prisma.userRoleMembership.create({
     data: {
-      name: "General English",
-      nameEs: "Inglés General",
-      description: "Everyday vocabulary for common situations",
-      sortOrder: 1,
-    },
-  });
-  console.log("Area created:", generalArea.name);
-
-  // Create Section 1: Daily Life
-  const section1 = await prisma.section.create({
-    data: {
-      title: "Daily Life",
-      titleEs: "Vida Cotidiana",
-      description: "Essential vocabulary for everyday situations",
-      sortOrder: 1,
-      areaId: generalArea.id,
-      modules: {
-        create: [
-          {
-            type: "introduction",
-            content: {
-              readingTitle: "A Typical Day",
-              readingText:
-                "Every morning, Sarah likes to **commute** to her office by train. She usually **grabs** a quick coffee from the café near the station. Her daily **routine** includes checking emails and attending team meetings. During lunch, she prefers to **stroll** through the park nearby. In the evening, she enjoys cooking **homemade** meals and reading before bed.",
-            },
-          },
-          { type: "practice" },
-          { type: "test" },
-        ],
-      },
-    },
-    include: { modules: true },
-  });
-
-  // Add vocabulary for Section 1
-  const vocabData1 = [
-    {
-      word: "commute",
-      partOfSpeech: "verb",
-      definitionEs: "Viajar regularmente entre el hogar y el trabajo",
-      exampleSentence: "She commutes to work by train every day.",
-      phoneticIpa: "/kəˈmjuːt/",
-      stressedSyllable: "mute",
-    },
-    {
-      word: "grab",
-      partOfSpeech: "verb",
-      definitionEs: "Tomar rápidamente, agarrar",
-      exampleSentence: "Let me grab a coffee before the meeting.",
-      phoneticIpa: "/ɡræb/",
-      stressedSyllable: "grab",
-    },
-    {
-      word: "routine",
-      partOfSpeech: "noun",
-      definitionEs: "Rutina, secuencia regular de actividades",
-      exampleSentence: "Exercise is part of my daily routine.",
-      phoneticIpa: "/ruːˈtiːn/",
-      stressedSyllable: "tine",
-    },
-    {
-      word: "stroll",
-      partOfSpeech: "verb",
-      definitionEs: "Pasear, caminar de forma relajada",
-      exampleSentence: "They strolled through the park after dinner.",
-      phoneticIpa: "/stroʊl/",
-      stressedSyllable: "stroll",
-    },
-    {
-      word: "homemade",
-      partOfSpeech: "adjective",
-      definitionEs: "Hecho en casa, casero",
-      exampleSentence: "Nothing beats homemade bread.",
-      phoneticIpa: "/ˌhoʊmˈmeɪd/",
-      stressedSyllable: "made",
-    },
-  ];
-
-  for (let i = 0; i < vocabData1.length; i++) {
-    const v = vocabData1[i];
-    await prisma.vocabulary.create({
-      data: {
-        ...v,
-        sectionVocabulary: {
-          create: { sectionId: section1.id, sortOrder: i + 1 },
-        },
-      },
-    });
-  }
-
-  // Add practice questions for Section 1
-  const practiceModule1 = section1.modules.find((m) => m.type === "practice")!;
-  const testModule1 = section1.modules.find((m) => m.type === "test")!;
-
-  // Practice questions (definition-focused, not reading-focused)
-  const practiceQuestions = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "commute"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Viajar regularmente entre el hogar y el trabajo", isCorrect: true },
-        { optionText: "Comunicarse con otras personas", isCorrect: false },
-        { optionText: "Calcular una operación matemática", isCorrect: false },
-        { optionText: "Compartir algo con alguien", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "tomar rápidamente, agarrar"?',
-      sortOrder: 2,
-      options: [
-        { optionText: "grab", isCorrect: true },
-        { optionText: "stroll", isCorrect: false },
-        { optionText: "commute", isCorrect: false },
-        { optionText: "routine", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "My morning ___ includes breakfast and a shower.",
-      correctAnswer: "routine",
-      sortOrder: 3,
-      options: [],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "stroll"?',
-      sortOrder: 4,
-      options: [
-        { optionText: "Pasear, caminar de forma relajada", isCorrect: true },
-        { optionText: "Correr a toda velocidad", isCorrect: false },
-        { optionText: "Tropezar y caerse", isCorrect: false },
-        { optionText: "Conducir un vehículo", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "hecho en casa, casero"?',
-      sortOrder: 5,
-      options: [
-        { optionText: "homemade", isCorrect: true },
-        { optionText: "commute", isCorrect: false },
-        { optionText: "grab", isCorrect: false },
-        { optionText: "stroll", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "Could you ___ me a glass of water from the kitchen?",
-      correctAnswer: "grab",
-      sortOrder: 6,
-      options: [],
-    },
-  ];
-
-  for (const q of practiceQuestions) {
-    await prisma.question.create({
-      data: {
-        moduleId: practiceModule1.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
-      },
-    });
-  }
-
-  // Test questions (definition-focused + new phonetics styles)
-  const testQuestions = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "routine"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Rutina, secuencia regular de actividades", isCorrect: true },
-        { optionText: "Una actividad peligrosa", isCorrect: false },
-        { optionText: "Un viaje largo e inesperado", isCorrect: false },
-        { optionText: "Un tipo de comida rápida", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "We ___ through the neighborhood every Sunday morning.",
-      correctAnswer: "stroll",
-      sortOrder: 2,
-      options: [],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "tomar rápidamente, agarrar"?',
-      sortOrder: 3,
-      options: [
-        { optionText: "grab", isCorrect: true },
-        { optionText: "stroll", isCorrect: false },
-        { optionText: "commute", isCorrect: false },
-        { optionText: "homemade", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: 'Which word is pronounced /kəˈmjuːt/?',
-      sortOrder: 4,
-      options: [
-        { optionText: "commute", isCorrect: true },
-        { optionText: "compute", isCorrect: false },
-        { optionText: "commune", isCorrect: false },
-        { optionText: "compete", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: "Which word does NOT rhyme with the others?",
-      sortOrder: 5,
-      options: [
-        { optionText: "roll", isCorrect: false },
-        { optionText: "stroll", isCorrect: false },
-        { optionText: "doll", isCorrect: true },
-        { optionText: "goal", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: 'Which word has the same vowel sound as the "a" in "grab"?',
-      sortOrder: 6,
-      options: [
-        { optionText: "cat", isCorrect: true },
-        { optionText: "gate", isCorrect: false },
-        { optionText: "car", isCorrect: false },
-        { optionText: "saw", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "My grandmother makes the best ___ pasta.",
-      correctAnswer: "homemade",
-      sortOrder: 7,
-      options: [],
-    },
-  ];
-
-  for (const q of testQuestions) {
-    await prisma.question.create({
-      data: {
-        moduleId: testModule1.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
-      },
-    });
-  }
-
-  // Create Section 2: Dining Out
-  const section2 = await prisma.section.create({
-    data: {
-      title: "Dining Out",
-      titleEs: "Comer Fuera",
-      description: "Vocabulary for restaurants and food",
-      sortOrder: 2,
-      areaId: generalArea.id,
-      modules: {
-        create: [
-          {
-            type: "introduction",
-            content: {
-              readingTitle: "A Night Out",
-              readingText:
-                "Last weekend, we decided to **dine** at a new Italian restaurant. The **appetizer** was a delicious bruschetta. The waiter was very **attentive** and recommended the daily **special**. For dessert, we shared a **scrumptious** tiramisu.",
-            },
-          },
-          { type: "practice" },
-          { type: "test" },
-        ],
-      },
-    },
-    include: { modules: true },
-  });
-
-  const vocabData2 = [
-    {
-      word: "dine",
-      partOfSpeech: "verb",
-      definitionEs: "Cenar, comer formalmente",
-      exampleSentence: "We dined at an elegant restaurant.",
-      phoneticIpa: "/daɪn/",
-      stressedSyllable: "dine",
-    },
-    {
-      word: "appetizer",
-      partOfSpeech: "noun",
-      definitionEs: "Aperitivo, entrada",
-      exampleSentence: "The shrimp appetizer was excellent.",
-      phoneticIpa: "/ˈæpɪˌtaɪzər/",
-      stressedSyllable: "ap",
-    },
-    {
-      word: "attentive",
-      partOfSpeech: "adjective",
-      definitionEs: "Atento, servicial",
-      exampleSentence: "The attentive waiter made our experience great.",
-      phoneticIpa: "/əˈtentɪv/",
-      stressedSyllable: "ten",
-    },
-    {
-      word: "special",
-      partOfSpeech: "noun",
-      definitionEs: "Especial del día, plato especial",
-      exampleSentence: "Today's special is grilled salmon.",
-      phoneticIpa: "/ˈspɛʃəl/",
-      stressedSyllable: "spe",
-    },
-    {
-      word: "scrumptious",
-      partOfSpeech: "adjective",
-      definitionEs: "Delicioso, exquisito",
-      exampleSentence: "The chocolate cake was absolutely scrumptious.",
-      phoneticIpa: "/ˈskrʌmpʃəs/",
-      stressedSyllable: "scrump",
-    },
-  ];
-
-  for (let i = 0; i < vocabData2.length; i++) {
-    const v = vocabData2[i];
-    await prisma.vocabulary.create({
-      data: {
-        ...v,
-        sectionVocabulary: {
-          create: { sectionId: section2.id, sortOrder: i + 1 },
-        },
-      },
-    });
-  }
-
-  // Practice questions for Section 2
-  const practiceModule2 = section2.modules.find((m) => m.type === "practice")!;
-  const testModule2 = section2.modules.find((m) => m.type === "test")!;
-
-  const practiceQuestions2 = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "dine"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Cenar, comer formalmente", isCorrect: true },
-        { optionText: "Cocinar rápidamente", isCorrect: false },
-        { optionText: "Pedir comida para llevar", isCorrect: false },
-        { optionText: "Lavar los platos después de comer", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "aperitivo, entrada"?',
-      sortOrder: 2,
-      options: [
-        { optionText: "appetizer", isCorrect: true },
-        { optionText: "attentive", isCorrect: false },
-        { optionText: "special", isCorrect: false },
-        { optionText: "scrumptious", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "The food at that restaurant was absolutely ___.",
-      correctAnswer: "scrumptious",
-      sortOrder: 3,
-      options: [],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "attentive"?',
-      sortOrder: 4,
-      options: [
-        { optionText: "Atento, servicial", isCorrect: true },
-        { optionText: "Distraído, ausente", isCorrect: false },
-        { optionText: "Molesto, irritado", isCorrect: false },
-        { optionText: "Cansado, agotado", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "especial del día, plato especial"?',
-      sortOrder: 5,
-      options: [
-        { optionText: "special", isCorrect: true },
-        { optionText: "dine", isCorrect: false },
-        { optionText: "appetizer", isCorrect: false },
-        { optionText: "scrumptious", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "We decided to ___ at the new Italian place downtown.",
-      correctAnswer: "dine",
-      sortOrder: 6,
-      options: [],
-    },
-  ];
-
-  for (const q of practiceQuestions2) {
-    await prisma.question.create({
-      data: {
-        moduleId: practiceModule2.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
-      },
-    });
-  }
-
-  const testQuestions2 = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "appetizer"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Aperitivo, entrada", isCorrect: true },
-        { optionText: "Postre, dulce", isCorrect: false },
-        { optionText: "Bebida alcohólica", isCorrect: false },
-        { optionText: "Plato principal", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "We ___ at an elegant restaurant to celebrate her birthday.",
-      correctAnswer: "dined",
-      sortOrder: 2,
-      options: [],
-    },
-    {
-      type: "phonetics",
-      prompt: 'Which word is pronounced /ˈæpɪˌtaɪzər/?',
-      sortOrder: 3,
-      options: [
-        { optionText: "appetizer", isCorrect: true },
-        { optionText: "advertiser", isCorrect: false },
-        { optionText: "appetizing", isCorrect: false },
-        { optionText: "apologize", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "delicioso, exquisito"?',
-      sortOrder: 4,
-      options: [
-        { optionText: "scrumptious", isCorrect: true },
-        { optionText: "attentive", isCorrect: false },
-        { optionText: "special", isCorrect: false },
-        { optionText: "appetizer", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: "Which word does NOT rhyme with the others?",
-      sortOrder: 5,
-      options: [
-        { optionText: "fine", isCorrect: false },
-        { optionText: "dine", isCorrect: false },
-        { optionText: "den", isCorrect: true },
-        { optionText: "wine", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: 'Which word has the same vowel sound as the "e" in "special"?',
-      sortOrder: 6,
-      options: [
-        { optionText: "bed", isCorrect: true },
-        { optionText: "bead", isCorrect: false },
-        { optionText: "bird", isCorrect: false },
-        { optionText: "bide", isCorrect: false },
-      ],
-    },
-  ];
-
-  for (const q of testQuestions2) {
-    await prisma.question.create({
-      data: {
-        moduleId: testModule2.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
-      },
-    });
-  }
-
-  // Unlock first section for learner
-  await prisma.learnerSectionProgress.upsert({
-    where: {
-      userId_sectionId: {
-        userId: learner.id,
-        sectionId: section1.id,
-      },
-    },
-    update: {},
-    create: {
       userId: learner.id,
-      sectionId: section1.id,
-      unlocked: true,
-      unlockedAt: new Date(),
+      role: "learner",
+      organizationId: defaultOrg.id,
     },
   });
+  console.log("Learner user created:", learner.email);
 
-  // Create second Area: Family & Relationships
+  const animalsArea = await prisma.area.create({
+    data: {
+      name: "Animals",
+      nameEs: "Animales",
+      description: "Vocabulary focused on animal groups and habitats",
+      imageUrl: "/images/library/animals_lion.png",
+      sortOrder: 1,
+      isActive: true,
+    },
+  });
+  console.log("Area created:", animalsArea.name);
+
+  const domesticSection = await prisma.section.create({
+    data: {
+      title: "Domestic animals",
+      titleEs: "Animales domesticos",
+      description: "Common animals we see at home or farms",
+      imageUrl: "/images/library/animals_dog.png",
+      sortOrder: 1,
+      areaId: animalsArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "Life with Domestic Animals",
+              readingText:
+                "A friendly **dog** can guard the house, while a **cat** often sleeps near the window. Farmers also care for a **cow**, a **horse**, and a **sheep** every day.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
+      },
+    },
+    include: { modules: true },
+  });
+
+  const seaSection = await prisma.section.create({
+    data: {
+      title: "Sea animals",
+      titleEs: "Animales marinos",
+      description: "Vocabulary for creatures living in oceans",
+      imageUrl: "/images/library/animals_whale.png",
+      sortOrder: 2,
+      areaId: animalsArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "A Day Under the Sea",
+              readingText:
+                "In the ocean, a **dolphin** swims quickly, a **shark** hunts for food, and a **whale** sings low sounds. A **turtle** moves calmly, while an **octopus** hides between rocks.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
+      },
+    },
+    include: { modules: true },
+  });
+
+  const birdsSection = await prisma.section.create({
+    data: {
+      title: "Birds",
+      titleEs: "Aves",
+      description: "Vocabulary about common birds and their behavior",
+      imageUrl: "/images/library/animals_bird.png",
+      sortOrder: 3,
+      areaId: animalsArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "Birds Around Us",
+              readingText:
+                "A small **sparrow** sits on a branch, a **parrot** repeats words, and an **eagle** flies high. Near lakes, a **duck** and a **seagull** look for food.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
+      },
+    },
+    include: { modules: true },
+  });
+
+  const domesticPracticeModule = domesticSection.modules.find((m) => m.type === "practice");
+  const domesticTestModule = domesticSection.modules.find((m) => m.type === "test");
+  const seaPracticeModule = seaSection.modules.find((m) => m.type === "practice");
+  const seaTestModule = seaSection.modules.find((m) => m.type === "test");
+  const birdsPracticeModule = birdsSection.modules.find((m) => m.type === "practice");
+  const birdsTestModule = birdsSection.modules.find((m) => m.type === "test");
+
+  if (
+    !domesticPracticeModule ||
+    !domesticTestModule ||
+    !seaPracticeModule ||
+    !seaTestModule ||
+    !birdsPracticeModule ||
+    !birdsTestModule
+  ) {
+    throw new Error("Failed to create required modules for seeded sections.");
+  }
+
+  await seedSectionData(
+    domesticSection.id,
+    [
+      {
+        word: "dog",
+        partOfSpeech: "noun",
+        definitionEs: "Perro",
+        exampleSentence: "The dog waits by the door.",
+      },
+      {
+        word: "cat",
+        partOfSpeech: "noun",
+        definitionEs: "Gato",
+        exampleSentence: "Our cat loves warm places.",
+      },
+      {
+        word: "cow",
+        partOfSpeech: "noun",
+        definitionEs: "Vaca",
+        exampleSentence: "A cow gives milk every day.",
+      },
+      {
+        word: "horse",
+        partOfSpeech: "noun",
+        definitionEs: "Caballo",
+        exampleSentence: "The horse runs fast in the field.",
+      },
+      {
+        word: "sheep",
+        partOfSpeech: "noun",
+        definitionEs: "Oveja",
+        exampleSentence: "A sheep has thick wool.",
+      },
+    ],
+    domesticPracticeModule.id,
+    domesticTestModule.id
+  );
+
+  await seedSectionData(
+    seaSection.id,
+    [
+      {
+        word: "dolphin",
+        partOfSpeech: "noun",
+        definitionEs: "Delfin",
+        exampleSentence: "A dolphin jumps above the waves.",
+      },
+      {
+        word: "shark",
+        partOfSpeech: "noun",
+        definitionEs: "Tiburon",
+        exampleSentence: "A shark has sharp teeth.",
+      },
+      {
+        word: "whale",
+        partOfSpeech: "noun",
+        definitionEs: "Ballena",
+        exampleSentence: "The whale is the largest sea animal.",
+      },
+      {
+        word: "turtle",
+        partOfSpeech: "noun",
+        definitionEs: "Tortuga",
+        exampleSentence: "A turtle swims slowly near coral.",
+      },
+      {
+        word: "octopus",
+        partOfSpeech: "noun",
+        definitionEs: "Pulpo",
+        exampleSentence: "An octopus has eight arms.",
+      },
+    ],
+    seaPracticeModule.id,
+    seaTestModule.id
+  );
+
+  await seedSectionData(
+    birdsSection.id,
+    [
+      {
+        word: "sparrow",
+        partOfSpeech: "noun",
+        definitionEs: "Gorrion",
+        exampleSentence: "A sparrow sings in the morning.",
+      },
+      {
+        word: "parrot",
+        partOfSpeech: "noun",
+        definitionEs: "Loro",
+        exampleSentence: "The parrot can repeat short phrases.",
+      },
+      {
+        word: "eagle",
+        partOfSpeech: "noun",
+        definitionEs: "Aguila",
+        exampleSentence: "An eagle can see far away.",
+      },
+      {
+        word: "duck",
+        partOfSpeech: "noun",
+        definitionEs: "Pato",
+        exampleSentence: "A duck swims across the pond.",
+      },
+      {
+        word: "seagull",
+        partOfSpeech: "noun",
+        definitionEs: "Gaviota",
+        exampleSentence: "A seagull flies over the beach.",
+      },
+    ],
+    birdsPracticeModule.id,
+    birdsTestModule.id
+  );
+
   const familyArea = await prisma.area.create({
     data: {
       name: "Family & Relationships",
-      nameEs: "Familia y Relaciones",
-      description: "Vocabulary about family, friends, and social bonds",
-      imageUrl: "👥",
+      nameEs: "Familia y relaciones",
+      description: "Vocabulary about family members and social connections",
+      imageUrl: "/images/library/family_relationships.png",
       sortOrder: 2,
+      isActive: true,
     },
   });
   console.log("Area created:", familyArea.name);
+  // Match admin-created global area behavior: disabled for orgs by default.
+  await setGlobalAreaVisibilityForAllOrgs(familyArea.id, familyArea.sortOrder, false);
 
-  // Create Section: Basic Family Members
-  const familySection = await prisma.section.create({
+  const familyMembersSection = await prisma.section.create({
     data: {
-      title: "Basic Family Members",
-      titleEs: "Miembros Básicos de la Familia",
-      description: "Learn the names of close family members",
-      imageUrl: "👨‍👩‍👧‍👦",
+      title: "Family members",
+      titleEs: "Miembros de la familia",
+      description: "Core words for immediate and extended family",
+      imageUrl: "/images/library/family_members.png",
       sortOrder: 1,
       areaId: familyArea.id,
       modules: {
@@ -611,9 +441,9 @@ async function main() {
           {
             type: "introduction",
             content: {
-              readingTitle: "Meet the Johnsons",
+              readingTitle: "A Family Reunion",
               readingText:
-                "The Johnson family is quite large. Mr. Johnson is the **father** of three children. His **wife**, Mrs. Johnson, works as a teacher. Their oldest **daughter**, Emily, is in college. Their **son**, Jake, plays soccer at school. The youngest is little Sophie, who loves her **grandmother** very much. Every Sunday, the whole family gathers at the **grandparents'** house for dinner.",
+                "At the reunion, my **mother** greeted my **brother**, and my **sister** played with our **cousin** while our **grandfather** told stories.",
             },
           },
           { type: "practice" },
@@ -624,259 +454,136 @@ async function main() {
     include: { modules: true },
   });
 
-  const familyVocab = [
-    {
-      word: "father",
-      partOfSpeech: "noun",
-      definitionEs: "Padre, papá",
-      exampleSentence: "My father taught me how to ride a bike.",
-      phoneticIpa: "/ˈfɑːðər/",
-      stressedSyllable: "fa",
-    },
-    {
-      word: "wife",
-      partOfSpeech: "noun",
-      definitionEs: "Esposa",
-      exampleSentence: "He introduced his wife to the guests.",
-      phoneticIpa: "/waɪf/",
-      stressedSyllable: "wife",
-    },
-    {
-      word: "daughter",
-      partOfSpeech: "noun",
-      definitionEs: "Hija",
-      exampleSentence: "Their daughter graduated with honors.",
-      phoneticIpa: "/ˈdɔːtər/",
-      stressedSyllable: "daugh",
-    },
-    {
-      word: "son",
-      partOfSpeech: "noun",
-      definitionEs: "Hijo",
-      exampleSentence: "Their son wants to become an engineer.",
-      phoneticIpa: "/sʌn/",
-      stressedSyllable: "son",
-    },
-    {
-      word: "grandmother",
-      partOfSpeech: "noun",
-      definitionEs: "Abuela",
-      exampleSentence: "My grandmother tells the best stories.",
-      phoneticIpa: "/ˈɡrænˌmʌðər/",
-      stressedSyllable: "grand",
-    },
-  ];
-
-  for (let i = 0; i < familyVocab.length; i++) {
-    const v = familyVocab[i];
-    await prisma.vocabulary.create({
-      data: {
-        ...v,
-        sectionVocabulary: {
-          create: { sectionId: familySection.id, sortOrder: i + 1 },
-        },
-      },
-    });
-  }
-
-  const familyPracticeModule = familySection.modules.find((m) => m.type === "practice")!;
-  const familyTestModule = familySection.modules.find((m) => m.type === "test")!;
-
-  const familyPracticeQuestions = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "father"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Padre, papá", isCorrect: true },
-        { optionText: "Hermano mayor", isCorrect: false },
-        { optionText: "Tío paterno", isCorrect: false },
-        { optionText: "Abuelo", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "esposa"?',
+  const relationshipsSection = await prisma.section.create({
+    data: {
+      title: "Relationships",
+      titleEs: "Relaciones",
+      description: "Vocabulary for friendship and personal bonds",
+      imageUrl: "/images/library/family_relationships.png",
       sortOrder: 2,
-      options: [
-        { optionText: "wife", isCorrect: true },
-        { optionText: "daughter", isCorrect: false },
-        { optionText: "grandmother", isCorrect: false },
-        { optionText: "son", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "Their ___ Emily is studying medicine at university.",
-      correctAnswer: "daughter",
-      sortOrder: 3,
-      options: [],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "son"?',
-      sortOrder: 4,
-      options: [
-        { optionText: "Hijo", isCorrect: true },
-        { optionText: "Sobrino", isCorrect: false },
-        { optionText: "Primo", isCorrect: false },
-        { optionText: "Padre", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "abuela"?',
-      sortOrder: 5,
-      options: [
-        { optionText: "grandmother", isCorrect: true },
-        { optionText: "wife", isCorrect: false },
-        { optionText: "daughter", isCorrect: false },
-        { optionText: "father", isCorrect: false },
-      ],
-    },
-  ];
-
-  for (const q of familyPracticeQuestions) {
-    await prisma.question.create({
-      data: {
-        moduleId: familyPracticeModule.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
+      areaId: familyArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "Strong Connections",
+              readingText:
+                "A good **friend** earns your **trust**, offers **support**, and shows **respect**. Healthy relationships need open **communication** every day.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
       },
-    });
+    },
+    include: { modules: true },
+  });
+
+  const homeLifeSection = await prisma.section.create({
+    data: {
+      title: "Home life",
+      titleEs: "Vida en casa",
+      description: "Vocabulary for routines and family life at home",
+      imageUrl: "/images/library/house_home.png",
+      sortOrder: 3,
+      areaId: familyArea.id,
+      modules: {
+        create: [
+          {
+            type: "introduction",
+            content: {
+              readingTitle: "Life at Home",
+              readingText:
+                "At home we share **chores**, cook **dinner**, keep a daily **routine**, and spend **weekends** together in a calm **household**.",
+            },
+          },
+          { type: "practice" },
+          { type: "test" },
+        ],
+      },
+    },
+    include: { modules: true },
+  });
+
+  const familyMembersPracticeModule = familyMembersSection.modules.find((m) => m.type === "practice");
+  const familyMembersTestModule = familyMembersSection.modules.find((m) => m.type === "test");
+  const relationshipsPracticeModule = relationshipsSection.modules.find((m) => m.type === "practice");
+  const relationshipsTestModule = relationshipsSection.modules.find((m) => m.type === "test");
+  const homeLifePracticeModule = homeLifeSection.modules.find((m) => m.type === "practice");
+  const homeLifeTestModule = homeLifeSection.modules.find((m) => m.type === "test");
+
+  if (
+    !familyMembersPracticeModule ||
+    !familyMembersTestModule ||
+    !relationshipsPracticeModule ||
+    !relationshipsTestModule ||
+    !homeLifePracticeModule ||
+    !homeLifeTestModule
+  ) {
+    throw new Error("Failed to create required modules for Family & Relationships sections.");
   }
 
-  const familyTestQuestions = [
-    {
-      type: "multiple_choice",
-      prompt: 'What is the definition of "wife"?',
-      sortOrder: 1,
-      options: [
-        { optionText: "Esposa", isCorrect: true },
-        { optionText: "Hermana", isCorrect: false },
-        { optionText: "Hija", isCorrect: false },
-        { optionText: "Madre", isCorrect: false },
-      ],
-    },
-    {
-      type: "fill_blank",
-      prompt: "My ___ always bakes cookies when we visit her.",
-      correctAnswer: "grandmother",
-      sortOrder: 2,
-      options: [],
-    },
-    {
-      type: "phonetics",
-      prompt: 'Which word is pronounced /ˈdɔːtər/?',
-      sortOrder: 3,
-      options: [
-        { optionText: "daughter", isCorrect: true },
-        { optionText: "doctor", isCorrect: false },
-        { optionText: "dollar", isCorrect: false },
-        { optionText: "darker", isCorrect: false },
-      ],
-    },
-    {
-      type: "multiple_choice",
-      prompt: 'Which English word means "hijo"?',
-      sortOrder: 4,
-      options: [
-        { optionText: "son", isCorrect: true },
-        { optionText: "father", isCorrect: false },
-        { optionText: "wife", isCorrect: false },
-        { optionText: "grandmother", isCorrect: false },
-      ],
-    },
-    {
-      type: "phonetics",
-      prompt: "Which word does NOT rhyme with the others?",
-      sortOrder: 5,
-      options: [
-        { optionText: "fun", isCorrect: false },
-        { optionText: "son", isCorrect: false },
-        { optionText: "run", isCorrect: false },
-        { optionText: "soon", isCorrect: true },
-      ],
-    },
-  ];
+  await seedSectionData(
+    familyMembersSection.id,
+    [
+      { word: "mother", partOfSpeech: "noun", definitionEs: "Madre", exampleSentence: "My mother makes breakfast every morning." },
+      { word: "brother", partOfSpeech: "noun", definitionEs: "Hermano", exampleSentence: "My brother plays basketball on weekends." },
+      { word: "sister", partOfSpeech: "noun", definitionEs: "Hermana", exampleSentence: "My sister studies at university." },
+      { word: "cousin", partOfSpeech: "noun", definitionEs: "Primo", exampleSentence: "My cousin visits us in summer." },
+      { word: "grandfather", partOfSpeech: "noun", definitionEs: "Abuelo", exampleSentence: "My grandfather tells funny stories." },
+    ],
+    familyMembersPracticeModule.id,
+    familyMembersTestModule.id
+  );
 
-  for (const q of familyTestQuestions) {
-    await prisma.question.create({
-      data: {
-        moduleId: familyTestModule.id,
-        type: q.type,
-        prompt: q.prompt,
-        correctAnswer: q.correctAnswer || null,
-        sortOrder: q.sortOrder,
-        options:
-          q.options.length > 0
-            ? {
-                create: q.options.map((o, idx) => ({
-                  optionText: o.optionText,
-                  isCorrect: o.isCorrect,
-                  sortOrder: idx + 1,
-                })),
-              }
-            : undefined,
-      },
-    });
-  }
+  await seedSectionData(
+    relationshipsSection.id,
+    [
+      { word: "friend", partOfSpeech: "noun", definitionEs: "Amigo", exampleSentence: "A true friend always listens." },
+      { word: "trust", partOfSpeech: "noun", definitionEs: "Confianza", exampleSentence: "Trust takes time to build." },
+      { word: "support", partOfSpeech: "noun", definitionEs: "Apoyo", exampleSentence: "Family support helps during hard times." },
+      { word: "respect", partOfSpeech: "noun", definitionEs: "Respeto", exampleSentence: "Respect is important in every relationship." },
+      { word: "communication", partOfSpeech: "noun", definitionEs: "Comunicacion", exampleSentence: "Good communication prevents misunderstandings." },
+    ],
+    relationshipsPracticeModule.id,
+    relationshipsTestModule.id
+  );
 
-  // Unlock family section for learner
-  await prisma.learnerSectionProgress.upsert({
-    where: {
-      userId_sectionId: {
-        userId: learner.id,
-        sectionId: familySection.id,
-      },
-    },
-    update: {},
-    create: {
+  await seedSectionData(
+    homeLifeSection.id,
+    [
+      { word: "chores", partOfSpeech: "noun", definitionEs: "Quehaceres", exampleSentence: "We finish chores before dinner." },
+      { word: "dinner", partOfSpeech: "noun", definitionEs: "Cena", exampleSentence: "Dinner starts at seven o'clock." },
+      { word: "routine", partOfSpeech: "noun", definitionEs: "Rutina", exampleSentence: "A routine helps children feel calm." },
+      { word: "weekends", partOfSpeech: "noun", definitionEs: "Fines de semana", exampleSentence: "We visit our grandparents on weekends." },
+      { word: "household", partOfSpeech: "noun", definitionEs: "Hogar", exampleSentence: "Everyone helps in the household." },
+    ],
+    homeLifePracticeModule.id,
+    homeLifeTestModule.id
+  );
+
+  await prisma.learnerSectionProgress.create({
+    data: {
       userId: learner.id,
-      sectionId: familySection.id,
+      sectionId: domesticSection.id,
+      unlocked: true,
+      unlockedAt: new Date(),
+    },
+  });
+  await prisma.learnerSectionProgress.create({
+    data: {
+      userId: learner.id,
+      sectionId: familyMembersSection.id,
       unlocked: true,
       unlockedAt: new Date(),
     },
   });
 
-  // Seed recent completions to trigger "Hot Topic" on General English
-  const recentDates = [
-    new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-    new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-  ];
-
-  for (const date of recentDates) {
-    await prisma.learnerAttempt.create({
-      data: {
-        userId: learner.id,
-        moduleId: practiceModule1.id,
-        score: 80 + Math.floor(Math.random() * 20),
-        passed: true,
-        startedAt: date,
-        completedAt: date,
-      },
-    });
-  }
-  console.log("Seeded 4 recent completions for Hot Topic demo");
-
   console.log("Seed complete!");
   console.log("---");
-  console.log("Admin login:   admin / admin123");
-  console.log("Learner login: maria / learner123");
+  console.log(`Admin login:   ${SUPER_ADMIN_EMAIL} / admin123`);
+  console.log("Learner login: maria@vocabpath.local / learner123");
 }
 
 main()

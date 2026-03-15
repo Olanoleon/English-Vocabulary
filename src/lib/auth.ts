@@ -1,14 +1,20 @@
 import { getIronSession, SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { isAdminRole } from "@/lib/roles";
 
 export interface SessionData {
   userId: string;
   username: string;
-  role: string;
+  role: string; // legacy compatibility mirror of activeRole
+  activeRole: string;
   displayName: string;
   organizationId?: string | null;
   isLoggedIn: boolean;
+}
+
+function sessionRole(session: SessionData): string {
+  return session.activeRole || session.role;
 }
 
 export const sessionOptions: SessionOptions = {
@@ -37,8 +43,9 @@ export async function requireAuth() {
 
 export async function requireAdmin() {
   const session = await requireAuth();
+  const role = sessionRole(session);
   // Legacy "admin" remains supported during migration.
-  if (session.role !== "admin" && session.role !== "super_admin") {
+  if (role !== "admin" && role !== "super_admin") {
     throw new Error("Forbidden");
   }
   return session;
@@ -46,8 +53,9 @@ export async function requireAdmin() {
 
 export async function requireSuperAdmin() {
   const session = await requireAuth();
+  const role = sessionRole(session);
   // Legacy "admin" remains supported during migration.
-  if (session.role !== "super_admin" && session.role !== "admin") {
+  if (role !== "super_admin" && role !== "admin") {
     throw new Error("Forbidden");
   }
   return session;
@@ -55,11 +63,12 @@ export async function requireSuperAdmin() {
 
 export async function requireOrgAdminOrSuperAdmin() {
   const session = await requireAuth();
+  const role = sessionRole(session);
   // Legacy "admin" remains supported during migration.
   if (
-    session.role !== "org_admin" &&
-    session.role !== "super_admin" &&
-    session.role !== "admin"
+    role !== "org_admin" &&
+    role !== "super_admin" &&
+    role !== "admin"
   ) {
     throw new Error("Forbidden");
   }
@@ -111,12 +120,9 @@ export async function checkLearnerAccess(userId: string): Promise<{
  */
 export async function requireLearnerAccess() {
   const session = await requireAuth();
+  const role = sessionRole(session);
   // Admin roles can access learner pages for preview/support workflows.
-  if (
-    session.role === "admin" ||
-    session.role === "super_admin" ||
-    session.role === "org_admin"
-  ) {
+  if (isAdminRole(role)) {
     return session;
   }
 

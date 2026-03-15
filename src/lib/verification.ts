@@ -79,6 +79,28 @@ export function verifyCode(
   };
 }
 
+export function getPendingVerification(userId: string): {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+  organizationId: string | null;
+} | null {
+  const pending = pendingCodes.get(userId);
+  if (!pending) return null;
+  if (Date.now() > pending.expiresAt) {
+    pendingCodes.delete(userId);
+    return null;
+  }
+  return {
+    userId: pending.userId,
+    username: pending.username,
+    displayName: pending.displayName,
+    role: pending.role,
+    organizationId: pending.organizationId,
+  };
+}
+
 function cleanupExpired() {
   const now = Date.now();
   for (const [key, value] of pendingCodes) {

@@ -20,17 +20,45 @@ Use this file as the first read in new sessions. It is a fast map of how the app
 - Session auth with `iron-session`
 - UI icons with `lucide-react`
 
+## Auth Model (Current)
+- Identity is email-first:
+  - Login input is `email + password`.
+  - `User.email` is required + unique.
+  - `User.username` is kept for compatibility, but is written as the same normalized email.
+- Authorization is membership-based:
+  - `UserRoleMembership` links one identity to multiple roles.
+  - Supported role selection login flow for users with multiple memberships.
+- Role-select + 2FA flow:
+  - `POST /api/auth/login` validates credentials by email.
+  - If multiple memberships, API returns `requireRoleSelection` + `challengeToken`.
+  - `POST /api/auth/select-role` accepts selected membership.
+    - Admin-like roles (`super_admin`, `org_admin`, legacy `admin`) trigger email 2FA.
+    - Learner role logs in directly.
+  - `POST /api/auth/verify` finalizes admin-like login session.
+- Session payload:
+  - `activeRole` is the canonical session role.
+  - `role` is kept as a compatibility mirror of `activeRole`.
+  - Route guards and proxy should use `activeRole` semantics.
+
 ## High-Signal File Map
 
 ### Core infra
 - `src/lib/db.ts`
   - Prisma client singleton and Neon websocket setup.
 - `src/lib/auth.ts`
-  - Session helpers and auth guards.
+  - Session helpers and auth guards using `activeRole`.
+- `src/lib/roles.ts`
+  - Shared role predicates + email normalization/validation.
+- `src/lib/login-challenge.ts`
+  - Temporary login challenge token store for role-selection step.
+- `src/lib/user-memberships.ts`
+  - Membership query helper for auth and role selection.
+- `src/lib/verification.ts`
+  - In-memory verification code store, now tied to selected role context.
 - `src/proxy.ts`
-  - Route protection / auth redirects.
+  - Route protection / auth redirects using `activeRole`.
 - `prisma/schema.prisma`
-  - Canonical data model.
+  - Canonical data model, including `UserRoleMembership`.
 
 ### Learner APIs
 - `src/app/api/learn/areas/route.ts`
@@ -79,6 +107,8 @@ Use this file as the first read in new sessions. It is a fast map of how the app
 - `src/app/admin/learners/page.tsx`
 - `src/app/admin/payments/page.tsx`
 - `src/app/admin/orgs/page.tsx`
+- `src/app/login/page.tsx`
+  - Email login input + role-selection step + 2FA step.
 
 ### Image and fallback system
 - `src/data/image-library.json`

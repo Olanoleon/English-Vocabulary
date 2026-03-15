@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, KeyRound, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Building2, Check, KeyRound, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
@@ -14,11 +14,13 @@ interface Organization {
 
 interface SessionMe {
   role: string;
+  activeRole?: string;
 }
 
 interface OrgAdminUser {
   id: string;
   username: string;
+  email: string | null;
   displayName: string;
   organizationId: string | null;
 }
@@ -37,9 +39,11 @@ export default function OrgsPage() {
   const [editing, setEditing] = useState<Organization | null>(null);
   const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
   const [showCreateAdminForOrgId, setShowCreateAdminForOrgId] = useState<string | null>(null);
-  const [newAdminUsername, setNewAdminUsername] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [newAdminDisplayName, setNewAdminDisplayName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [adminEmailDrafts, setAdminEmailDrafts] = useState<Record<string, string>>({});
+  const [savingAdminEmailId, setSavingAdminEmailId] = useState<string | null>(null);
   const [resetAdminTarget, setResetAdminTarget] = useState<OrgAdminUser | null>(null);
   const [resetAdminPassword, setResetAdminPassword] = useState("");
   const [resettingAdminPassword, setResettingAdminPassword] = useState(false);
@@ -52,6 +56,17 @@ export default function OrgsPage() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setAdminEmailDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const admin of orgAdmins) {
+        next[admin.id] =
+          prev[admin.id] !== undefined ? prev[admin.id] : admin.email || "";
+      }
+      return next;
+    });
+  }, [orgAdmins]);
 
   async function readApiError(res: Response, fallback: string) {
     try {
@@ -178,15 +193,15 @@ export default function OrgsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId,
-          username: newAdminUsername,
           password: newAdminPassword,
           displayName: newAdminDisplayName,
+          email: newAdminEmail,
         }),
       });
       if (res.ok) {
-        setNewAdminUsername("");
         setNewAdminPassword("");
         setNewAdminDisplayName("");
+        setNewAdminEmail("");
         setShowCreateAdminForOrgId(null);
         await init();
       } else {
@@ -254,6 +269,31 @@ export default function OrgsPage() {
     setResettingAdminPassword(false);
   }
 
+  async function saveOrgAdminEmail(userId: string) {
+    const email = (adminEmailDrafts[userId] || "").trim();
+    if (!email) {
+      setApiError("Org admin email is required.");
+      return;
+    }
+    setSavingAdminEmailId(userId);
+    setApiError("");
+    try {
+      const res = await fetch(`/api/admin/org-admins/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        await init();
+      } else {
+        setApiError(await readApiError(res, "Failed to update org admin email."));
+      }
+    } catch {
+      setApiError("Connection error. Please try again.");
+    }
+    setSavingAdminEmailId(null);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -262,7 +302,8 @@ export default function OrgsPage() {
     );
   }
 
-  const isSuper = me?.role === "super_admin" || me?.role === "admin";
+  const sessionRole = me?.activeRole || me?.role;
+  const isSuper = sessionRole === "super_admin" || sessionRole === "admin";
   const filteredOrgs = orgs.filter((org) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
@@ -375,20 +416,20 @@ export default function OrgsPage() {
                               required
                             />
                             <input
-                              type="text"
-                              value={newAdminUsername}
-                              onChange={(e) => setNewAdminUsername(e.target.value)}
-                              placeholder="Username"
-                              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm"
-                              required
-                            />
-                            <input
                               type="password"
                               value={newAdminPassword}
                               onChange={(e) => setNewAdminPassword(e.target.value)}
                               placeholder="Password"
                               className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm"
                               minLength={4}
+                              required
+                            />
+                            <input
+                              type="email"
+                              value={newAdminEmail}
+                              onChange={(e) => setNewAdminEmail(e.target.value)}
+                              placeholder="E-mail (required for 2FA)"
+                              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm sm:col-span-1"
                               required
                             />
                             <div className="flex gap-2 sm:col-span-2">
@@ -404,8 +445,8 @@ export default function OrgsPage() {
                                 onClick={() => {
                                   setShowCreateAdminForOrgId(null);
                                   setNewAdminDisplayName("");
-                                  setNewAdminUsername("");
                                   setNewAdminPassword("");
+                                  setNewAdminEmail("");
                                 }}
                                 className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600"
                               >
@@ -433,43 +474,70 @@ export default function OrgsPage() {
                               .map((u) => (
                                 <div
                                   key={u.id}
-                                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2"
+                                  className="rounded-xl border border-gray-200 bg-white p-2.5"
                                 >
-                                  <div className="flex-1 min-w-0">
+                                  <div className="min-w-0">
                                     <p className="text-sm font-medium text-gray-900 truncate">
                                       {u.displayName}
                                     </p>
-                                    <p className="text-xs text-gray-500 truncate">@{u.username}</p>
+                                    <p className="mt-0.5 break-all text-xs text-gray-500">
+                                      @{u.username}
+                                    </p>
                                   </div>
-                                  <select
-                                    value={u.organizationId || ""}
-                                    onChange={(e) => reassignOrgAdmin(u.id, e.target.value)}
-                                    className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
-                                  >
-                                    {orgs.map((o) => (
-                                      <option key={o.id} value={o.id}>
-                                        {o.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setResetAdminTarget(u);
-                                      setResetAdminPassword("");
-                                    }}
-                                    className="rounded-lg p-2 text-gray-400 hover:bg-primary-50 hover:text-primary-600"
-                                    title="Reset password"
-                                  >
-                                    <KeyRound className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeOrgAdmin(u.id)}
-                                    className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                                    title="Remove org admin role"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <input
+                                      type="email"
+                                      value={adminEmailDrafts[u.id] || ""}
+                                      onChange={(e) =>
+                                        setAdminEmailDrafts((prev) => ({
+                                          ...prev,
+                                          [u.id]: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Email for 2FA"
+                                      className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => saveOrgAdminEmail(u.id)}
+                                      disabled={savingAdminEmailId === u.id}
+                                      className="rounded-lg p-2 text-gray-400 hover:bg-primary-50 hover:text-primary-600 disabled:opacity-50"
+                                      title="Save email"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <select
+                                      value={u.organizationId || ""}
+                                      onChange={(e) => reassignOrgAdmin(u.id, e.target.value)}
+                                      className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs"
+                                    >
+                                      {orgs.map((o) => (
+                                        <option key={o.id} value={o.id}>
+                                          {o.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setResetAdminTarget(u);
+                                        setResetAdminPassword("");
+                                      }}
+                                      className="rounded-lg p-2 text-gray-400 hover:bg-primary-50 hover:text-primary-600"
+                                      title="Reset password"
+                                    >
+                                      <KeyRound className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => removeOrgAdmin(u.id)}
+                                      className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                      title="Remove org admin role"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                           </div>

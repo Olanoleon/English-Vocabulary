@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 import { SessionData, sessionOptions } from "@/lib/auth";
+import { isAdminRole } from "@/lib/roles";
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
   const { pathname } = request.nextUrl;
-  const isAdminRole =
-    session.role === "admin" ||
-    session.role === "super_admin" ||
-    session.role === "org_admin";
+  const activeRole = session.activeRole || session.role;
+  const isAdmin = isAdminRole(activeRole);
 
   // Public routes
   if (pathname === "/" || pathname === "/login") {
     if (session.isLoggedIn) {
-      const redirectUrl = isAdminRole ? "/admin" : "/learn";
+      const redirectUrl = isAdmin ? "/admin" : "/learn";
       return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
     return response;
@@ -27,12 +26,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Admin routes
-  if (pathname.startsWith("/admin") && !isAdminRole) {
+  if (pathname.startsWith("/admin") && !isAdmin) {
     return NextResponse.redirect(new URL("/learn", request.url));
   }
 
   // Learner routes
-  if (pathname.startsWith("/learn") && isAdminRole) {
+  if (pathname.startsWith("/learn") && isAdmin) {
     return NextResponse.redirect(new URL("/admin", request.url));
   }
 
