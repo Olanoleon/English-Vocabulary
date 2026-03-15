@@ -18,7 +18,13 @@ interface UnitImageOptions {
   kind?: "area" | "section";
 }
 
-type ImageStyle = "photo_clean" | "illustration_flat" | "illustration_3d" | "cartoon";
+type ImageStyle = "photo_clean" | "illustration_flat" | "illustration_3d";
+
+const UNSPLASH_STYLE_CHAIN: ImageStyle[] = [
+  "illustration_3d",
+  "illustration_flat",
+  "photo_clean",
+];
 
 interface LibraryImageEntry {
   id: string;
@@ -130,27 +136,25 @@ function pickFromLibrary(
 
 function normalizeStyle(style?: string): ImageStyle {
   const raw = (style || "").trim().toLowerCase();
-  if (raw === "cartoon" || raw === "cartoonish") return "cartoon";
-  if (raw === "illustration_flat") return "illustration_flat";
   if (raw === "illustration_3d") return "illustration_3d";
-  return "photo_clean";
+  if (raw === "illustration_flat") return "illustration_flat";
+  if (raw === "photo_clean") return "photo_clean";
+  // Legacy values like "cartoon" now map to the new default chain start.
+  return "illustration_3d";
 }
 
 function getDefaultImageStyle(): ImageStyle {
   const envStyle = process.env.UNSPLASH_IMAGE_STYLE || "";
-  // Default to cartoon-like illustrations when env is not set.
-  return envStyle ? normalizeStyle(envStyle) : "cartoon";
+  // New default chain starts from 3D illustrations.
+  return envStyle ? normalizeStyle(envStyle) : "illustration_3d";
 }
 
 function buildStyleQuery(baseQuery: string, style: ImageStyle): string {
-  if (style === "cartoon") {
-    return `${baseQuery} cartoon illustration cute colorful simple character style non realistic`;
+  if (style === "illustration_3d") {
+    return `${baseQuery} 3d render icon style clean background`;
   }
   if (style === "illustration_flat") {
     return `${baseQuery} flat vector illustration minimal clean`;
-  }
-  if (style === "illustration_3d") {
-    return `${baseQuery} 3d render icon style clean background`;
   }
   return `${baseQuery} clean studio photo soft light minimal background`;
 }
@@ -213,7 +217,11 @@ export async function getUnitImageByTitle(
     return APP_FALLBACK_UNIT_IMAGE;
   }
 
-  const style = options.style || getDefaultImageStyle();
+  const preferredStyle = options.style || getDefaultImageStyle();
+  const styleChain = [
+    preferredStyle,
+    ...UNSPLASH_STYLE_CHAIN.filter((style) => style !== preferredStyle),
+  ];
   const accessKey = getUnsplashAccessKey();
   if (!accessKey) {
     if (strict) {
@@ -233,43 +241,49 @@ export async function getUnitImageByTitle(
   }
 
   try {
-    const url = new URL("https://api.unsplash.com/search/photos");
-    url.searchParams.set("query", buildStyleQuery(query, style));
-    url.searchParams.set("per_page", "8");
-    url.searchParams.set("orientation", "squarish");
-    url.searchParams.set("content_filter", "high");
+    for (const style of styleChain) {
+      const url = new URL("https://api.unsplash.com/search/photos");
+      url.searchParams.set("query", buildStyleQuery(query, style));
+      url.searchParams.set("per_page", "8");
+      url.searchParams.set("orientation", "squarish");
+      url.searchParams.set("content_filter", "high");
 
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Client-ID ${accessKey}`,
-        "Accept-Version": "v1",
-      },
-      cache: "no-store",
-    });
+      const res = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Client-ID ${accessKey}`,
+          "Accept-Version": "v1",
+        },
+        cache: "no-store",
+      });
 
-    if (!res.ok) {
-      if (strict) {
-        const errorText = await res.text();
-        throw new Error(
-          `Unsplash request failed (${res.status}). ${errorText.slice(0, 180)}`
-        );
+      if (!res.ok) {
+        if (strict) {
+          const errorText = await res.text();
+          throw new Error(
+            `Unsplash request failed (${res.status}). ${errorText.slice(0, 180)}`
+          );
+        }
+        return APP_FALLBACK_UNIT_IMAGE;
       }
-      return APP_FALLBACK_UNIT_IMAGE;
+
+      const data = (await res.json()) as { results?: UnsplashPhoto[] };
+      const candidate = (data.results || [])
+        .map((item) => item.urls?.regular || item.urls?.small || "")
+        .find((v) => typeof v === "string" && v.length > 0);
+
+      if (candidate) {
+        return candidate;
+      }
     }
 
-    const data = (await res.json()) as { results?: UnsplashPhoto[] };
-    const candidate = (data.results || [])
-      .map((item) => item.urls?.regular || item.urls?.small || "")
-      .find((v) => typeof v === "string" && v.length > 0);
-
-    if (!candidate && strict) {
+    if (strict) {
       throw new Error(
-        "No illustration found for this title in Unsplash. Try a more specific title."
+        "No illustration found for this title in Unsplash after trying illustration_3d, illustration_flat, and photo_clean."
       );
     }
 
-    return candidate || APP_FALLBACK_UNIT_IMAGE;
+    return APP_FALLBACK_UNIT_IMAGE;
   } catch (error) {
     if (strict) {
       if (error instanceof Error) throw error;

@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Run without writing DB changes"
+        description: Run without writing DB changes
         type: boolean
         required: true
         default: true
       scope:
-        description: "Which records to refresh"
+        description: Which records to refresh
         type: choice
         required: true
         default: both
@@ -18,19 +18,18 @@ on:
           - areas
           - sections
       image_library_only:
-        description: "Force library-only image resolution"
+        description: Force library-only image resolution
         type: boolean
         required: true
         default: true
       unsplash_image_style:
-        description: "Unsplash style (used only if not library-only)"
+        description: Unsplash style (used only if not library-only)
         type: choice
         required: true
-        default: cartoon
+        default: illustration_3d
         options:
-          - cartoon
-          - illustration_flat
           - illustration_3d
+          - illustration_flat
           - photo_clean
 
 jobs:
@@ -39,10 +38,10 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-
     env:
+      # Opt into the new GitHub Actions JS runtime now.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-      # IMAGE_LIBRARY_ONLY expects "true"/"false" as string
       IMAGE_LIBRARY_ONLY: ${{ inputs.image_library_only && 'true' || 'false' }}
       UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
       UNSPLASH_IMAGE_STYLE: ${{ inputs.unsplash_image_style }}
@@ -55,15 +54,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Preflight secret checks
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "Missing required secret: PROD_DATABASE_URL"
+            exit 1
+          fi
 
       - name: Run image refresh
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p reports
 
           ARGS="--report reports/prod-image-refresh.json"
 
@@ -77,8 +84,25 @@ jobs:
             ARGS="$ARGS --sections-only"
           fi
 
-          echo "Running: npm run images:refresh -- $ARGS"
+          set +e
           npm run images:refresh -- $ARGS
+          EXIT_CODE=$?
+          set -e
+
+          # Ensure artifact exists even on failure.
+          if [ ! -f reports/prod-image-refresh.json ]; then
+            cat > reports/prod-image-refresh.json <<EOF
+          {
+            "error": "images:refresh failed before report write",
+            "exitCode": ${EXIT_CODE},
+            "scope": "${{ inputs.scope }}",
+            "dryRun": ${{ inputs.dry_run && 'true' || 'false' }},
+            "imageLibraryOnly": ${{ inputs.image_library_only && 'true' || 'false' }}
+          }
+          EOF
+          fi
+
+          exit ${EXIT_CODE}
 
       - name: Upload report artifact
         if: always()
@@ -86,4 +110,4 @@ jobs:
         with:
           name: prod-image-refresh-report
           path: reports/prod-image-refresh.json
-          if-no-files-found: warn
+          if-no-files-found: error
