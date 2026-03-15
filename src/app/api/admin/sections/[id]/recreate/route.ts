@@ -5,6 +5,7 @@ import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
+import { SECTION_GENERATION_SYSTEM_PROMPT } from "@/lib/section-generation-prompt";
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -78,67 +79,162 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
   });
 }
 
-const SYSTEM_PROMPT = `You are an expert ESL curriculum designer creating English vocabulary learning content for native Spanish speakers at the B1-B2 level.
+const SYSTEM_PROMPT = SECTION_GENERATION_SYSTEM_PROMPT;
 
-You must return a single valid JSON object (no markdown, no code fences) with the exact structure below. Follow every rule precisely:
+function pickString(
+  source: Record<string, unknown>,
+  keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
 
-VOCABULARY RULES:
-- Choose words that are genuinely useful for the given topic
-- Words should be B1-B2 CEFR level — not too basic (no "hello", "table"), not too advanced (no "obsequious")
-- Spanish definitions must be natural and accurate, as a Spanish teacher would explain them — never machine-translated
-- Example sentences must clearly demonstrate the word's meaning in context
-- IPA transcription must be accurate American English
-- stressed_syllable should be the syllable that carries primary stress, written in lowercase
+function normalizeGeneratedPayload(
+  parsed: unknown,
+  fallbackTitle: string,
+  fallbackTitleEs: string
+) {
+  const payload =
+    parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
 
-INTRODUCTION READING:
-- Write a short engaging passage (80-150 words) that naturally uses ALL vocabulary words
-- Wrap each vocabulary word with double asterisks like **word** so it can be highlighted
-- The passage should read like a natural story or scenario, not a list of definitions
-- The user will provide a target reading difficulty (easy, medium, or advanced). You MUST adapt sentence length, grammar complexity, and discourse markers to match that difficulty while still using the same vocabulary naturally.
+  const title = pickString(payload, ["title", "name"]) || fallbackTitle;
+  const titleEs =
+    pickString(payload, ["titleEs", "title_es", "nameEs", "name_es"]) ||
+    fallbackTitleEs ||
+    title;
+  const description = pickString(payload, ["description", "summary"]) || "";
+  const readingTitle = pickString(payload, ["readingTitle", "reading_title"]);
+  const readingText = pickString(payload, ["readingText", "reading_text"]) || "";
 
-PRACTICE QUESTIONS:
-- You MUST generate the exact number of regular practice questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
-- ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the practiceQuestions array.
-- Focus on WORD DEFINITIONS
-- Every vocabulary word MUST appear in at least one practice question (either as the subject of a definition question, or as the correct answer in a reverse/fill_blank/phonetics question)
-- Regular questions should be a mix of four styles:
-  1. "multiple_choice" (definition): "What is the definition of 'word'?" with 4 Spanish definition options (1 correct, 3 plausible distractors) — about 30%
-  2. "multiple_choice" (reverse): "Which English word means 'definición en español'?" with 4 English word options from the vocabulary list — about 30%
-  3. "fill_blank": A sentence where the vocabulary word fits naturally. It can be extracted/adapted from the reading OR be a new sentence with strong contextual clues. Set correct_answer to the word. — about 25%
-  4. "phonetics": Pronunciation questions using styles from the PHONETICS RULES section below — about 15%
-- All options arrays must have exactly 4 items for multiple_choice and phonetics, 0 items for fill_blank and matching
-- IMPORTANT fill_blank quality rules:
-  - Each fill_blank prompt must have exactly ONE blank written as "___"
-  - The sentence must contain enough semantic context to infer the target word (avoid vague templates like "I saw a ___")
-  - There must be one clearly best answer from the section vocabulary list
-  - If using a reading-derived sentence, adapt it if needed to keep context clear as a standalone question
+  const vocabularySource = Array.isArray(payload.vocabulary)
+    ? payload.vocabulary
+    : Array.isArray(payload.words)
+      ? payload.words
+      : [];
 
-TEST QUESTIONS:
-- You MUST generate the exact number of regular test questions specified in the user prompt. This is a hard requirement — do NOT generate fewer.
-- ADDITIONALLY, if the user prompt specifies "matching pairs", generate exactly 1 "matching" question (see MATCHING QUESTION rules below) and include it as the LAST item in the testQuestions array.
-- Regular questions: mix of "multiple_choice", "fill_blank", and "phonetics" types
-- At least 30% should be "phonetics" type
-- multiple_choice and fill_blank: same definition-focused rules and fill_blank quality constraints as practice
-- Phonetics: follow PHONETICS RULES below
-- NEVER ask "Which syllable is stressed in...?" — use the phonetics styles below instead
+  const vocabulary = vocabularySource
+    .map((item) => {
+      const row =
+        item && typeof item === "object"
+          ? (item as Record<string, unknown>)
+          : null;
+      if (!row) return null;
+      const word = pickString(row, ["word", "term"]);
+      const definitionEs = pickString(row, [
+        "definitionEs",
+        "definition_es",
+        "definition",
+      ]);
+      const exampleSentence = pickString(row, [
+        "exampleSentence",
+        "example_sentence",
+        "example",
+      ]);
+      if (!word || !definitionEs || !exampleSentence) return null;
+      return {
+        word,
+        partOfSpeech: pickString(row, ["partOfSpeech", "part_of_speech"]) || "noun",
+        definitionEs,
+        exampleSentence,
+        phoneticIpa: pickString(row, ["phoneticIpa", "phonetic_ipa"]),
+        stressedSyllable: pickString(row, ["stressedSyllable", "stressed_syllable"]),
+      };
+    })
+    .filter(
+      (
+        v
+      ): v is {
+        word: string;
+        partOfSpeech: string;
+        definitionEs: string;
+        exampleSentence: string;
+        phoneticIpa: string | null;
+        stressedSyllable: string | null;
+      } => Boolean(v)
+    );
 
-PHONETICS RULES (for both practice and test phonetics questions):
-- phonetics questions must use a MIX of these three styles (vary them, do not repeat the same style consecutively):
-  1. IPA Reading: "Which word is pronounced /IPA/?" with 4 English word options (1 correct, 3 distractors). Tests IPA literacy.
-  2. Sound Matching: "Which word has the same vowel sound as the 'X' in 'word'?" with 4 word options.
-     CRITICAL: Match by ACTUAL PHONETIC SOUND (IPA), NOT by spelling/letter.
-  3. Odd One Out: "Which word does NOT rhyme with the others?" with 4 words (3 that rhyme, 1 that doesn't).
+  const normalizeQuestions = (value: unknown) => {
+    if (!Array.isArray(value)) {
+      return [] as Array<{
+        type: string;
+        prompt: string;
+        correctAnswer?: string | null;
+        pairs?: unknown[];
+        options?: Array<{ optionText: string; isCorrect: boolean }>;
+      }>;
+    }
+    return value
+      .map((item) => {
+        const row =
+          item && typeof item === "object"
+            ? (item as Record<string, unknown>)
+            : null;
+        if (!row) return null;
+        const prompt = pickString(row, ["prompt", "question"]);
+        if (!prompt) return null;
+        const options = Array.isArray(row.options)
+          ? row.options
+              .map((opt) => {
+                const optRow =
+                  opt && typeof opt === "object"
+                    ? (opt as Record<string, unknown>)
+                    : null;
+                if (!optRow) return null;
+                const optionText = pickString(optRow, ["optionText", "text"]);
+                if (!optionText) return null;
+                return {
+                  optionText,
+                  isCorrect: Boolean(optRow.isCorrect),
+                };
+              })
+              .filter(
+                (
+                  o
+                ): o is {
+                  optionText: string;
+                  isCorrect: boolean;
+                } => Boolean(o)
+              )
+          : [];
+        return {
+          type: pickString(row, ["type"]) || "multiple_choice",
+          prompt,
+          correctAnswer: pickString(row, ["correctAnswer", "correct_answer"]),
+          pairs: Array.isArray(row.pairs) ? row.pairs : undefined,
+          options,
+        };
+      })
+      .filter(
+        (
+          q
+        ): q is {
+          type: string;
+          prompt: string;
+          correctAnswer?: string | null;
+          pairs?: unknown[];
+          options?: Array<{ optionText: string; isCorrect: boolean }>;
+        } => Boolean(q)
+      );
+  };
 
-MATCHING QUESTION (generate exactly 1 per module when the user prompt specifies matching pairs):
-- type: "matching"
-- prompt: "Match each English word with its definition"
-- correctAnswer: null
-- pairs: an array of objects, each with:
-  - "word": the English vocabulary word
-  - "definition": a concise English definition (5-15 words)
-  - "spanish": the Spanish translation of the word
-- Use exactly the number of pairs specified in the user prompt
-- options: [] (empty array)`;
+  return {
+    title,
+    titleEs,
+    description,
+    readingTitle,
+    readingText,
+    vocabulary,
+    practiceQuestions: normalizeQuestions(payload.practiceQuestions),
+    testQuestions: normalizeQuestions(payload.testQuestions),
+  };
+}
 
 export async function POST(
   request: NextRequest,
@@ -193,6 +289,7 @@ export async function POST(
         { status: 400 }
       );
     }
+    const sectionModuleIds = section.modules.map((m) => m.id);
 
     const currentWordCount = Math.max(section.sectionVocabulary.length, 5);
     const normalizedDifficulty = String(
@@ -252,38 +349,11 @@ Return the JSON object now.`
       );
     }
 
-    let generated: {
-      title: string;
-      titleEs: string;
-      description?: string;
-      readingTitle?: string;
-      readingText?: string;
-      vocabulary: Array<{
-        word: string;
-        partOfSpeech?: string;
-        definitionEs: string;
-        exampleSentence: string;
-        phoneticIpa?: string | null;
-        stressedSyllable?: string | null;
-      }>;
-      practiceQuestions?: Array<{
-        type: string;
-        prompt: string;
-        correctAnswer?: string | null;
-        pairs?: unknown[];
-        options?: Array<{ optionText: string; isCorrect: boolean }>;
-      }>;
-      testQuestions?: Array<{
-        type: string;
-        prompt: string;
-        correctAnswer?: string | null;
-        pairs?: unknown[];
-        options?: Array<{ optionText: string; isCorrect: boolean }>;
-      }>;
-    };
+    let generated: ReturnType<typeof normalizeGeneratedPayload>;
 
     try {
-      generated = JSON.parse(content);
+      const parsed = JSON.parse(content);
+      generated = normalizeGeneratedPayload(parsed, section.title, section.titleEs);
     } catch {
       return NextResponse.json(
         { error: "AI returned invalid JSON. Please try again." },
@@ -291,14 +361,9 @@ Return the JSON object now.`
       );
     }
 
-    if (
-      !generated.title ||
-      !generated.titleEs ||
-      !Array.isArray(generated.vocabulary) ||
-      generated.vocabulary.length === 0
-    ) {
+    if (!Array.isArray(generated.vocabulary) || generated.vocabulary.length === 0) {
       return NextResponse.json(
-        { error: "AI response is missing required fields. Please try again." },
+        { error: "AI response did not include valid vocabulary items. Please try again." },
         { status: 502 }
       );
     }
@@ -308,137 +373,143 @@ Return the JSON object now.`
       kind: "section",
     });
 
-    await prisma.$transaction(async (tx) => {
-      await tx.learnerAttempt.deleteMany({
-        where: { moduleId: { in: [practiceModule.id, testModule.id] } },
-      });
-      await tx.question.deleteMany({
-        where: { moduleId: { in: [practiceModule.id, testModule.id] } },
-      });
-      await tx.learnerSectionProgress.updateMany({
-        where: { sectionId: id },
-        data: {
-          introCompleted: false,
-          practiceCompleted: false,
-          testPassed: false,
-          testScore: null,
-        },
-      });
-
-      await tx.section.update({
-        where: { id },
-        data: {
-          title: generated.title,
-          titleEs: generated.titleEs,
-          description: generated.description || "",
-          imageUrl,
-        },
-      });
-
-      await tx.module.update({
-        where: { id: introModule.id },
-        data: {
-          content: {
-            readingTitle: generated.readingTitle || generated.title,
-            readingText: generated.readingText || "",
-            readingDifficulty: introDifficulty,
-          },
-        },
-      });
-
-      await tx.sectionVocabulary.deleteMany({ where: { sectionId: id } });
-      if (oldVocabularyIds.length > 0) {
-        await tx.vocabulary.deleteMany({ where: { id: { in: oldVocabularyIds } } });
-      }
-
-      for (let i = 0; i < generated.vocabulary.length; i++) {
-        const v = generated.vocabulary[i];
-        await tx.vocabulary.create({
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.learnerAttempt.deleteMany({
+          where: { moduleId: { in: sectionModuleIds } },
+        });
+        await tx.question.deleteMany({
+          where: { moduleId: { in: sectionModuleIds } },
+        });
+        await tx.learnerSectionProgress.updateMany({
+          where: { sectionId: id },
           data: {
-            word: v.word,
-            partOfSpeech: v.partOfSpeech || "noun",
-            definitionEs: v.definitionEs,
-            exampleSentence: v.exampleSentence,
-            phoneticIpa: v.phoneticIpa || null,
-            stressedSyllable: v.stressedSyllable || null,
-            sectionVocabulary: {
-              create: {
-                sectionId: id,
-                sortOrder: i + 1,
-              },
+            introCompleted: false,
+            practiceCompleted: false,
+            testPassed: false,
+            testScore: null,
+          },
+        });
+
+        await tx.section.update({
+          where: { id },
+          data: {
+            title: generated.title,
+            titleEs: generated.titleEs,
+            description: generated.description || "",
+            imageUrl,
+          },
+        });
+
+        await tx.module.update({
+          where: { id: introModule.id },
+          data: {
+            content: {
+              readingTitle: generated.readingTitle || generated.title,
+              readingText: generated.readingText || "",
+              readingDifficulty: introDifficulty,
             },
           },
         });
-      }
 
-      if (Array.isArray(generated.practiceQuestions)) {
-        for (let i = 0; i < generated.practiceQuestions.length; i++) {
-          const q = generated.practiceQuestions[i];
-          const correctAnswer =
-            q.type === "matching" && Array.isArray(q.pairs)
-              ? JSON.stringify(q.pairs)
-              : q.correctAnswer || null;
-          const shuffledOptions =
-            Array.isArray(q.options) && q.options.length > 0
-              ? shuffleArray(q.options)
-              : [];
+        await tx.sectionVocabulary.deleteMany({ where: { sectionId: id } });
+        if (oldVocabularyIds.length > 0) {
+          await tx.vocabulary.deleteMany({ where: { id: { in: oldVocabularyIds } } });
+        }
 
-          await tx.question.create({
+        for (let i = 0; i < generated.vocabulary.length; i++) {
+          const v = generated.vocabulary[i];
+          await tx.vocabulary.create({
             data: {
-              moduleId: practiceModule.id,
-              type: q.type || "multiple_choice",
-              prompt: q.prompt,
-              correctAnswer,
-              sortOrder: i + 1,
-              options:
-                shuffledOptions.length > 0
-                  ? {
-                      create: shuffledOptions.map((o, idx) => ({
-                        optionText: o.optionText,
-                        isCorrect: o.isCorrect || false,
-                        sortOrder: idx + 1,
-                      })),
-                    }
-                  : undefined,
+              word: v.word,
+              partOfSpeech: v.partOfSpeech || "noun",
+              definitionEs: v.definitionEs,
+              exampleSentence: v.exampleSentence,
+              phoneticIpa: v.phoneticIpa || null,
+              stressedSyllable: v.stressedSyllable || null,
+              sectionVocabulary: {
+                create: {
+                  sectionId: id,
+                  sortOrder: i + 1,
+                },
+              },
             },
           });
         }
-      }
 
-      if (Array.isArray(generated.testQuestions)) {
-        for (let i = 0; i < generated.testQuestions.length; i++) {
-          const q = generated.testQuestions[i];
-          const correctAnswer =
-            q.type === "matching" && Array.isArray(q.pairs)
-              ? JSON.stringify(q.pairs)
-              : q.correctAnswer || null;
-          const shuffledOptions =
-            Array.isArray(q.options) && q.options.length > 0
-              ? shuffleArray(q.options)
-              : [];
+        if (Array.isArray(generated.practiceQuestions)) {
+          for (let i = 0; i < generated.practiceQuestions.length; i++) {
+            const q = generated.practiceQuestions[i];
+            const correctAnswer =
+              q.type === "matching" && Array.isArray(q.pairs)
+                ? JSON.stringify(q.pairs)
+                : q.correctAnswer || null;
+            const shuffledOptions =
+              Array.isArray(q.options) && q.options.length > 0
+                ? shuffleArray(q.options)
+                : [];
 
-          await tx.question.create({
-            data: {
-              moduleId: testModule.id,
-              type: q.type || "multiple_choice",
-              prompt: q.prompt,
-              correctAnswer,
-              sortOrder: i + 1,
-              options:
-                shuffledOptions.length > 0
-                  ? {
-                      create: shuffledOptions.map((o, idx) => ({
-                        optionText: o.optionText,
-                        isCorrect: o.isCorrect || false,
-                        sortOrder: idx + 1,
-                      })),
-                    }
-                  : undefined,
-            },
-          });
+            await tx.question.create({
+              data: {
+                moduleId: practiceModule.id,
+                type: q.type || "multiple_choice",
+                prompt: q.prompt,
+                correctAnswer,
+                sortOrder: i + 1,
+                options:
+                  shuffledOptions.length > 0
+                    ? {
+                        create: shuffledOptions.map((o, idx) => ({
+                          optionText: o.optionText,
+                          isCorrect: o.isCorrect || false,
+                          sortOrder: idx + 1,
+                        })),
+                      }
+                    : undefined,
+              },
+            });
+          }
         }
+
+        if (Array.isArray(generated.testQuestions)) {
+          for (let i = 0; i < generated.testQuestions.length; i++) {
+            const q = generated.testQuestions[i];
+            const correctAnswer =
+              q.type === "matching" && Array.isArray(q.pairs)
+                ? JSON.stringify(q.pairs)
+                : q.correctAnswer || null;
+            const shuffledOptions =
+              Array.isArray(q.options) && q.options.length > 0
+                ? shuffleArray(q.options)
+                : [];
+
+            await tx.question.create({
+              data: {
+                moduleId: testModule.id,
+                type: q.type || "multiple_choice",
+                prompt: q.prompt,
+                correctAnswer,
+                sortOrder: i + 1,
+                options:
+                  shuffledOptions.length > 0
+                    ? {
+                        create: shuffledOptions.map((o, idx) => ({
+                          optionText: o.optionText,
+                          isCorrect: o.isCorrect || false,
+                          sortOrder: idx + 1,
+                        })),
+                      }
+                    : undefined,
+              },
+            });
+          }
+        }
+      },
+      {
+        maxWait: 10_000,
+        timeout: 30_000,
       }
-    });
+    );
 
     return NextResponse.json({
       success: true,
