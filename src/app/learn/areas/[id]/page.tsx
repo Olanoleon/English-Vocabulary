@@ -190,20 +190,31 @@ export default function AreaLearningPathPage({
 
                 {/* Card */}
                 {status === "locked" ? (
-                  <div className="flex-1 rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-60">
+                  <div className="flex-1 rounded-[28px] border border-gray-100 bg-gray-50 p-4 opacity-70">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase font-medium">
-                          Unit {String(index + 1).padStart(2, "0")}
-                        </p>
-                        <h3 className="font-bold text-gray-900 mt-0.5">
-                          {section.title}
-                        </h3>
-                        <p className="text-xs text-gray-400">
-                          {section.titleEs}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                          <LogoBadge
+                            logo={section.imageUrl}
+                            fallback={String(index + 1).padStart(2, "0")}
+                            size="md"
+                            tone="primary"
+                            className="h-full w-full rounded-2xl"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                            Unit {String(index + 1).padStart(2, "0")}
+                          </p>
+                          <h3 className="mt-1 text-[28px] leading-none font-bold text-gray-900">
+                            {section.title}
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-400">
+                            {section.titleEs}
+                          </p>
+                        </div>
                       </div>
-                      <Lock className="w-4 h-4 text-gray-300" />
+                      <Lock className="h-4 w-4 text-gray-300" />
                     </div>
                   </div>
                 ) : (
@@ -217,56 +228,73 @@ export default function AreaLearningPathPage({
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <LogoBadge
-                          logo={section.imageUrl}
-                          fallback={String(index + 1).padStart(2, "0")}
-                          size="md"
-                          tone="primary"
-                        />
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
+                          {section.imageUrl ? (
+                            <img
+                              src={section.imageUrl}
+                              alt={section.title}
+                              className="h-full w-full object-cover object-center"
+                            />
+                          ) : (
+                            <LogoBadge
+                              logo={section.imageUrl}
+                              fallback={String(index + 1).padStart(2, "0")}
+                              size="md"
+                              tone="primary"
+                              className="h-full w-full rounded-2xl"
+                            />
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-xs text-primary-600 uppercase font-medium">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">
                               Unit {String(index + 1).padStart(2, "0")}
                               {status === "active" && " · Active"}
                             </p>
                             {status === "completed" &&
                               section.progress?.testScore && (
-                                <span className="text-xs bg-success-500 text-white px-2 py-0.5 rounded-full font-medium">
+                                <span className="rounded-full bg-success-500 px-2 py-0.5 text-xs font-medium text-white">
                                   {Math.round(section.progress.testScore)}%
                                   Score
                                 </span>
                               )}
                           </div>
-                          <h3 className="mt-0.5 truncate text-[17px] font-bold text-gray-900">
+                          <h3 className="mt-1 truncate text-3xl leading-none font-bold text-gray-900">
                             {section.title}
                           </h3>
-                          <p className="text-xs text-gray-400">
+                          <p className="mt-1 text-sm text-gray-400">
                             {section.titleEs}
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                      <div className="rounded-xl bg-gray-100 p-2">
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </div>
                     </div>
 
-                    {status === "active" && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-400">
-                            {section.wordCount} words
-                          </span>
-                          <span className="text-xs text-primary-600 font-medium">
-                            {completion}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500">
+                          {section.wordCount} words
+                        </span>
+                        <span className="text-xs font-medium text-primary-600">
+                          {completion}%
+                        </span>
+                      </div>
+                      {status === "active" ? (
+                        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
                           <div
-                            className="h-full bg-primary-600 rounded-full transition-all"
+                            className="h-full rounded-full bg-primary-600 transition-all"
                             style={{ width: `${completion}%` }}
                           />
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-full rounded-full bg-success-500" />
+                        </div>
+                      )}
+                    </div>
                   </Link>
                 )}
               </div>
