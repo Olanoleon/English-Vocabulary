@@ -116,24 +116,24 @@ export default function SectionEditorPage({
     try {
       const parsed = JSON.parse(correctAnswer) as unknown;
       if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((row) => {
-          if (!row || typeof row !== "object") return null;
-          const candidate = row as Record<string, unknown>;
-          const word =
-            typeof candidate.word === "string" ? candidate.word.trim() : "";
-          const definition =
-            typeof candidate.definition === "string"
-              ? candidate.definition.trim()
-              : "";
-          const spanish =
-            typeof candidate.spanish === "string"
-              ? candidate.spanish.trim()
-              : "";
-          if (!word || !definition) return null;
-          return { word, definition, spanish: spanish || undefined };
-        })
-        .filter((pair): pair is MatchingPairPreview => Boolean(pair));
+      const pairs: MatchingPairPreview[] = [];
+      for (const row of parsed) {
+        if (!row || typeof row !== "object") continue;
+        const candidate = row as Record<string, unknown>;
+        const word =
+          typeof candidate.word === "string" ? candidate.word.trim() : "";
+        const definition =
+          typeof candidate.definition === "string"
+            ? candidate.definition.trim()
+            : "";
+        const spanish =
+          typeof candidate.spanish === "string"
+            ? candidate.spanish.trim()
+            : "";
+        if (!word || !definition) continue;
+        pairs.push({ word, definition, spanish: spanish || undefined });
+      }
+      return pairs;
     } catch {
       return [];
     }
