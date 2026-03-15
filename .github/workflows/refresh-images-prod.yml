@@ -49,6 +49,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,6 +60,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Debug ref and script availability
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));console.log('images:refresh script =', p.scripts?.['images:refresh'] || '<missing>')"
+          if [ -f scripts/refresh-images.ts ]; then
+            echo "scripts/refresh-images.ts exists"
+          else
+            echo "scripts/refresh-images.ts missing"
+          fi
 
       - name: Preflight secret checks
         run: |
@@ -85,8 +98,23 @@ jobs:
           fi
 
           set +e
-          npm run images:refresh -- $ARGS
-          EXIT_CODE=$?
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.exit(p.scripts && p.scripts['images:refresh'] ? 0 : 1)"
+          HAS_NPM_SCRIPT=$?
+          set -e
+
+          set +e
+          if [ "${HAS_NPM_SCRIPT}" = "0" ]; then
+            echo "Running via npm script"
+            npm run images:refresh -- $ARGS
+            EXIT_CODE=$?
+          elif [ -f scripts/refresh-images.ts ]; then
+            echo "Running direct script fallback"
+            npx tsx scripts/refresh-images.ts $ARGS
+            EXIT_CODE=$?
+          else
+            echo "Neither npm script nor scripts/refresh-images.ts exists in this checkout."
+            EXIT_CODE=1
+          fi
           set -e
 
           # Ensure artifact exists even on failure.
