@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Apple,
   Banknote,
@@ -305,6 +306,18 @@ export function LogoBadge({
 }: LogoBadgeProps) {
   const customAsset = logo ? ICON_TO_CUSTOM_ASSET[logo] : undefined;
   const Icon = logo ? APP_ICON_MAP[logo] : undefined;
+  const normalizedLogo = logo?.trim() || "";
+  const isImageLikeLogo =
+    normalizedLogo.startsWith("/") ||
+    normalizedLogo.startsWith("http://") ||
+    normalizedLogo.startsWith("https://") ||
+    /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(normalizedLogo);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [normalizedLogo]);
+
   return (
     <div
       className={cn(
@@ -326,6 +339,14 @@ export function LogoBadge({
         />
       ) : Icon ? (
         <Icon className={ICON_SIZE_STYLES[size]} />
+      ) : isImageLikeLogo && !imageFailed ? (
+        <img
+          src={normalizedLogo}
+          alt=""
+          aria-hidden
+          className="h-full w-full object-cover object-center"
+          onError={() => setImageFailed(true)}
+        />
       ) : (
         <span className={cn("leading-none", SIZE_STYLES[size].text)}>
           {logo || fallback}

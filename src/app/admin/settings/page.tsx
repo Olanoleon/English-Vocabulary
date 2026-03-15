@@ -1,8 +1,17 @@
 "use client";
 
-import { BookOpen } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpen, LogOut } from "lucide-react";
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <div className="px-4 py-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Settings</h2>
@@ -41,6 +50,14 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={handleLogout}
+        className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-100 font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+      >
+        <LogOut className="h-5 w-5" />
+        Sign Out
+      </button>
     </div>
   );
 }

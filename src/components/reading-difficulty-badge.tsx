@@ -16,9 +16,9 @@ const LABELS: Record<ReadingDifficulty, string> = {
 };
 
 const STYLES: Record<ReadingDifficulty, string> = {
-  easy: "bg-green-50 text-green-700 border-green-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  advanced: "bg-purple-50 text-purple-700 border-purple-200",
+  easy: "bg-[#ECFDF3] text-[#166534] border-[#BBF7D0]",
+  medium: "bg-[#FFFBEB] text-[#9A3412] border-[#FDE68A]",
+  advanced: "bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE]",
 };
 
 function normalizeDifficulty(value?: string | null): ReadingDifficulty {
@@ -36,7 +36,7 @@ export function ReadingDifficultyBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border",
+        "inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold",
         STYLES[normalized],
         className
       )}

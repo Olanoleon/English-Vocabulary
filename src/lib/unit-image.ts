@@ -2,8 +2,9 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import imageLibrary from "@/data/image-library.json";
+import { APP_IMAGE_FALLBACK } from "@/lib/image-fallback";
 
-export const APP_FALLBACK_UNIT_IMAGE = "/icons/app-fallback.svg";
+export const APP_FALLBACK_UNIT_IMAGE = APP_IMAGE_FALLBACK;
 
 interface UnsplashPhoto {
   urls?: {
@@ -108,10 +109,24 @@ function pickFromLibrary(
     );
 
     let score = 0;
-    if (normalizedTitle && title === normalizedTitle) score += 140;
-    if (aliasSet.has(title)) score += 130;
-    if (normalizedTitle && title.includes(normalizedTitle)) score += 80;
-    if (normalizedCorpus.includes(title)) score += 60;
+    let semanticHit = false;
+
+    if (normalizedTitle && title === normalizedTitle) {
+      score += 140;
+      semanticHit = true;
+    }
+    if (aliasSet.has(title)) {
+      score += 130;
+      semanticHit = true;
+    }
+    if (normalizedTitle && title.includes(normalizedTitle)) {
+      score += 80;
+      semanticHit = true;
+    }
+    if (title.length > 1 && normalizedCorpus.includes(title)) {
+      score += 60;
+      semanticHit = true;
+    }
 
     let tokenHits = 0;
     for (const token of titleTokens) {
@@ -119,10 +134,19 @@ function pickFromLibrary(
         tokenHits += 1;
       }
     }
+    if (tokenHits > 0) {
+      semanticHit = true;
+    }
     score += tokenHits * 10;
     if (titleTokens.length > 0 && tokenHits === titleTokens.length) {
       score += 30;
     }
+
+    // Reject entries that only score by priority and have no semantic overlap.
+    if (!semanticHit) {
+      continue;
+    }
+
     score += entry.priority || 0;
 
     if (score > bestScore) {
