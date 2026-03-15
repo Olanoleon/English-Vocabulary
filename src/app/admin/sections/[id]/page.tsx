@@ -363,7 +363,7 @@ export default function SectionEditorPage({
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-32">
-      <header className="mb-4 flex items-center gap-3">
+      <header className="mb-5 flex items-center gap-3">
         <button
           onClick={() => router.push(`/admin/areas/${section?.areaId}`)}
           className="rounded-xl p-2 text-slate-700 hover:bg-slate-100"

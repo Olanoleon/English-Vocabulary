@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Lock,
   CheckCircle2,
-  PlayCircle,
   ChevronRight,
   BookOpen,
 } from "lucide-react";
@@ -33,6 +32,7 @@ interface Section {
   id: string;
   title: string;
   titleEs: string;
+  description: string | null;
   sortOrder: number;
   imageUrl: string | null;
   wordCount: number;
@@ -58,7 +58,6 @@ export default function AreaLearningPathPage({
   const [area, setArea] = useState<AreaInfo | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [displayName, setDisplayName] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -66,10 +65,9 @@ export default function AreaLearningPathPage({
   }, [areaId]);
 
   async function fetchData() {
-    const [sectionsRes, areasRes, meRes] = await Promise.all([
+    const [sectionsRes, areasRes] = await Promise.all([
       fetch(`/api/learn/sections?areaId=${areaId}`),
       fetch("/api/learn/areas"),
-      fetch("/api/auth/me"),
     ]);
 
     if (sectionsRes.ok) {
@@ -78,10 +76,6 @@ export default function AreaLearningPathPage({
     if (areasRes.ok) {
       const areas: AreaInfo[] = await areasRes.json();
       setArea(areas.find((a) => a.id === areaId) || null);
-    }
-    if (meRes.ok) {
-      const me = await meRes.json();
-      setDisplayName(me.displayName || "");
     }
     setLoading(false);
   }
@@ -156,53 +150,58 @@ export default function AreaLearningPathPage({
       <div>
         <button
           onClick={() => router.push("/learn")}
-          className="mb-2 flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
+          className="mb-5 flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-4 h-4" />
           All Areas
         </button>
         {area ? (
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
-              <img
-                src={resolveAreaImageSrc(area)}
-                alt={area.name}
-                className="h-full w-full object-cover object-center"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = IMAGE_FALLBACK_SRC;
-                }}
-              />
+          <div className="space-y-3">
+            <div className="grid grid-cols-[106px_minmax(0,1fr)] grid-rows-[auto_auto] gap-x-3 gap-y-2">
+              <div className="row-span-2 h-[106px] w-[106px] shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
+                <img
+                  src={resolveAreaImageSrc(area)}
+                  alt={area.name}
+                  className="h-full w-full object-cover object-center"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = IMAGE_FALLBACK_SRC;
+                  }}
+                />
+              </div>
+
+              <div className="min-w-0 rounded-[24px] border border-gray-100 bg-white p-3 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">
+                    Area Progress
+                  </span>
+                  <span className="text-sm font-bold text-primary-600">
+                    {overallPercent}%
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-primary-600 transition-all duration-500"
+                    style={{ width: `${overallPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="min-w-0 self-start">
+                <h1 className="truncate text-left text-[28px] font-bold leading-tight text-gray-900">
+                  {area.name}
+                </h1>
+              </div>
             </div>
-            <div>
-              <h1 className="text-[28px] font-bold leading-none text-gray-900">{area.name}</h1>
-              <p className="text-xs text-gray-400">{area.nameEs}</p>
-            </div>
+            {area.description ? (
+              <p className="text-justify text-sm text-gray-500">
+                {area.description}
+              </p>
+            ) : null}
           </div>
         ) : (
           <h1 className="text-[28px] font-bold leading-none text-gray-900">Learning Path</h1>
         )}
-        <p className="mt-2 text-sm text-gray-500">
-          {displayName ? `Welcome back, ${displayName}` : "Vocabulario ESL"}
-        </p>
-      </div>
-
-      {/* Overall Progress */}
-      <div className="rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-600">
-            Path Completion
-          </span>
-          <span className="text-sm font-bold text-primary-600">
-            {overallPercent}%
-          </span>
-        </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary-600 rounded-full transition-all duration-500"
-            style={{ width: `${overallPercent}%` }}
-          />
-        </div>
       </div>
 
       {/* Sections */}
@@ -210,45 +209,40 @@ export default function AreaLearningPathPage({
           {sections.map((section, index) => {
             const status = getSectionStatus(section, index);
             const completion = getCompletionPercent(section.progress);
-            const hasNext = index < sections.length - 1;
-            const nextStatus = hasNext
-              ? getSectionStatus(sections[index + 1], index + 1)
-              : null;
-            const connectorColor =
-              nextStatus && nextStatus !== "locked" ? "bg-primary-500" : "bg-gray-200";
 
             return (
               <div key={section.id} className="relative animate-fade-in">
                 {status === "locked" ? (
-                  <div className="rounded-[28px] border border-gray-100 bg-gray-50 p-4 shadow-sm opacity-70">
-                    <div className="mb-3 flex justify-end">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                        <Lock className="h-3.5 w-3.5" />
-                        Locked
-                      </span>
-                    </div>
+                  <div className="relative min-h-[116px] overflow-hidden rounded-[28px] border border-primary-100 bg-primary-50/15 p-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                      <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-primary-100">
                         <img
                           src={normalizeImageSrc(section.imageUrl)}
                           alt={section.title}
-                          className="h-full w-full object-cover object-center"
+                          className="h-full w-full scale-110 object-cover object-center"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = IMAGE_FALLBACK_SRC;
                           }}
                         />
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase font-medium">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                           Unit {String(index + 1).padStart(2, "0")}
                         </p>
-                        <h3 className="font-bold text-gray-900 mt-0.5">
+                        <h3 className="overflow-hidden text-[20px] font-bold leading-tight text-gray-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                           {section.title}
                         </h3>
-                        <p className="text-xs text-gray-400">
-                          {section.titleEs}
-                        </p>
+                        {section.description && (
+                          <p className="mt-1 overflow-hidden text-xs leading-snug text-gray-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                            {section.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[28px] bg-white/35 backdrop-blur-[1px]">
+                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100/90 shadow-sm">
+                        <Lock className="h-5 w-5 text-gray-500" />
                       </div>
                     </div>
                   </div>
@@ -256,35 +250,21 @@ export default function AreaLearningPathPage({
                   <Link
                     href={`/learn/sections/${section.id}`}
                     className={cn(
-                      "block rounded-[28px] p-4 shadow-sm transition-all",
+                      "block min-h-[116px] rounded-[28px] p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.995]",
                       status === "active"
-                        ? "bg-white border-2 border-primary-500 shadow-sm"
+                        ? "bg-primary-50/20 border-2 border-primary-500 shadow-sm"
                         : status === "completed"
-                          ? "bg-white border border-primary-200 shadow-sm"
-                          : "bg-white border border-gray-200"
+                          ? "bg-primary-50/10 border border-primary-200 shadow-sm"
+                          : "bg-primary-50/10 border border-primary-100"
                     )}
                   >
-                    <div className="mb-3 flex justify-end">
-                      {status === "active" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700">
-                          <PlayCircle className="h-3.5 w-3.5" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#166534]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Completed
-                        </span>
-                      )}
-                    </div>
-
                     <div className="flex items-center justify-between">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100">
+                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-primary-100">
                           <img
                             src={normalizeImageSrc(section.imageUrl)}
                             alt={section.title}
-                            className="h-full w-full object-cover object-center"
+                            className="h-full w-full scale-110 object-cover object-center"
                             onError={(e) => {
                               e.currentTarget.onerror = null;
                               e.currentTarget.src = IMAGE_FALLBACK_SRC;
@@ -295,50 +275,38 @@ export default function AreaLearningPathPage({
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">
                             Unit {String(index + 1).padStart(2, "0")}
                           </p>
-                          <h3 className="mt-1 truncate text-3xl leading-none font-bold text-gray-900">
+                          <h3 className="overflow-hidden text-[20px] leading-tight font-bold text-gray-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                             {section.title}
                           </h3>
-                          <p className="mt-1 text-sm text-gray-400">
-                            {section.titleEs}
-                          </p>
+                          {section.description && (
+                            <p className="mt-1 overflow-hidden text-xs leading-snug text-gray-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                              {section.description}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="rounded-xl bg-gray-100 p-2">
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      <div className="rounded-xl bg-primary-50 p-2">
+                        <ChevronRight className="h-4 w-4 text-primary-500" />
                       </div>
                     </div>
 
                     <div className="mt-3">
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500">
+                        <span className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-medium text-primary-700">
                           {section.wordCount} words
                         </span>
-                        <span className="text-xs font-medium text-primary-600">
-                          {completion}%
+                        <span className="text-sm font-bold text-primary-600">
+                          {status === "completed" ? "100%" : `${completion}%`}
                         </span>
                       </div>
-                      {status === "active" ? (
-                        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                          <div
-                            className="h-full rounded-full bg-primary-600 transition-all"
-                            style={{ width: `${completion}%` }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full bg-success-500" />
-                        </div>
-                      )}
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full bg-primary-600 transition-all duration-500"
+                          style={{ width: `${status === "completed" ? 100 : completion}%` }}
+                        />
+                      </div>
                     </div>
                   </Link>
-                )}
-                {hasNext && (
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute left-1/2 top-full -mt-px h-[18px] w-0.5 -translate-x-1/2 rounded-full transition-colors duration-300",
-                      connectorColor
-                    )}
-                  />
                 )}
               </div>
             );

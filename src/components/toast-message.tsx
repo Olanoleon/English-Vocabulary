@@ -16,7 +16,7 @@ export function ToastMessage({ open, status, message }: ToastMessageProps) {
   const title = isSuccess ? "Success!" : "Failed!";
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 w-full max-w-md pointer-events-none">
+    <div className="fixed right-4 top-4 z-[60] w-[calc(100%-2rem)] max-w-sm pointer-events-none">
       <div
         className={cn(
           "rounded-xl border shadow-sm px-3 py-2.5 flex items-center gap-2 animate-scale-in pointer-events-auto",

@@ -334,7 +334,7 @@ export default function PracticePage({
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur-md">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"

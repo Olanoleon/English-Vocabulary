@@ -449,7 +449,7 @@ export default function AreaUnitsPage({
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-24">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-5 flex items-center justify-between">
         <button
           onClick={() => router.push("/admin")}
           className="flex size-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"

@@ -321,7 +321,7 @@ export function LogoBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center justify-center flex-shrink-0 border ring-1 ring-black/5 shadow-sm",
+        "inline-flex items-center justify-center flex-shrink-0 overflow-hidden border ring-1 ring-black/5 shadow-sm",
         SIZE_STYLES[size].container,
         TONE_STYLES[tone],
         className

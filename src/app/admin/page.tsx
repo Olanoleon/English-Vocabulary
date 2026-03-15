@@ -357,7 +357,7 @@ export default function AdminAreasPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-32">
-      <header className="mb-5 flex items-center justify-between">
+      <header className="mb-6 flex items-center justify-between">
         <button
           onClick={() => router.back()}
           className="flex size-10 items-center justify-center rounded-xl text-primary-600 hover:bg-primary-50"

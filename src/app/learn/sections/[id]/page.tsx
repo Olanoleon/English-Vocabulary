@@ -200,7 +200,7 @@ export default function SectionDetailPage({
       keepAccentWhenCompleted: true,
       completedIconBg: "bg-[#DCFCE7]",
       completedIconText: "text-[#15803D]",
-      completedAction: "bg-success-500 text-white hover:bg-success-600",
+      completedAction: "bg-[#BBF7D0] text-[#166534] hover:bg-[#86EFAC]",
       completedStatus: "bg-[#DCFCE7] text-[#166534]",
     },
   ];
@@ -224,7 +224,7 @@ export default function SectionDetailPage({
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur-md">
         <button
           onClick={() => router.push(backHref)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -273,96 +273,93 @@ export default function SectionDetailPage({
 
         {/* Module Cards */}
         <div className="space-y-4">
-          {modules.map((mod) => (
-            <div
-              key={mod.label}
-              className={cn(
-                "rounded-[28px] border p-5 shadow-sm transition-all",
-                mod.completed && !mod.keepAccentWhenCompleted
-                  ? "border-gray-100 bg-white"
-                  : mod.cardTint
-              )}
-            >
+          {modules.map((mod) => {
+            const isTestCard = mod.label === "Unit Test";
+            return (
               <div
-                className={cn("mb-4 h-1.5 w-16 rounded-full", mod.accentStrip)}
-              />
-              <div className="flex items-start gap-4">
-                <div
-                  className={cn(
-                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
-                    mod.completed
-                      ? (mod.completedIconBg ?? "bg-success-500")
-                      : mod.iconIdleBg
-                  )}
-                >
-                  {mod.completed ? (
-                    <CheckCircle2
+                key={mod.label}
+                className={cn(
+                  "rounded-[28px] border p-4 shadow-sm transition-all hover:shadow-md",
+                  isTestCard
+                    ? mod.cardTint
+                    : "border-slate-100 bg-white hover:border-primary-200"
+                )}
+              >
+                <div className="flex min-w-0 items-stretch justify-between gap-4">
+                  <div className="flex min-w-0 flex-[2_2_0px] flex-col justify-between py-1">
+                    <div>
+                      <div className="mb-1 flex items-start justify-between gap-2">
+                        <h3 className="overflow-hidden text-ellipsis whitespace-nowrap text-[20px] font-bold leading-[1.2] tracking-tight text-slate-900">
+                          {mod.label}
+                        </h3>
+                      </div>
+                      <p className="text-sm leading-snug text-slate-500">
+                        {mod.description}
+                      </p>
+                      {mod.extra ? (
+                        <p className="mt-1 text-xs font-semibold text-primary-700">
+                          {mod.extra}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      onClick={() => router.push(mod.href)}
                       className={cn(
-                        "w-5 h-5",
-                        mod.completedIconText ?? "text-white"
+                        "mt-4 inline-flex h-11 w-fit shrink-0 items-center justify-center gap-1 rounded-full px-5 text-base font-bold transition-colors",
+                        isTestCard
+                          ? mod.completed
+                            ? (mod.completedAction ?? mod.actionIdle)
+                            : mod.actionIdle
+                          : mod.completed
+                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            : "bg-primary-50 text-primary-600 hover:bg-primary-100"
                       )}
-                    />
-                  ) : (
-                    <mod.icon className={cn("w-5 h-5", mod.iconIdleText)} />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-lg font-bold text-gray-900">{mod.label}</h3>
-                    <div className="flex items-center gap-2">
-                      {mod.label === "Introduction" && introModule?.content && (
+                    >
+                      {mod.btnLabel}
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="shrink-0">
+                    <div
+                      className={cn(
+                        "relative h-24 w-24 overflow-hidden rounded-3xl",
+                        isTestCard
+                          ? (mod.completed
+                              ? mod.completedIconBg
+                              : mod.iconIdleBg)
+                          : "bg-primary-50"
+                      )}
+                    >
+                      <div className="flex h-full w-full items-center justify-center">
+                        {mod.completed ? (
+                          <CheckCircle2
+                            className={cn(
+                              "h-8 w-8",
+                              mod.completedIconText ?? "text-success-600"
+                            )}
+                          />
+                        ) : (
+                          <mod.icon
+                            className={cn(
+                              "h-8 w-8",
+                              isTestCard ? mod.iconIdleText : "text-primary-600"
+                            )}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    {mod.label === "Introduction" && introModule?.content && (
+                      <div className="mt-2 flex justify-center">
                         <ReadingDifficultyBadge
                           difficulty={introModule.content.readingDifficulty}
                         />
-                      )}
-                      {mod.extra && (
-                        <span
-                          className={cn(
-                            "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                            mod.extraPill ?? "bg-gray-100 text-gray-500 border-gray-200"
-                          )}
-                        >
-                          {mod.extra}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {mod.description}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-                        mod.completed
-                          ? (mod.completedStatus ?? "bg-success-50 text-success-700")
-                          : mod.statusIdle
-                      )}
-                    >
-                      {mod.completed
-                        ? mod.statusLabel === "Passed"
-                          ? "Passed"
-                          : "Completed"
-                        : mod.statusLabel ?? "Pending"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => router.push(mod.href)}
-                    className={cn(
-                      "mt-3 flex h-12 w-full items-center justify-center gap-1 rounded-2xl text-sm font-semibold transition-colors",
-                      mod.completed
-                        ? (mod.completedAction ??
-                            "bg-gray-100 text-gray-600 hover:bg-gray-200")
-                        : mod.actionIdle
+                      </div>
                     )}
-                  >
-                    {mod.btnLabel}
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

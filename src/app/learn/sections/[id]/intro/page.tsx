@@ -117,7 +117,7 @@ export default function IntroductionPage({
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur-md">
         <button
           onClick={() => router.push(`/learn/sections/${id}`)}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
@@ -129,31 +129,25 @@ export default function IntroductionPage({
           <h1 className="font-bold text-gray-900 text-sm">{section.title}</h1>
           <p className="text-xs text-gray-400">{section.titleEs} · Introduction</p>
         </div>
+        <ReadingDifficultyBadge difficulty={content?.readingDifficulty} />
       </div>
 
       <div className="space-y-6 px-4 py-6">
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-medium">
-            Introduction
-          </span>
-          <span className="bg-gray-100 text-gray-400 px-3 py-1 rounded-full text-xs font-medium">
-            Practice
-          </span>
-          <span className="bg-gray-100 text-gray-400 px-3 py-1 rounded-full text-xs font-medium">
-            Test
-          </span>
-        </div>
-
         {/* Reading Context */}
         {content?.readingText && (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2 flex items-center gap-2">
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Introduction
+              </h2>
+            </div>
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Reading Context
-                </h2>
-                <ReadingDifficultyBadge difficulty={content?.readingDifficulty} />
+                {content.readingTitle ? (
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {content.readingTitle}
+                  </h3>
+                ) : null}
               </div>
               <button
                 onClick={() => speak(content.readingText || "")}
@@ -163,11 +157,6 @@ export default function IntroductionPage({
                 Listen
               </button>
             </div>
-            {content.readingTitle && (
-              <h3 className="text-lg font-bold text-gray-900 mb-3">
-                {content.readingTitle}
-              </h3>
-            )}
             <div className="rounded-[28px] border border-gray-100 bg-white p-4 text-sm leading-relaxed text-gray-700 shadow-sm">
               {renderReadingText(content.readingText)}
             </div>
