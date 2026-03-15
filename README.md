@@ -2,6 +2,8 @@
 
 A mobile-optimized vocabulary practice app for Spanish speakers learning English. Built with Next.js 16, Prisma, and Neon PostgreSQL.
 
+For AI/session quick bootstrap context, read `CURSOR_CONTEXT.md` first.
+
 ## Features
 
 ### Learner Interface
