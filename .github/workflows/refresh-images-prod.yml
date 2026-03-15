@@ -132,6 +132,21 @@ jobs:
 
           exit ${EXIT_CODE}
 
+      - name: Dump npm debug logs
+        if: always()
+        shell: bash
+        run: |
+          if ls /home/runner/.npm/_logs/*-debug-0.log >/dev/null 2>&1; then
+            echo "Found npm debug logs:"
+            ls -lah /home/runner/.npm/_logs
+            for f in /home/runner/.npm/_logs/*-debug-0.log; do
+              echo "===== $f ====="
+              sed -n '1,240p' "$f"
+            done
+          else
+            echo "No npm debug logs found."
+          fi
+
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -139,3 +154,11 @@ jobs:
           name: prod-image-refresh-report
           path: reports/prod-image-refresh.json
           if-no-files-found: error
+
+      - name: Upload npm logs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-debug-logs
+          path: /home/runner/.npm/_logs/*-debug-0.log
+          if-no-files-found: warn
