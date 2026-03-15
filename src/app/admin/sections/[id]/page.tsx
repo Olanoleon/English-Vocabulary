@@ -48,6 +48,40 @@ interface Question {
   options: QuestionOption[];
 }
 
+interface MatchingPairPreview {
+  word: string;
+  definition: string;
+  spanish?: string;
+}
+
+const MATCHING_PREVIEW_COLOR_CLASSES = [
+  {
+    word: "border-blue-400 bg-blue-100 text-blue-900",
+    definition: "border-blue-400 bg-blue-100 text-slate-800",
+    spanish: "text-blue-700/70",
+  },
+  {
+    word: "border-purple-400 bg-purple-100 text-purple-900",
+    definition: "border-purple-400 bg-purple-100 text-slate-800",
+    spanish: "text-purple-700/70",
+  },
+  {
+    word: "border-amber-400 bg-amber-100 text-amber-900",
+    definition: "border-amber-400 bg-amber-100 text-slate-800",
+    spanish: "text-amber-700/70",
+  },
+  {
+    word: "border-teal-400 bg-teal-100 text-teal-900",
+    definition: "border-teal-400 bg-teal-100 text-slate-800",
+    spanish: "text-teal-700/70",
+  },
+  {
+    word: "border-rose-400 bg-rose-100 text-rose-900",
+    definition: "border-rose-400 bg-rose-100 text-slate-800",
+    spanish: "text-rose-700/70",
+  },
+];
+
 interface Module {
   id: string;
   type: string;
@@ -77,6 +111,99 @@ export default function SectionEditorPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  function parseMatchingPairs(correctAnswer: string | null): MatchingPairPreview[] {
+    if (!correctAnswer) return [];
+    try {
+      const parsed = JSON.parse(correctAnswer) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const candidate = row as Record<string, unknown>;
+          const word =
+            typeof candidate.word === "string" ? candidate.word.trim() : "";
+          const definition =
+            typeof candidate.definition === "string"
+              ? candidate.definition.trim()
+              : "";
+          const spanish =
+            typeof candidate.spanish === "string"
+              ? candidate.spanish.trim()
+              : "";
+          if (!word || !definition) return null;
+          return { word, definition, spanish: spanish || undefined };
+        })
+        .filter((pair): pair is MatchingPairPreview => Boolean(pair));
+    } catch {
+      return [];
+    }
+  }
+
+  function renderSolvedMatchingPreview(questionId: string, pairs: MatchingPairPreview[]) {
+    if (pairs.length === 0) {
+      return (
+        <p className="text-xs text-gray-500">
+          Could not preview matching pairs.
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-2.5">
+        <p className="text-xs text-gray-500">
+          Tap a word, then tap its definition to pair them
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Words
+            </p>
+            {pairs.map((pair, idx) => {
+              const palette =
+                MATCHING_PREVIEW_COLOR_CLASSES[idx % MATCHING_PREVIEW_COLOR_CLASSES.length];
+              return (
+                <div
+                  key={`${questionId}-word-${idx}`}
+                  className={cn(
+                    "rounded-2xl border-2 px-3 py-2 text-sm font-semibold",
+                    palette.word
+                  )}
+                >
+                  {pair.word} <span className="text-xs align-middle">✓</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Definitions
+            </p>
+            {pairs.map((pair, idx) => {
+              const palette =
+                MATCHING_PREVIEW_COLOR_CLASSES[idx % MATCHING_PREVIEW_COLOR_CLASSES.length];
+              return (
+                <div
+                  key={`${questionId}-def-${idx}`}
+                  className={cn(
+                    "rounded-2xl border-2 px-3 py-2 text-sm",
+                    palette.definition
+                  )}
+                >
+                  <p>{pair.definition}</p>
+                  {pair.spanish ? (
+                    <p className={cn("mt-1 italic text-xs", palette.spanish)}>
+                      {pair.spanish}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { id } = use(params);
   const router = useRouter();
   const [section, setSection] = useState<SectionDetail | null>(null);
@@ -706,10 +833,21 @@ export default function SectionEditorPage({
                             <p className="font-medium text-gray-900">
                               {q.prompt}
                             </p>
-                            {q.correctAnswer && (
+                            {q.type !== "matching" && q.correctAnswer && (
                               <p className="text-xs text-success-500 mt-1">
                                 Answer: {q.correctAnswer}
                               </p>
+                            )}
+                            {q.type === "matching" && (
+                              <div className="mt-2 rounded-lg border border-primary-100 bg-primary-50/40 p-2">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                                  Matching Pairs (Solved Preview)
+                                </p>
+                                {renderSolvedMatchingPreview(
+                                  q.id,
+                                  parseMatchingPairs(q.correctAnswer)
+                                )}
+                              </div>
                             )}
                             {q.options.length > 0 && (
                               <div className="mt-1 space-y-0.5">

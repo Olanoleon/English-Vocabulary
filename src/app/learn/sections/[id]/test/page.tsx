@@ -264,7 +264,7 @@ export default function TestPage({
           <LogoBadge logo={section?.imageUrl ?? null} size="sm" tone="primary" />
           <div>
             <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
-            {section?.titleEs && <p className="text-xs text-gray-400">{section.titleEs}</p>}
+            {section?.title && <p className="text-xs text-gray-400">{section.title}</p>}
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
@@ -459,7 +459,7 @@ export default function TestPage({
           <LogoBadge logo={section.imageUrl} size="sm" tone="primary" />
           <div>
             <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
-            <p className="text-xs text-gray-400">{section.titleEs}</p>
+            <p className="text-xs text-gray-400">{section.title}</p>
           </div>
         </div>
 
@@ -521,7 +521,7 @@ export default function TestPage({
         <div className="flex-1">
           <h1 className="font-bold text-gray-900 text-sm">Unit Test</h1>
           <p className="text-xs text-gray-400">
-            {section.titleEs} · Question {currentIndex + 1} of {questions.length}
+            {section.title} · Question {currentIndex + 1} of {questions.length}
           </p>
         </div>
         <button
