@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
 import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
 interface Vocabulary {
   id: string;
@@ -121,6 +122,9 @@ export default function SectionEditorPage({
   const [showRecreateModal, setShowRecreateModal] = useState(false);
   const [recreating, setRecreating] = useState(false);
   const [recreateError, setRecreateError] = useState("");
+  const [recreateIntroDifficulty, setRecreateIntroDifficulty] = useState<
+    "easy" | "medium" | "advanced"
+  >("medium");
   const [apiError, setApiError] = useState("");
 
   useEffect(() => {
@@ -140,9 +144,19 @@ export default function SectionEditorPage({
         setDescription(data.description || "");
         const introModule = data.modules.find((m) => m.type === "introduction");
         if (introModule?.content) {
-          const content = introModule.content as { readingTitle?: string; readingText?: string };
+          const content = introModule.content as {
+            readingTitle?: string;
+            readingText?: string;
+            readingDifficulty?: string;
+          };
           setReadingTitle(content.readingTitle || "");
           setReadingText(content.readingText || "");
+          const difficulty = String(content.readingDifficulty || "").toLowerCase();
+          setRecreateIntroDifficulty(
+            difficulty === "easy" || difficulty === "advanced"
+              ? difficulty
+              : "medium"
+          );
         }
       } else {
         const message = await readApiError(
@@ -207,6 +221,8 @@ export default function SectionEditorPage({
     try {
       const res = await fetch(`/api/admin/sections/${id}/recreate`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ introDifficulty: recreateIntroDifficulty }),
       });
       if (res.ok) {
         setShowRecreateModal(false);
@@ -913,8 +929,18 @@ export default function SectionEditorPage({
 
       {/* Recreate Unit Confirmation Modal */}
       {showRecreateModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+        <AppModal
+          open={showRecreateModal}
+          onClose={() => {
+            if (recreating) return;
+            setShowRecreateModal(false);
+            setRecreateError("");
+          }}
+          maxWidthClassName="max-w-sm"
+          showCloseButton={!recreating}
+          closeLabel="Close smart regenerate modal"
+        >
+          <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -929,6 +955,26 @@ export default function SectionEditorPage({
               Existing learner attempts/progress for this unit will be reset. This action is intended for content migrations and cannot be undone.
             </p>
 
+            <label className="mb-4 block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Intro text difficulty
+              </span>
+              <select
+                value={recreateIntroDifficulty}
+                onChange={(e) =>
+                  setRecreateIntroDifficulty(
+                    e.target.value as "easy" | "medium" | "advanced"
+                  )
+                }
+                disabled={recreating}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </label>
+
             {recreateError && (
               <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs mb-3">
                 {recreateError}
@@ -939,7 +985,10 @@ export default function SectionEditorPage({
               <button
                 onClick={recreateUnit}
                 disabled={recreating}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                className={cn(
+                  modalActionButtonClass.danger,
+                  "flex flex-1 items-center justify-center gap-2"
+                )}
               >
                 {recreating ? (
                   <>
@@ -959,14 +1008,14 @@ export default function SectionEditorPage({
                     setShowRecreateModal(false);
                     setRecreateError("");
                   }}
-                  className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                  className={modalActionButtonClass.secondary}
                 >
                   Cancel
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </AppModal>
       )}
     </div>
   );

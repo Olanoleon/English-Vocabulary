@@ -15,10 +15,10 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 import {
   DndContext,
   closestCenter,
@@ -745,20 +745,19 @@ export default function AreaUnitsPage({
       )}
 
       {showEditAreaModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <AppModal
+          open={showEditAreaModal}
+          onClose={() => setShowEditAreaModal(false)}
+          maxWidthClassName="max-w-sm"
+          showCloseButton
+          closeLabel="Close edit area modal"
+        >
           <form
             onSubmit={saveAreaEdits}
-            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+            className="w-full"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between pr-8">
               <h3 className="font-bold text-gray-900">Edit Area</h3>
-              <button
-                type="button"
-                onClick={() => setShowEditAreaModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
             <div className="space-y-3">
               <div>
@@ -801,7 +800,7 @@ export default function AreaUnitsPage({
               <button
                 type="submit"
                 disabled={savingArea}
-                className="flex-1 bg-primary-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 {savingArea ? "Saving..." : "Save Changes"}
               </button>
@@ -817,18 +816,22 @@ export default function AreaUnitsPage({
               <button
                 type="button"
                 onClick={() => setShowEditAreaModal(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
 
       {showDeleteAreaModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in">
+        <AppModal
+          open={showDeleteAreaModal}
+          onClose={() => setShowDeleteAreaModal(false)}
+          maxWidthClassName="max-w-sm"
+        >
+          <div>
             <h3 className="font-bold text-gray-900 mb-2">Delete Area</h3>
             <p className="text-sm text-gray-600 mb-1">
               Are you sure you want to delete <span className="font-semibold">{area.name}</span>?
@@ -840,20 +843,20 @@ export default function AreaUnitsPage({
               <button
                 onClick={deleteArea}
                 disabled={deletingArea}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.danger, "flex-1")}
               >
                 {deletingArea ? "Deleting..." : "Delete Area"}
               </button>
               <button
                 onClick={() => setShowDeleteAreaModal(false)}
                 disabled={deletingArea}
-                className="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </AppModal>
       )}
     </div>
   );

@@ -298,6 +298,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update section progress
+    let nextSectionId: string | null = null;
     if (sectionModule.type === "test") {
       await prisma.learnerSectionProgress.upsert({
         where: {
@@ -352,6 +353,7 @@ export async function POST(request: NextRequest) {
         const currentIndex = visibleAreaSections.findIndex((s) => s.id === sectionModule.sectionId);
         const nextSection =
           currentIndex >= 0 ? visibleAreaSections[currentIndex + 1] : null;
+        nextSectionId = nextSection?.id || null;
 
         if (nextSection) {
           await prisma.learnerSectionProgress.upsert({
@@ -402,6 +404,8 @@ export async function POST(request: NextRequest) {
       passed,
       correctCount: correctPoints,
       totalQuestions: totalPoints,
+      areaId: sectionModule.section.areaId,
+      nextSectionId,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";

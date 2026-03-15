@@ -51,11 +51,21 @@ export default function SectionDetailPage({
   const router = useRouter();
   const [section, setSection] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+  const [highlightInfoIcon, setHighlightInfoIcon] = useState(true);
 
   useEffect(() => {
     fetchSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!highlightInfoIcon) return;
+    const timeout = window.setTimeout(() => {
+      setHighlightInfoIcon(false);
+    }, 3000);
+    return () => window.clearTimeout(timeout);
+  }, [highlightInfoIcon]);
 
   async function fetchSection() {
     const res = await fetch(`/api/learn/sections/${id}?view=summary`);
@@ -246,9 +256,53 @@ export default function SectionDetailPage({
           <h1 className="truncate text-lg font-bold text-gray-900">{section.title}</h1>
           <p className="truncate text-xs text-gray-400">{section.titleEs}</p>
         </div>
-        <button className="ml-auto rounded-xl p-2 text-gray-400 hover:bg-gray-100">
-          <Info className="w-5 h-5" />
-        </button>
+        <div className="relative ml-auto">
+          <button
+            onClick={() => {
+              setHighlightInfoIcon(false);
+              setShowInfoTooltip((prev) => !prev);
+            }}
+            onBlur={() => {
+              setHighlightInfoIcon(false);
+              setShowInfoTooltip(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setShowInfoTooltip(false);
+              }
+            }}
+            aria-label="Mostrar información de la unidad"
+            aria-expanded={showInfoTooltip}
+            className={cn(
+              "rounded-xl p-2 transition-colors",
+              showInfoTooltip
+                ? "bg-primary-100 text-primary-700 ring-2 ring-primary-200"
+                : highlightInfoIcon
+                  ? "animate-pulse bg-primary-50 text-primary-600 ring-1 ring-primary-200 shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            )}
+          >
+            <Info className="w-5 h-5" />
+          </button>
+          {highlightInfoIcon && !showInfoTooltip && (
+            <>
+              <span className="pointer-events-none absolute -right-0.5 -top-0.5 text-[10px] text-primary-500 animate-pulse">
+                ✦
+              </span>
+              <span
+                className="pointer-events-none absolute -left-1 -bottom-0.5 text-[9px] text-primary-400 animate-pulse"
+                style={{ animationDelay: "280ms" }}
+              >
+                ✦
+              </span>
+            </>
+          )}
+          {showInfoTooltip && (
+            <div className="absolute right-0 top-12 z-30 w-64 rounded-2xl border border-primary-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg">
+              Completa la unidad en este orden: <span className="font-semibold text-slate-900">Introduction</span> - <span className="font-semibold text-slate-900">Practice</span> - <span className="font-semibold text-slate-900">Unit Test</span>. Necesitas <span className="font-semibold text-slate-900">80% o mas</span> en <span className="font-semibold text-slate-900">Unit Test</span> para pasar.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4 px-4 py-6">
@@ -289,9 +343,14 @@ export default function SectionDetailPage({
                   <div className="flex min-w-0 flex-[2_2_0px] flex-col justify-between py-1">
                     <div>
                       <div className="mb-1 flex items-start justify-between gap-2">
-                        <h3 className="overflow-hidden text-ellipsis whitespace-nowrap text-[20px] font-bold leading-[1.2] tracking-tight text-slate-900">
-                          {mod.label}
-                        </h3>
+                        <div className="flex min-w-0 items-center gap-2">
+                          {mod.completed ? (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" />
+                          ) : null}
+                          <h3 className="overflow-hidden text-ellipsis whitespace-nowrap text-[20px] font-bold leading-[1.2] tracking-tight text-slate-900">
+                            {mod.label}
+                          </h3>
+                        </div>
                       </div>
                       <p className="text-sm leading-snug text-slate-500">
                         {mod.description}
@@ -310,9 +369,7 @@ export default function SectionDetailPage({
                           ? mod.completed
                             ? (mod.completedAction ?? mod.actionIdle)
                             : mod.actionIdle
-                          : mod.completed
-                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            : "bg-primary-50 text-primary-600 hover:bg-primary-100"
+                          : "bg-primary-50 text-primary-600 hover:bg-primary-100"
                       )}
                     >
                       {mod.btnLabel}
@@ -331,7 +388,7 @@ export default function SectionDetailPage({
                       )}
                     >
                       <div className="flex h-full w-full items-center justify-center">
-                        {mod.completed ? (
+                        {isTestCard && mod.completed ? (
                           <CheckCircle2
                             className={cn(
                               "h-8 w-8",

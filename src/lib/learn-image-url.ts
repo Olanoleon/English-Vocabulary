@@ -59,7 +59,21 @@ export function resolveLearnAreaImageUrl(
 ): string {
   const resolved = normalizeLearnImageUrl(imageUrl);
   const normalizedName = String(areaName || "").toLowerCase();
+  const isLocalLibraryPath = resolved.startsWith("/images/library/");
   const staleHumanAvatar = HUMAN_AVATAR_PATHS.some((path) => resolved.includes(path));
+
+  const isComputerEngineeringArea =
+    normalizedName.includes("computer engineering") ||
+    normalizedName.includes("computer science") ||
+    normalizedName.includes("software engineering") ||
+    normalizedName.includes("programming") ||
+    normalizedName.includes("ingenieria en computacion") ||
+    normalizedName.includes("ingenieria de computacion") ||
+    normalizedName.includes("ciencias de la computacion");
+
+  if (isComputerEngineeringArea && !isLocalLibraryPath) {
+    return "/images/library/software.png";
+  }
 
   if (!staleHumanAvatar) return resolved;
 

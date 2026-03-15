@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, KeyRound, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Building2, KeyRound, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
 interface Organization {
   id: string;
@@ -502,20 +503,19 @@ export default function OrgsPage() {
       )}
 
       {showCreateOrgModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <AppModal
+          open={showCreateOrgModal}
+          onClose={() => setShowCreateOrgModal(false)}
+          maxWidthClassName="max-w-sm"
+          showCloseButton
+          closeLabel="Close create organization modal"
+        >
           <form
             onSubmit={createOrg}
-            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
+            className="w-full space-y-3"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pr-8">
               <h3 className="font-bold text-gray-900">Create Organization</h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateOrgModal(false)}
-                className="rounded p-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
             <input
               type="text"
@@ -538,27 +538,34 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 {saving ? "Creating..." : "Create"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateOrgModal(false)}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
 
       {resetAdminTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <AppModal
+          open={Boolean(resetAdminTarget)}
+          onClose={() => {
+            setResetAdminTarget(null);
+            setResetAdminPassword("");
+          }}
+          maxWidthClassName="max-w-sm"
+        >
           <form
             onSubmit={resetOrgAdminPassword}
-            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
+            className="w-full space-y-3"
           >
             <h3 className="font-bold text-gray-900">Reset Org Admin Password</h3>
             <p className="text-xs text-gray-500">
@@ -577,7 +584,7 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={resettingAdminPassword}
-                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 {resettingAdminPassword ? "Updating..." : "Update Password"}
               </button>
@@ -587,20 +594,24 @@ export default function OrgsPage() {
                   setResetAdminTarget(null);
                   setResetAdminPassword("");
                 }}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <AppModal
+          open={Boolean(editing)}
+          onClose={() => setEditing(null)}
+          maxWidthClassName="max-w-sm"
+        >
           <form
             onSubmit={saveEdit}
-            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
+            className="w-full space-y-3"
           >
             <h3 className="font-bold text-gray-900">Edit Organization</h3>
             <input
@@ -635,20 +646,20 @@ export default function OrgsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
     </div>
   );

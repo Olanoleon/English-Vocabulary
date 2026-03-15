@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
 interface QuestionOption {
   id: string;
@@ -36,6 +37,7 @@ interface Question {
 
 interface SectionData {
   id: string;
+  areaId: string;
   title: string;
   titleEs: string;
   imageUrl: string | null;
@@ -80,6 +82,8 @@ export default function TestPage({
     passed: boolean;
     correctCount: number;
     totalQuestions: number;
+    areaId?: string;
+    nextSectionId?: string | null;
   } | null>(null);
   const [showAbortModal, setShowAbortModal] = useState(false);
   const [hasLastAttempt, setHasLastAttempt] = useState(false);
@@ -343,7 +347,13 @@ export default function TestPage({
             </button>
             {result.passed ? (
               <button
-                onClick={() => router.push("/learn")}
+                onClick={() => {
+                  const areaTarget = result.areaId || section.areaId;
+                  const focusQuery = result.nextSectionId
+                    ? `?focusSectionId=${encodeURIComponent(result.nextSectionId)}`
+                    : "";
+                  router.push(`/learn/areas/${areaTarget}${focusQuery}`);
+                }}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary-600 font-semibold text-white transition-colors hover:bg-primary-700"
               >
                 Continue Learning
@@ -381,6 +391,46 @@ export default function TestPage({
             )}
           </div>
         </div>
+        {result.passed && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {Array.from({ length: 42 }).map((_, i) => {
+              const left = (i * 17) % 100;
+              const delay = (i % 10) * 90;
+              const duration = 1200 + (i % 6) * 140;
+              const size = 6 + (i % 4);
+              const hue = (i * 37) % 360;
+              return (
+                <span
+                  key={i}
+                  className="absolute top-[-12px] rounded-sm"
+                  style={{
+                    left: `${left}%`,
+                    width: `${size}px`,
+                    height: `${size * 1.6}px`,
+                    backgroundColor: `hsl(${hue} 90% 55%)`,
+                    transform: `rotate(${(i * 23) % 360}deg)`,
+                    animation: `confetti-fall ${duration}ms ease-out ${delay}ms forwards`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+        <style jsx>{`
+          @keyframes confetti-fall {
+            0% {
+              opacity: 0;
+              transform: translateY(-20px) rotate(0deg);
+            }
+            15% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+              transform: translateY(110vh) rotate(620deg);
+            }
+          }
+        `}</style>
       </div>
     );
   }
@@ -485,8 +535,12 @@ export default function TestPage({
 
       {/* Abort Confirmation Modal */}
       {showAbortModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="animate-scale-in w-full max-w-sm rounded-[28px] bg-white p-6">
+        <AppModal
+          open={showAbortModal}
+          onClose={() => setShowAbortModal(false)}
+          maxWidthClassName="max-w-sm"
+        >
+          <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -505,19 +559,19 @@ export default function TestPage({
             <div className="flex gap-2">
               <button
                 onClick={() => router.push(`/learn/sections/${id}`)}
-                className="flex-1 rounded-2xl bg-red-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                className={cn(modalActionButtonClass.danger, "flex-1")}
               >
                 Quit Test
               </button>
               <button
                 onClick={() => setShowAbortModal(false)}
-                className="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+                className={modalActionButtonClass.secondary}
               >
                 Continue
               </button>
             </div>
           </div>
-        </div>
+        </AppModal>
       )}
 
       {/* Progress bar */}

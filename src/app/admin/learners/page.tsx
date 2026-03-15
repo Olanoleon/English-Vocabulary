@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ToastMessage } from "@/components/toast-message";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
 interface Learner {
   id: string;
@@ -750,10 +751,17 @@ export default function LearnersPage() {
       )}
 
       {resetTarget && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <AppModal
+          open={Boolean(resetTarget)}
+          onClose={() => {
+            setResetTarget(null);
+            setResetPassword("");
+          }}
+          maxWidthClassName="max-w-sm"
+        >
           <form
             onSubmit={resetLearnerPassword}
-            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
+            className="w-full space-y-3"
           >
             <h3 className="font-bold text-gray-900">Reset Learner Password</h3>
             <p className="text-xs text-gray-500">
@@ -772,7 +780,7 @@ export default function LearnersPage() {
               <button
                 type="submit"
                 disabled={resetting}
-                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 {resetting ? "Updating..." : "Update Password"}
               </button>
@@ -782,20 +790,27 @@ export default function LearnersPage() {
                   setResetTarget(null);
                   setResetPassword("");
                 }}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
 
       {reassignTarget && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <AppModal
+          open={Boolean(reassignTarget)}
+          onClose={() => {
+            setReassignTarget(null);
+            setReassignOrgId("");
+          }}
+          maxWidthClassName="max-w-sm"
+        >
           <form
             onSubmit={reassignLearnerOrganization}
-            className="animate-scale-in w-full max-w-sm space-y-3 rounded-[28px] bg-white p-6"
+            className="w-full space-y-3"
           >
             <h3 className="font-bold text-gray-900">Change Learner Organization</h3>
             <p className="text-xs text-gray-500">
@@ -818,7 +833,7 @@ export default function LearnersPage() {
               <button
                 type="submit"
                 disabled={reassigning}
-                className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                className={cn(modalActionButtonClass.primary, "flex-1")}
               >
                 {reassigning ? "Updating..." : "Update Organization"}
               </button>
@@ -828,13 +843,13 @@ export default function LearnersPage() {
                   setReassignTarget(null);
                   setReassignOrgId("");
                 }}
-                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
+                className={modalActionButtonClass.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
-        </div>
+        </AppModal>
       )}
     </div>
   );

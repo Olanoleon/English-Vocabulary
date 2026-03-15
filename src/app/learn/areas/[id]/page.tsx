@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Lock,
@@ -60,6 +60,8 @@ export default function AreaLearningPathPage({
 }) {
   const { id: areaId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const focusSectionId = searchParams.get("focusSectionId");
   const [area, setArea] = useState<AreaInfo | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,17 @@ export default function AreaLearningPathPage({
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areaId]);
+  }, [areaId, focusSectionId]);
+
+  useEffect(() => {
+    if (!focusSectionId || sections.length === 0) return;
+    const target = document.getElementById(`section-card-${focusSectionId}`);
+    if (!target) return;
+    const raf = window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [focusSectionId, sections]);
 
   async function fetchAreas() {
     return loadAreasWithCache<AreaInfo[]>(async () => {
@@ -79,20 +91,25 @@ export default function AreaLearningPathPage({
     });
   }
 
-  async function fetchSections() {
-    return loadAreaSectionsWithCache<Section[]>(areaId, async () => {
+  async function fetchSections(forceFresh = false) {
+    const fetcher = async () => {
       const res = await fetch(`/api/learn/sections?areaId=${areaId}`);
       if (!res.ok) {
         throw new Error("Failed to load area sections");
       }
       return (await res.json()) as Section[];
-    });
+    };
+    if (forceFresh) {
+      return loadAreaSectionsWithCache<Section[]>(areaId, fetcher, 0);
+    }
+    return loadAreaSectionsWithCache<Section[]>(areaId, fetcher);
   }
 
   async function fetchData() {
+    const shouldForceFresh = Boolean(focusSectionId);
     const cachedSections = getCachedAreaSections<Section[]>(areaId);
     const cachedAreas = getCachedAreas<AreaInfo[]>();
-    if (cachedSections) {
+    if (cachedSections && !shouldForceFresh) {
       setSections(cachedSections);
       setLoading(false);
     }
@@ -101,7 +118,7 @@ export default function AreaLearningPathPage({
     }
 
     const [sectionsResult, areasResult] = await Promise.allSettled([
-      fetchSections(),
+      fetchSections(shouldForceFresh),
       fetchAreas(),
     ]);
 
@@ -245,7 +262,11 @@ export default function AreaLearningPathPage({
             const completion = getCompletionPercent(section.progress);
 
             return (
-              <div key={section.id} className="relative animate-fade-in">
+              <div
+                key={section.id}
+                id={`section-card-${section.id}`}
+                className="relative animate-fade-in"
+              >
                 {status === "locked" ? (
                   <div className="relative min-h-[116px] overflow-hidden rounded-[28px] border border-primary-100 bg-primary-50/15 p-4 shadow-sm">
                     <div className="flex items-center gap-3">

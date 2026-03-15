@@ -12,6 +12,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppModal, modalActionButtonClass } from "@/components/app-modal";
 
 type PaymentStatus = "free_trial" | "settled" | "past_due";
 
@@ -146,8 +147,8 @@ function RecordPaymentForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center animate-fade-in">
-      <div className="animate-scale-in w-full max-w-md rounded-t-[28px] bg-white p-5 sm:rounded-[28px]">
+    <AppModal open onClose={onClose} maxWidthClassName="max-w-md">
+      <div>
         <h3 className="text-lg font-bold text-gray-900 mb-1">
           Record Payment
         </h3>
@@ -189,21 +190,21 @@ function RecordPaymentForm({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-2xl bg-green-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              className={cn(modalActionButtonClass.primary, "flex-1")}
             >
               {saving ? "Saving..." : "Record Payment"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+              className={modalActionButtonClass.secondary}
             >
               Cancel
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </AppModal>
   );
 }
 
@@ -240,8 +241,8 @@ function EditRateForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center animate-fade-in">
-      <div className="animate-scale-in w-full max-w-md rounded-t-[28px] bg-white p-5 sm:rounded-[28px]">
+    <AppModal open onClose={onClose} maxWidthClassName="max-w-md">
+      <div>
         <h3 className="text-lg font-bold text-gray-900 mb-1">
           Set Monthly Rate
         </h3>
@@ -270,21 +271,21 @@ function EditRateForm({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-2xl bg-primary-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+              className={cn(modalActionButtonClass.primary, "flex-1")}
             >
               {saving ? "Saving..." : "Update Rate"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+              className={modalActionButtonClass.secondary}
             >
               Cancel
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </AppModal>
   );
 }
 

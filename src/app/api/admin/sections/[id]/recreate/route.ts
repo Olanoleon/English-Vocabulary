@@ -141,7 +141,7 @@ MATCHING QUESTION (generate exactly 1 per module when the user prompt specifies 
 - options: [] (empty array)`;
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -174,6 +174,16 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    let requestedIntroDifficulty: string | null = null;
+    try {
+      const body = (await request.json()) as { introDifficulty?: unknown };
+      if (typeof body.introDifficulty === "string") {
+        requestedIntroDifficulty = body.introDifficulty.trim().toLowerCase();
+      }
+    } catch {
+      // Allow empty body to preserve existing behavior.
+    }
+
     const introModule = section.modules.find((m) => m.type === "introduction");
     const practiceModule = section.modules.find((m) => m.type === "practice");
     const testModule = section.modules.find((m) => m.type === "test");
@@ -190,10 +200,12 @@ export async function POST(
         ?.readingDifficulty || "medium")
     ).toLowerCase();
     const introDifficulty = ["easy", "medium", "advanced"].includes(
-      normalizedDifficulty
+      requestedIntroDifficulty || ""
     )
-      ? normalizedDifficulty
-      : "medium";
+      ? (requestedIntroDifficulty as "easy" | "medium" | "advanced")
+      : ["easy", "medium", "advanced"].includes(normalizedDifficulty)
+        ? normalizedDifficulty
+        : "medium";
 
     const difficultyGuidance =
       introDifficulty === "easy"

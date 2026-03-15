@@ -93,7 +93,7 @@ export default function IntroductionPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sectionId: id, type: "intro" }),
     });
-    router.push(`/learn/sections/${id}`);
+    router.push(`/learn/sections/${id}/practice`);
   }
 
   if (loading) {
