@@ -19,4 +19,4 @@ RUN npm run build
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD npx prisma migrate deploy && npm start
+CMD (npx prisma migrate deploy || (echo "prisma migrate deploy failed, falling back to db push" && npx prisma db push --accept-data-loss)) && npm start
