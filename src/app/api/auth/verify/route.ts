@@ -119,6 +119,9 @@ export async function POST(request: NextRequest) {
     session.activeRole = result.role;
     session.displayName = result.displayName;
     session.organizationId = result.organizationId || null;
+    session.loginChallengeToken = undefined;
+    session.loginChallengeUserId = undefined;
+    session.loginChallengeExpiresAt = undefined;
     session.isLoggedIn = true;
     await session.save();
 

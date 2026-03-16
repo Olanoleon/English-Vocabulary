@@ -5,7 +5,10 @@ import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
-import { replicateTemplateAreaToAllOrgs } from "@/lib/template-replication";
+import {
+  replicateTemplateAreaToAllOrgs,
+  replicateTemplatesToOrg,
+} from "@/lib/template-replication";
 
 function getOpenAIKey(): string {
   try {
@@ -113,6 +116,12 @@ export async function GET(request: NextRequest) {
           replicationPending: true,
           templateAreaId: templateArea.id,
         }));
+
+      if (pendingTemplateCards.length > 0 && session.organizationId) {
+        void replicateTemplatesToOrg(session.organizationId).catch((replicationError) => {
+          console.error("Org template bootstrap replication failed:", replicationError);
+        });
+      }
 
       return NextResponse.json([...orgAreas, ...pendingTemplateCards]);
     }

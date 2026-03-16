@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
-import { replicateTemplateSectionToAllOrgs } from "@/lib/template-replication";
+import {
+  ensureOrgSectionFromTemplateForOrg,
+  replicateTemplateSectionToAllOrgs,
+} from "@/lib/template-replication";
 
 function isTemplateArea(area: {
   isTemplate?: boolean;
@@ -108,6 +111,19 @@ export async function GET(request: NextRequest) {
             replicationPending: true,
             sourceTemplateId: templateSection.id,
           }));
+
+        if (pendingSections.length > 0) {
+          const missingTemplateSectionIds = pendingSections.map(
+            (section) => section.sourceTemplateId
+          );
+          void Promise.all(
+            missingTemplateSectionIds.map((templateSectionId) =>
+              ensureOrgSectionFromTemplateForOrg(templateSectionId, targetOrgId)
+            )
+          ).catch((replicationError) => {
+            console.error("Org section bootstrap replication failed:", replicationError);
+          });
+        }
 
         const mergedSections = [...sections, ...pendingSections].sort(
           (a, b) => a.sortOrder - b.sortOrder

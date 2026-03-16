@@ -298,6 +298,15 @@ export default function AdminAreasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!areas.some((area) => area.replicationPending)) return;
+    const timer = window.setTimeout(() => {
+      void fetchAreas();
+    }, 2500);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areas]);
+
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string);
   }

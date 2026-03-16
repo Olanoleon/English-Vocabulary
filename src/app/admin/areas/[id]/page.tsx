@@ -260,6 +260,15 @@ export default function AreaUnitsPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaId]);
 
+  useEffect(() => {
+    if (!sections.some((section) => section.replicationPending)) return;
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 2500);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, areaId]);
+
   async function readApiError(res: Response, fallback: string) {
     try {
       const data = (await res.json()) as { error?: unknown };

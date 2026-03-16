@@ -161,15 +161,10 @@ export async function POST(request: NextRequest) {
       }
 
       const existingOrgAdminMembership = await tx.userRoleMembership.findFirst({
-        where: { userId: user.id, role: "org_admin" },
+        where: { userId: user.id, role: "org_admin", organizationId },
         select: { id: true },
       });
-      if (existingOrgAdminMembership) {
-        await tx.userRoleMembership.update({
-          where: { id: existingOrgAdminMembership.id },
-          data: { organizationId },
-        });
-      } else {
+      if (!existingOrgAdminMembership) {
         await tx.userRoleMembership.create({
           data: {
             userId: user.id,

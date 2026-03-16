@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 import { prisma } from "@/lib/db";
 import { SessionData, sessionOptions } from "@/lib/auth";
-import { consumeLoginChallenge } from "@/lib/login-challenge";
 import { createVerificationCode } from "@/lib/verification";
 import { sendVerificationCode } from "@/lib/email";
 import { isAdminRole } from "@/lib/roles";
@@ -17,16 +16,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const challenge = consumeLoginChallenge(String(challengeToken));
-    if (!challenge) {
+    const response = NextResponse.next();
+    const session = await getIronSession<SessionData>(request, response, sessionOptions);
+    const challengeExpired =
+      !session.loginChallengeExpiresAt || Date.now() > session.loginChallengeExpiresAt;
+    const isChallengeValid =
+      session.loginChallengeToken === String(challengeToken) &&
+      !challengeExpired &&
+      !!session.loginChallengeUserId;
+
+    if (!isChallengeValid) {
       return NextResponse.json(
         { error: "Login session expired. Please sign in again." },
         { status: 401 }
       );
     }
 
+    const challengeUserId = String(session.loginChallengeUserId);
+
     const user = await prisma.user.findUnique({
-      where: { id: challenge.userId },
+      where: { id: challengeUserId },
       select: {
         id: true,
         username: true,
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
     const membership = await prisma.userRoleMembership.findFirst({
       where: {
         id: String(membershipId),
-        userId: challenge.userId,
+        userId: challengeUserId,
       },
       select: {
         id: true,
@@ -77,22 +86,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const response = NextResponse.json({
+    const loginResponse = NextResponse.json({
       success: true,
       role: membership.role,
       activeRole: membership.role,
       displayName: user.displayName,
     });
-    const session = await getIronSession<SessionData>(request, response, sessionOptions);
-    session.userId = user.id;
-    session.username = user.username;
-    session.role = membership.role;
-    session.activeRole = membership.role;
-    session.displayName = user.displayName;
-    session.organizationId = membership.organizationId;
-    session.isLoggedIn = true;
-    await session.save();
-    return response;
+    const loginSession = await getIronSession<SessionData>(
+      request,
+      loginResponse,
+      sessionOptions
+    );
+    loginSession.userId = user.id;
+    loginSession.username = user.username;
+    loginSession.role = membership.role;
+    loginSession.activeRole = membership.role;
+    loginSession.displayName = user.displayName;
+    loginSession.organizationId = membership.organizationId;
+    loginSession.loginChallengeToken = undefined;
+    loginSession.loginChallengeUserId = undefined;
+    loginSession.loginChallengeExpiresAt = undefined;
+    loginSession.isLoggedIn = true;
+    await loginSession.save();
+    return loginResponse;
   } catch (error) {
     console.error("Select role error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -10,6 +10,9 @@ export interface SessionData {
   activeRole: string;
   displayName: string;
   organizationId?: string | null;
+  loginChallengeToken?: string;
+  loginChallengeUserId?: string;
+  loginChallengeExpiresAt?: number;
   isLoggedIn: boolean;
 }
 

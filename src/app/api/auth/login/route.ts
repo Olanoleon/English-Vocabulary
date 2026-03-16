@@ -5,9 +5,9 @@ import { prisma } from "@/lib/db";
 import { SessionData, sessionOptions } from "@/lib/auth";
 import { createVerificationCode } from "@/lib/verification";
 import { sendVerificationCode } from "@/lib/email";
-import { createLoginChallenge } from "@/lib/login-challenge";
 import { isAdminRole, normalizeEmail } from "@/lib/roles";
 import { getUserMemberships } from "@/lib/user-memberships";
+import crypto from "crypto";
 
 function isMissingEmailColumnError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -82,8 +82,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (effectiveMemberships.length > 1) {
-      const challengeToken = createLoginChallenge(user.id);
-      return NextResponse.json({
+      const challengeToken = crypto.randomBytes(24).toString("hex");
+      const challengeExpiresAt = Date.now() + 5 * 60 * 1000;
+      const response = NextResponse.json({
         requireRoleSelection: true,
         challengeToken,
         memberships: effectiveMemberships.map((m) => ({
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
           organizationName: m.organizationName,
         })),
       });
+      const session = await getIronSession<SessionData>(request, response, sessionOptions);
+      session.loginChallengeToken = challengeToken;
+      session.loginChallengeUserId = user.id;
+      session.loginChallengeExpiresAt = challengeExpiresAt;
+      await session.save();
+      return response;
     }
 
     const selected = effectiveMemberships[0];
