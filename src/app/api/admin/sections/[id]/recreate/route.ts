@@ -6,6 +6,10 @@ import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
 import { SECTION_GENERATION_SYSTEM_PROMPT } from "@/lib/section-generation-prompt";
+import {
+  ensureOrgSectionFromTemplateForOrg,
+  replicateTemplateSectionToAllOrgs,
+} from "@/lib/template-replication";
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -236,13 +240,14 @@ export async function POST(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
 
     const section = await prisma.section.findUnique({
       where: { id },
       include: {
         modules: true,
-        area: { select: { scopeType: true, organizationId: true } },
+        area: { select: { scopeType: true, organizationId: true, isTemplate: true } },
         sectionVocabulary: {
           include: { vocabulary: true },
           orderBy: { sortOrder: "asc" },
@@ -253,39 +258,78 @@ export async function POST(
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
-    if (
-      session.role === "org_admin" &&
-      !(
-        section.organizationId === session.organizationId ||
-        (section.area.scopeType === "org" &&
-          section.area.organizationId === session.organizationId)
-      )
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    let targetSectionId = id;
+    let effectiveSection = section;
+    const isTemplate =
+      Boolean(section.isTemplate) ||
+      (section.area.scopeType === "global" && !section.area.organizationId);
+    if (activeRole === "org_admin" && section.organizationId !== session.organizationId) {
+      if (!session.organizationId || !isTemplate) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const copyId = await ensureOrgSectionFromTemplateForOrg(id, session.organizationId);
+      if (!copyId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const copied = await prisma.section.findUnique({
+        where: { id: copyId },
+        include: {
+          modules: true,
+          area: { select: { scopeType: true, organizationId: true, isTemplate: true } },
+          sectionVocabulary: {
+            include: { vocabulary: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      });
+      if (!copied) {
+        return NextResponse.json({ error: "Section not found" }, { status: 404 });
+      }
+      targetSectionId = copyId;
+      effectiveSection = copied;
     }
 
     let requestedIntroDifficulty: string | null = null;
+    let requestedWordCount: number | null = null;
+    let requestedSectionTitle: string | null = null;
     try {
-      const body = (await request.json()) as { introDifficulty?: unknown };
+      const body = (await request.json()) as {
+        introDifficulty?: unknown;
+        wordCount?: unknown;
+        sectionTitle?: unknown;
+      };
       if (typeof body.introDifficulty === "string") {
         requestedIntroDifficulty = body.introDifficulty.trim().toLowerCase();
+      }
+      if (typeof body.wordCount === "number" && Number.isFinite(body.wordCount)) {
+        requestedWordCount = Math.round(body.wordCount);
+      } else if (typeof body.wordCount === "string" && body.wordCount.trim()) {
+        const parsed = Number.parseInt(body.wordCount, 10);
+        if (Number.isFinite(parsed)) requestedWordCount = parsed;
+      }
+      if (typeof body.sectionTitle === "string" && body.sectionTitle.trim()) {
+        requestedSectionTitle = body.sectionTitle.trim();
       }
     } catch {
       // Allow empty body to preserve existing behavior.
     }
 
-    const introModule = section.modules.find((m) => m.type === "introduction");
-    const practiceModule = section.modules.find((m) => m.type === "practice");
-    const testModule = section.modules.find((m) => m.type === "test");
+    const introModule = effectiveSection.modules.find((m) => m.type === "introduction");
+    const practiceModule = effectiveSection.modules.find((m) => m.type === "practice");
+    const testModule = effectiveSection.modules.find((m) => m.type === "test");
     if (!introModule || !practiceModule || !testModule) {
       return NextResponse.json(
         { error: "Section is missing introduction/practice/test modules" },
         { status: 400 }
       );
     }
-    const sectionModuleIds = section.modules.map((m) => m.id);
+    const sectionModuleIds = effectiveSection.modules.map((m) => m.id);
 
-    const currentWordCount = Math.max(section.sectionVocabulary.length, 5);
+    const currentWordCount = Math.max(
+      1,
+      Math.min(60, requestedWordCount ?? effectiveSection.sectionVocabulary.length)
+    );
+    const promptSectionTitle = requestedSectionTitle || effectiveSection.title;
     const normalizedDifficulty = String(
       ((introModule.content as { readingDifficulty?: string } | null)
         ?.readingDifficulty || "medium")
@@ -304,6 +348,12 @@ export async function POST(
         : introDifficulty === "advanced"
         ? "Advanced: longer and more varied sentence structures, richer connectors, nuanced context, and more complex discourse flow."
         : "Medium: moderate sentence length, mixed simple/complex structures, natural conversational-academic balance.";
+    const vocabularyDifficultyGuidance =
+      introDifficulty === "easy"
+        ? "Vocabulary difficulty target: mostly A1-A2 words. Prefer highly frequent, concrete, and immediately useful terms. Avoid low-frequency or highly technical words."
+        : introDifficulty === "advanced"
+        ? "Vocabulary difficulty target: B2-C1 words. Prefer more nuanced, less frequent, and context-rich terms that are still clearly connected to the topic."
+        : "Vocabulary difficulty target: mostly B1 words. Prefer practical vocabulary with moderate lexical richness and variety.";
 
     const practiceCount = Math.min(currentWordCount * 2, 20);
     const testCount = Math.min(
@@ -326,12 +376,14 @@ export async function POST(
 
     const content = await callOpenAI(
       SYSTEM_PROMPT,
-      `Generate a complete vocabulary section for the topic: "${section.title}"
+      `Generate a complete vocabulary section for the topic: "${promptSectionTitle}"
 Number of vocabulary words: ${currentWordCount}
 Required regular practice questions: exactly ${practiceRegularCount}
 Required regular test questions: exactly ${testRegularCount}${matchingInstruction}
 Introduction reading difficulty: ${introDifficulty}
 Difficulty style guidance: ${difficultyGuidance}
+Apply this same difficulty level to vocabulary selection as well.
+${vocabularyDifficultyGuidance}
 
 Return the JSON object now.`
     );
@@ -347,7 +399,11 @@ Return the JSON object now.`
 
     try {
       const parsed = JSON.parse(content);
-      generated = normalizeGeneratedPayload(parsed, section.title, section.titleEs);
+      generated = normalizeGeneratedPayload(
+        parsed,
+        effectiveSection.title,
+        effectiveSection.titleEs
+      );
     } catch {
       return NextResponse.json(
         { error: "AI returned invalid JSON. Please try again." },
@@ -362,7 +418,9 @@ Return the JSON object now.`
       );
     }
 
-    const oldVocabularyIds = section.sectionVocabulary.map((sv) => sv.vocabulary.id);
+    const oldVocabularyIds = effectiveSection.sectionVocabulary.map(
+      (sv) => sv.vocabulary.id
+    );
     const imageUrl = await getUnitImageByTitle(generated.title, {
       kind: "section",
     });
@@ -376,7 +434,7 @@ Return the JSON object now.`
           where: { moduleId: { in: sectionModuleIds } },
         });
         await tx.learnerSectionProgress.updateMany({
-          where: { sectionId: id },
+          where: { sectionId: targetSectionId },
           data: {
             introCompleted: false,
             practiceCompleted: false,
@@ -386,12 +444,17 @@ Return the JSON object now.`
         });
 
         await tx.section.update({
-          where: { id },
+          where: { id: targetSectionId },
           data: {
             title: generated.title,
             titleEs: generated.titleEs,
             description: generated.description || "",
             imageUrl,
+            ...(activeRole === "org_admin"
+              ? { isCustomized: true }
+              : isTemplate
+                ? { sourceVersion: { increment: 1 } }
+                : {}),
           },
         });
 
@@ -406,7 +469,7 @@ Return the JSON object now.`
           },
         });
 
-        await tx.sectionVocabulary.deleteMany({ where: { sectionId: id } });
+        await tx.sectionVocabulary.deleteMany({ where: { sectionId: targetSectionId } });
         if (oldVocabularyIds.length > 0) {
           await tx.vocabulary.deleteMany({ where: { id: { in: oldVocabularyIds } } });
         }
@@ -423,7 +486,7 @@ Return the JSON object now.`
               stressedSyllable: v.stressedSyllable || null,
               sectionVocabulary: {
                 create: {
-                  sectionId: id,
+                  sectionId: targetSectionId,
                   sortOrder: i + 1,
                 },
               },
@@ -505,12 +568,21 @@ Return the JSON object now.`
       }
     );
 
+    const replicationQueued = activeRole !== "org_admin" && isTemplate;
+    if (replicationQueued) {
+      // Fire-and-forget so recreate returns immediately.
+      void replicateTemplateSectionToAllOrgs(targetSectionId).catch((replicationError) => {
+        console.error("Template replication after recreate failed:", replicationError);
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      sectionId: id,
+      sectionId: targetSectionId,
       wordCount: generated.vocabulary.length,
       practiceQuestionCount: generated.practiceQuestions?.length || 0,
       testQuestionCount: generated.testQuestions?.length || 0,
+      replicationQueued,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";

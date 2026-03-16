@@ -24,10 +24,8 @@ export async function PUT(request: NextRequest) {
       const scopedAreas = await prisma.area.findMany({
         where: {
           id: { in: orderedIds },
-          OR: [
-            { scopeType: "global" },
-            { scopeType: "org", organizationId: targetOrgId },
-          ],
+          scopeType: "org",
+          organizationId: targetOrgId,
         },
         select: { id: true },
       });

@@ -115,10 +115,13 @@ export async function GET(
     // Ensure section is visible in this user's org scope.
     const scopeAllowed =
       section.area.isActive &&
-      (section.area.scopeType === "global" ||
-        (orgId !== null &&
-          section.area.scopeType === "org" &&
-          section.area.organizationId === orgId));
+      (orgId
+        ? section.area.scopeType === "org" &&
+          section.area.organizationId === orgId &&
+          section.organizationId === orgId
+        : section.area.scopeType === "global" &&
+          section.area.organizationId === null &&
+          section.organizationId === null);
     if (!scopeAllowed || !section.isActive) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }

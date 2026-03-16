@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin, requireSuperAdmin } from "@/lib/auth";
+import { replicateTemplatesToOrg } from "@/lib/template-replication";
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,6 +67,8 @@ export async function POST(request: NextRequest) {
         isActive: true,
       },
     });
+
+    await replicateTemplatesToOrg(org.id);
 
     return NextResponse.json(org, { status: 201 });
   } catch (error: unknown) {

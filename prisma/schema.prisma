@@ -81,13 +81,20 @@ model Area {
   imageUrl    String?   @map("image_url")
   sortOrder   Int       @map("sort_order")
   isActive    Boolean   @default(true) @map("is_active")
+  isTemplate  Boolean   @default(false) @map("is_template")
+  sourceTemplateId String? @map("source_template_id")
+  sourceVersion Int @default(1) @map("source_version")
+  isCustomized Boolean @default(false) @map("is_customized")
   scopeType   String    @default("global") @map("scope_type") // "global" | "org"
   organizationId String? @map("organization_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   sections    Section[]
+  sourceTemplate Area? @relation("AreaTemplateCopies", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  templateCopies Area[] @relation("AreaTemplateCopies")
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   orgConfigs   OrganizationAreaConfig[]
 
+  @@index([sourceTemplateId])
   @@map("areas")
 }
 
@@ -99,6 +106,10 @@ model Section {
   imageUrl          String?                  @map("image_url")
   sortOrder         Int                      @map("sort_order")
   isActive          Boolean                  @default(true) @map("is_active")
+  isTemplate        Boolean                  @default(false) @map("is_template")
+  sourceTemplateId  String?                  @map("source_template_id")
+  sourceVersion     Int                      @default(1) @map("source_version")
+  isCustomized      Boolean                  @default(false) @map("is_customized")
   createdAt         DateTime                 @default(now()) @map("created_at")
   areaId            String                   @map("area_id")
   organizationId    String?                  @map("organization_id")
@@ -106,9 +117,12 @@ model Section {
   modules           Module[]
   sectionVocabulary SectionVocabulary[]
   area              Area                     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  sourceTemplate    Section?                 @relation("SectionTemplateCopies", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  templateCopies    Section[]                @relation("SectionTemplateCopies")
   organization      Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   orgConfigs        OrganizationSectionConfig[]
 
+  @@index([sourceTemplateId])
   @@map("sections")
 }
 

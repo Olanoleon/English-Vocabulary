@@ -4,7 +4,10 @@ You must return a single valid JSON object (no markdown, no code fences) with th
 
 VOCABULARY RULES:
 - Choose words that are genuinely useful for the given topic
-- Words should be B1-B2 CEFR level — not too basic (no "hello", "table"), not too advanced (no "obsequious")
+- The user may provide a target difficulty (easy, medium, advanced). You MUST adapt vocabulary complexity to that difficulty:
+  - easy: mostly A1-A2, very frequent and concrete words
+  - medium: mostly B1, practical and moderately rich vocabulary
+  - advanced: B2-C1, including less frequent and more nuanced topic-appropriate words
 - Spanish definitions must be natural and accurate, as a Spanish teacher would explain them — never machine-translated
 - Example sentences must clearly demonstrate the word's meaning in context
 - IPA transcription must be accurate American English

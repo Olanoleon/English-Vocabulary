@@ -4,6 +4,10 @@ import https from "https";
 import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
+import {
+  ensureOrgSectionFromTemplateForOrg,
+  replicateTemplateSectionToAllOrgs,
+} from "@/lib/template-replication";
 
 /** Shuffle an array (Fisher-Yates) */
 function shuffleArray<T>(array: T[]): T[] {
@@ -140,6 +144,7 @@ export async function POST(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
 
     // 1. Fetch the section with its vocabulary and modules
@@ -151,6 +156,7 @@ export async function POST(
           select: {
             scopeType: true,
             organizationId: true,
+            isTemplate: true,
           },
         },
         sectionVocabulary: {
@@ -163,19 +169,45 @@ export async function POST(
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
-    if (
-      session.role === "org_admin" &&
-      !(
-        section.organizationId === session.organizationId ||
-        (section.area.scopeType === "org" &&
-          section.area.organizationId === session.organizationId)
-      )
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    let targetSectionId = id;
+    let effectiveSection = section;
+    const isTemplate =
+      Boolean(section.isTemplate) ||
+      (section.area.scopeType === "global" && !section.area.organizationId);
+    if (activeRole === "org_admin" && section.organizationId !== session.organizationId) {
+      if (!session.organizationId || !isTemplate) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const copyId = await ensureOrgSectionFromTemplateForOrg(id, session.organizationId);
+      if (!copyId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      targetSectionId = copyId;
+      const copied = await prisma.section.findUnique({
+        where: { id: copyId },
+        include: {
+          modules: true,
+          area: {
+            select: {
+              scopeType: true,
+              organizationId: true,
+              isTemplate: true,
+            },
+          },
+          sectionVocabulary: {
+            include: { vocabulary: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      });
+      if (!copied) {
+        return NextResponse.json({ error: "Section not found" }, { status: 404 });
+      }
+      effectiveSection = copied;
     }
 
-    const practiceModule = section.modules.find((m) => m.type === "practice");
-    const testModule = section.modules.find((m) => m.type === "test");
+    const practiceModule = effectiveSection.modules.find((m) => m.type === "practice");
+    const testModule = effectiveSection.modules.find((m) => m.type === "test");
 
     if (!practiceModule || !testModule) {
       return NextResponse.json(
@@ -184,7 +216,7 @@ export async function POST(
       );
     }
 
-    const vocabWords = section.sectionVocabulary.map((sv) => sv.vocabulary);
+    const vocabWords = effectiveSection.sectionVocabulary.map((sv) => sv.vocabulary);
     if (vocabWords.length === 0) {
       return NextResponse.json(
         { error: "Section has no vocabulary words" },
@@ -209,7 +241,7 @@ export async function POST(
           `- ${v.word} (${v.partOfSpeech}): "${v.definitionEs}" | IPA: ${v.phoneticIpa || "N/A"} | Example: "${v.exampleSentence}"`
       )
       .join("\n");
-    const introModule = section.modules.find((m) => m.type === "introduction");
+    const introModule = effectiveSection.modules.find((m) => m.type === "introduction");
     const introReadingText =
       (
         introModule?.content as { readingText?: string } | null
@@ -259,7 +291,7 @@ Return the JSON object now.`
 
     // 7. Reset learner progress for this section (allow retake)
     await prisma.learnerSectionProgress.updateMany({
-      where: { sectionId: id },
+      where: { sectionId: targetSectionId },
       data: {
         practiceCompleted: false,
         testPassed: false,
@@ -343,6 +375,26 @@ Return the JSON object now.`
           },
         });
       }
+    }
+
+    if (activeRole === "org_admin") {
+      await prisma.section.update({
+        where: { id: targetSectionId },
+        data: { isCustomized: true },
+      });
+    }
+
+    const shouldReplicateTemplate =
+      activeRole !== "org_admin" &&
+      (Boolean(effectiveSection.isTemplate) ||
+        (effectiveSection.area.scopeType === "global" &&
+          !effectiveSection.area.organizationId));
+    if (shouldReplicateTemplate) {
+      await prisma.section.update({
+        where: { id: targetSectionId },
+        data: { sourceVersion: { increment: 1 } },
+      });
+      await replicateTemplateSectionToAllOrgs(targetSectionId);
     }
 
     const newPracticeCount = generated.practiceQuestions?.length || 0;

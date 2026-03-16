@@ -13,11 +13,14 @@ export async function GET(request: NextRequest) {
     const sections = await prisma.section.findMany({
       where: {
         isActive: true,
+        ...(orgId
+          ? { organizationId: orgId }
+          : { organizationId: null }),
         area: {
           isActive: true,
-          OR: orgId
-            ? [{ scopeType: "global" }, { scopeType: "org", organizationId: orgId }]
-            : [{ scopeType: "global" }],
+          ...(orgId
+            ? { scopeType: "org", organizationId: orgId }
+            : { scopeType: "global", organizationId: null }),
         },
         ...(areaId ? { areaId } : {}),
       },

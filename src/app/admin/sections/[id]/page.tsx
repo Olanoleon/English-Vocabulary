@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
 import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
 import { AppModal, modalActionButtonClass } from "@/components/app-modal";
+import { AppSelect } from "@/components/app-select";
 
 interface Vocabulary {
   id: string;
@@ -247,11 +248,14 @@ export default function SectionEditorPage({
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
   const [showRecreateModal, setShowRecreateModal] = useState(false);
+  const [showRecreateSuccessModal, setShowRecreateSuccessModal] = useState(false);
   const [recreating, setRecreating] = useState(false);
   const [recreateError, setRecreateError] = useState("");
+  const [recreateReplicationQueued, setRecreateReplicationQueued] = useState(false);
   const [recreateIntroDifficulty, setRecreateIntroDifficulty] = useState<
     "easy" | "medium" | "advanced"
   >("medium");
+  const [recreateWordCountInput, setRecreateWordCountInput] = useState("");
   const [apiError, setApiError] = useState("");
 
   useEffect(() => {
@@ -285,6 +289,7 @@ export default function SectionEditorPage({
               : "medium"
           );
         }
+        setRecreateWordCountInput(String(Math.max(data.sectionVocabulary.length, 1)));
       } else {
         const message = await readApiError(
           res,
@@ -343,17 +348,33 @@ export default function SectionEditorPage({
   }
 
   async function recreateUnit() {
+    const parsedWordCount = Number.parseInt(recreateWordCountInput, 10);
+    if (
+      !Number.isFinite(parsedWordCount) ||
+      parsedWordCount < 1 ||
+      parsedWordCount > 60
+    ) {
+      setRecreateError("Word count must be between 1 and 60.");
+      return;
+    }
     setRecreating(true);
     setRecreateError("");
     try {
       const res = await fetch(`/api/admin/sections/${id}/recreate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ introDifficulty: recreateIntroDifficulty }),
+        body: JSON.stringify({
+          introDifficulty: recreateIntroDifficulty,
+          wordCount: parsedWordCount,
+          sectionTitle: title,
+        }),
       });
       if (res.ok) {
+        const data = (await res.json()) as { replicationQueued?: boolean };
+        setRecreateReplicationQueued(Boolean(data.replicationQueued));
         setShowRecreateModal(false);
         await fetchSection();
+        setShowRecreateSuccessModal(true);
       } else {
         const data = (await res.json()) as { error?: string };
         setRecreateError(data.error || "Failed to recreate unit");
@@ -887,42 +908,44 @@ export default function SectionEditorPage({
           {showQuestionForm ? (
             <form
               onSubmit={addQuestion}
-              className="bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-scale-in"
+              className="bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-3 animate-fade-in"
             >
               <h4 className="font-semibold text-sm">Add Question</h4>
 
               <div className="grid grid-cols-2 gap-3">
-                <select
+                <AppSelect
                   value={qModuleType}
-                  onChange={(e) => setQModuleType(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                >
-                  <option value="practice">Practice</option>
-                  <option value="test">Test</option>
-                </select>
-                <select
+                  onChange={setQModuleType}
+                  placeholder="Select module"
+                  options={[
+                    { value: "practice", label: "Practice" },
+                    { value: "test", label: "Test" },
+                  ]}
+                />
+                <AppSelect
                   value={qType}
-                  onChange={(e) => setQType(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                >
-                  <option value="multiple_choice">Multiple Choice</option>
-                  <option value="fill_blank">Fill in the Blank</option>
-                  <option value="phonetics">Phonetics</option>
-                </select>
+                  onChange={setQType}
+                  placeholder="Select question type"
+                  options={[
+                    { value: "multiple_choice", label: "Multiple Choice" },
+                    { value: "fill_blank", label: "Fill in the Blank" },
+                    { value: "phonetics", label: "Phonetics" },
+                  ]}
+                />
               </div>
 
-              <select
+              <AppSelect
                 value={qVocabId}
-                onChange={(e) => setQVocabId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-              >
-                <option value="">Link to vocabulary (optional)</option>
-                {section.sectionVocabulary.map((sv) => (
-                  <option key={sv.vocabulary.id} value={sv.vocabulary.id}>
-                    {sv.vocabulary.word}
-                  </option>
-                ))}
-              </select>
+                onChange={setQVocabId}
+                placeholder="Link to vocabulary (optional)"
+                options={[
+                  { value: "", label: "Link to vocabulary (optional)" },
+                  ...section.sectionVocabulary.map((sv) => ({
+                    value: sv.vocabulary.id,
+                    label: sv.vocabulary.word,
+                  })),
+                ]}
+              />
 
               <textarea
                 value={qPrompt}
@@ -1095,22 +1118,44 @@ export default function SectionEditorPage({
 
             <label className="mb-4 block">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Intro text difficulty
+                Number of vocabulary words
               </span>
-              <select
-                value={recreateIntroDifficulty}
-                onChange={(e) =>
-                  setRecreateIntroDifficulty(
-                    e.target.value as "easy" | "medium" | "advanced"
-                  )
-                }
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={60}
+                value={recreateWordCountInput}
+                onChange={(e) => setRecreateWordCountInput(e.target.value)}
                 disabled={recreating}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="advanced">Advanced</option>
-              </select>
+              />
+            </label>
+
+            <label className="mb-4 block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Intro text difficulty
+              </span>
+              <AppSelect
+                value={recreateIntroDifficulty}
+                onChange={(value) => {
+                  if (
+                    value === "easy" ||
+                    value === "medium" ||
+                    value === "advanced"
+                  ) {
+                    setRecreateIntroDifficulty(value);
+                  }
+                }}
+                placeholder="Select difficulty"
+                options={[
+                  { value: "easy", label: "Easy" },
+                  { value: "medium", label: "Medium" },
+                  { value: "advanced", label: "Advanced" },
+                ]}
+                className="h-11 rounded-xl border-slate-200 px-3 font-medium text-slate-700"
+                menuClassName="z-[80]"
+              />
             </label>
 
             {recreateError && (
@@ -1152,6 +1197,38 @@ export default function SectionEditorPage({
                 </button>
               )}
             </div>
+          </div>
+        </AppModal>
+      )}
+
+      {showRecreateSuccessModal && (
+        <AppModal
+          open={showRecreateSuccessModal}
+          onClose={() => setShowRecreateSuccessModal(false)}
+          maxWidthClassName="max-w-sm"
+          showCloseButton
+          closeLabel="Close recreate success modal"
+        >
+          <div>
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
+                <RefreshCw className="h-5 w-5 text-green-700" />
+              </div>
+              <h3 className="font-bold text-gray-900">Unit Recreation Successful!</h3>
+            </div>
+            <p className="mb-4 text-sm text-gray-600">
+              Your unit was regenerated successfully.
+              {recreateReplicationQueued
+                ? " Changes at org level may take some time to be reflected."
+                : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowRecreateSuccessModal(false)}
+              className={cn(modalActionButtonClass.primary, "w-full")}
+            >
+              Great
+            </button>
           </div>
         </AppModal>
       )}

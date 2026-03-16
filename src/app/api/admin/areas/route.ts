@@ -5,6 +5,7 @@ import path from "path";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
+import { replicateTemplateAreaToAllOrgs } from "@/lib/template-replication";
 
 function getOpenAIKey(): string {
   try {
@@ -67,32 +68,25 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { searchParams } = new URL(request.url);
     const requestedOrgId = searchParams.get("organizationId");
-
-    const where: {
-      OR?: Array<Record<string, string>>;
-    } = {};
-
-    // org_admin sees global + their own org areas.
-    if (session.role === "org_admin") {
-      if (!session.organizationId) {
-        return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
-      }
-      where.OR = [
-        { scopeType: "global" },
-        { scopeType: "org", organizationId: session.organizationId },
-      ];
-    } else if (requestedOrgId) {
-      // super_admin/admin can view global + selected org context.
-      where.OR = [
-        { scopeType: "global" },
-        { scopeType: "org", organizationId: requestedOrgId },
-      ];
+    if (activeRole === "org_admin" && !session.organizationId) {
+      return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
     }
 
     const areas = await prisma.area.findMany({
-      where: where.OR ? where : undefined,
+      where:
+        activeRole === "org_admin"
+          ? { scopeType: "org", organizationId: session.organizationId }
+          : requestedOrgId
+            ? { scopeType: "org", organizationId: requestedOrgId }
+            : {
+                OR: [
+                  { isTemplate: true },
+                  { scopeType: "global", organizationId: null },
+                ],
+              },
       orderBy: { sortOrder: "asc" },
       include: {
         _count: { select: { sections: true } },
@@ -112,6 +106,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const body = await request.json();
     const { name } = body;
 
@@ -140,32 +135,15 @@ export async function POST(request: NextRequest) {
       console.warn("Auto-translate failed, using name as fallback:", err);
     }
 
-    // Resolve target scope/org.
-    let scopeType: "global" | "org" = "global";
+    const isOrgAdmin = activeRole === "org_admin";
+    const scopeType: "global" | "org" = isOrgAdmin ? "org" : "global";
     let organizationId: string | null = null;
 
-    if (session.role === "org_admin") {
+    if (isOrgAdmin) {
       if (!session.organizationId) {
         return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
       }
-      scopeType = "org";
       organizationId = session.organizationId;
-    } else {
-      const requestedScope = body.scopeType === "org" ? "org" : "global";
-      scopeType = requestedScope;
-      if (scopeType === "org") {
-        if (!body.organizationId) {
-          return NextResponse.json({ error: "organizationId is required for org-scoped areas" }, { status: 400 });
-        }
-        const org = await prisma.organization.findUnique({
-          where: { id: body.organizationId },
-          select: { id: true, isActive: true },
-        });
-        if (!org || !org.isActive) {
-          return NextResponse.json({ error: "Invalid or inactive organization" }, { status: 400 });
-        }
-        organizationId = org.id;
-      }
     }
 
     // Get next sort order in scope
@@ -190,14 +168,18 @@ export async function POST(request: NextRequest) {
         sortOrder,
         scopeType,
         organizationId,
+        isTemplate: !isOrgAdmin,
+        sourceTemplateId: null,
+        sourceVersion: 1,
+        isCustomized: isOrgAdmin,
+        isActive: true,
       },
       include: {
         _count: { select: { sections: true } },
       },
     });
 
-    // Ensure org-scoped area has a default config row in its own org context.
-    if (organizationId) {
+    if (isOrgAdmin && organizationId) {
       await prisma.organizationAreaConfig.upsert({
         where: {
           organizationId_areaId: {
@@ -213,24 +195,10 @@ export async function POST(request: NextRequest) {
           sortOrder,
         },
       });
-    } else {
-      // For super-admin-created global areas, force hidden in each org by default.
-      // Each org admin can later enable visibility when ready.
-      const orgs = await prisma.organization.findMany({
-        select: { id: true },
-      });
+    }
 
-      if (orgs.length > 0) {
-        await prisma.organizationAreaConfig.createMany({
-          data: orgs.map((org) => ({
-            organizationId: org.id,
-            areaId: area.id,
-            isVisible: false,
-            sortOrder,
-          })),
-          skipDuplicates: true,
-        });
-      }
+    if (!isOrgAdmin) {
+      await replicateTemplateAreaToAllOrgs(area.id);
     }
 
     return NextResponse.json(area, { status: 201 });

@@ -19,6 +19,7 @@ Use this file as the first read in new sessions. It is a fast map of how the app
 - Tailwind CSS 4
 - Session auth with `iron-session`
 - UI icons with `lucide-react`
+- Deployment platform: Railway
 
 ## Auth Model (Current)
 - Identity is email-first:
@@ -163,6 +164,10 @@ Use this file as the first read in new sessions. It is a fast map of how the app
 - `npm run lint`
 - `npm run build`
 - `npm run dev`
+
+## Deployment Notes
+- Production deploys run on Railway.
+- For destructive schema cutovers, run Prisma commands from Railway service shell (with production `DATABASE_URL` loaded), not from Neon SQL editor.
 
 ## Session Handoff Rule
 When finishing a substantial task, update this file with:

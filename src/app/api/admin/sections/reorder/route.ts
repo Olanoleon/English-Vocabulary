@@ -22,12 +22,7 @@ export async function PUT(request: NextRequest) {
       const scopedSections = await prisma.section.findMany({
         where: {
           id: { in: orderedIds },
-          area: {
-            OR: [
-              { scopeType: "global" },
-              { scopeType: "org", organizationId: targetOrgId },
-            ],
-          },
+          organizationId: targetOrgId,
         },
         select: { id: true },
       });

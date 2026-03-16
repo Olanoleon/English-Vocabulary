@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Volume2, ChevronRight } from "lucide-react";
 import { LogoBadge } from "@/components/logo-badge";
@@ -42,6 +42,11 @@ export default function IntroductionPage({
   const [section, setSection] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const [activeWordToast, setActiveWordToast] = useState<{
+    key: number;
+    translation: string;
+  } | null>(null);
+  const wordToastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchSection();
@@ -66,25 +71,91 @@ export default function IntroductionPage({
     }
   }
 
+  function normalizeLookupWord(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s'-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getWordTranslation(word: string) {
+    if (!section) return null;
+    const normalizedWord = normalizeLookupWord(word);
+    if (!normalizedWord) return null;
+    const vocabulary = section.sectionVocabulary.map((sv) => sv.vocabulary);
+
+    const exact = vocabulary.find(
+      (entry) => normalizeLookupWord(entry.word) === normalizedWord
+    );
+    if (exact?.definitionEs) return exact.definitionEs;
+
+    const fuzzy = vocabulary.find((entry) => {
+      const normalizedEntry = normalizeLookupWord(entry.word);
+      return (
+        normalizedWord.includes(normalizedEntry) ||
+        normalizedEntry.includes(normalizedWord)
+      );
+    });
+    return fuzzy?.definitionEs || null;
+  }
+
+  function hideWordToast(key: number) {
+    setActiveWordToast((current) => (current?.key === key ? null : current));
+  }
+
+  function showWordToast(key: number, translation: string) {
+    if (wordToastTimerRef.current) {
+      window.clearTimeout(wordToastTimerRef.current);
+      wordToastTimerRef.current = null;
+    }
+    setActiveWordToast({ key, translation });
+    wordToastTimerRef.current = window.setTimeout(() => {
+      setActiveWordToast((current) => (current?.key === key ? null : current));
+      wordToastTimerRef.current = null;
+    }, 2000);
+  }
+
   function renderReadingText(text: string) {
     // Replace **word** with highlighted spans
     const parts = text.split(/\*\*(.*?)\*\*/g);
     return parts.map((part, i) => {
       if (i % 2 === 1) {
         // This is a highlighted word
+        const translation = getWordTranslation(part);
         return (
-          <button
-            key={i}
-            onClick={() => speak(part)}
-            className="font-bold text-primary-600 underline decoration-primary-300 decoration-2 underline-offset-2 hover:bg-primary-50 rounded px-0.5 transition-colors"
-          >
-            {part}
-          </button>
+          <span key={i} className="relative inline-flex">
+            <button
+              onClick={() => {
+                speak(part);
+                if (translation) {
+                  showWordToast(i, translation);
+                }
+              }}
+              onBlur={() => hideWordToast(i)}
+              className="font-bold text-primary-600 underline decoration-primary-300 decoration-2 underline-offset-2 hover:bg-primary-50 rounded px-0.5 transition-colors"
+            >
+              {part}
+            </button>
+            {activeWordToast?.key === i && (
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg">
+                {activeWordToast.translation}
+              </span>
+            )}
+          </span>
         );
       }
       return <span key={i}>{part}</span>;
     });
   }
+
+  useEffect(() => {
+    return () => {
+      if (wordToastTimerRef.current) {
+        window.clearTimeout(wordToastTimerRef.current);
+      }
+    };
+  }, []);
 
   async function markCompleted() {
     setMarking(true);

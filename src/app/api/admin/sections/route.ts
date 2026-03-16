@@ -2,34 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
+import { replicateTemplateSectionToAllOrgs } from "@/lib/template-replication";
+
+function isTemplateArea(area: {
+  isTemplate?: boolean;
+  scopeType: string;
+  organizationId: string | null;
+}) {
+  return Boolean(area.isTemplate) || (area.scopeType === "global" && !area.organizationId);
+}
 
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { searchParams } = new URL(request.url);
     const areaId = searchParams.get("areaId");
     const requestedOrgId = searchParams.get("organizationId");
+    if (activeRole === "org_admin" && !session.organizationId) {
+      return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
+    }
     const targetOrgId =
-      session.role === "org_admin" ? session.organizationId : requestedOrgId || null;
+      activeRole === "org_admin" ? session.organizationId : requestedOrgId || null;
 
     const where: Record<string, unknown> = {};
     if (areaId) where.areaId = areaId;
     if (targetOrgId) {
-      where.AND = [
+      where.organizationId = targetOrgId;
+    } else if (activeRole === "org_admin") {
+      where.areaId = "__no_area__";
+    } else {
+      where.OR = [
+        { isTemplate: true, organizationId: null },
         {
-          area: {
-            OR: [
-              { scopeType: "global" },
-              { scopeType: "org", organizationId: targetOrgId },
-            ],
-          },
-        },
-        {
-          OR: [{ organizationId: null }, { organizationId: targetOrgId }],
+          isTemplate: false,
+          organizationId: null,
+          area: { scopeType: "global", organizationId: null },
         },
       ];
-    } else if (session.role === "org_admin") {
-      where.areaId = "__no_area__";
     }
 
     const sections = await prisma.section.findMany({
@@ -70,6 +80,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const body = await request.json();
     const { title, titleEs, description, areaId } = body;
 
@@ -83,17 +94,13 @@ export async function POST(request: NextRequest) {
         id: true,
         scopeType: true,
         organizationId: true,
+        isTemplate: true,
       },
     });
     if (!area) {
       return NextResponse.json({ error: "Area not found" }, { status: 404 });
     }
-    // org_admin can create in own org-owned areas, or create org-private instances in global areas.
-    if (
-      session.role === "org_admin" &&
-      ((area.scopeType === "org" && area.organizationId !== session.organizationId) ||
-        (area.scopeType === "global" && !session.organizationId))
-    ) {
+    if (activeRole === "org_admin" && area.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -107,7 +114,8 @@ export async function POST(request: NextRequest) {
 
     // Create section with 3 modules
     const ownerOrgIdForSection =
-      session.role === "org_admin" ? session.organizationId || null : area.organizationId;
+      activeRole === "org_admin" ? session.organizationId || null : null;
+    const isTemplateSection = activeRole !== "org_admin" && isTemplateArea(area);
     const section = await prisma.section.create({
       data: {
         title,
@@ -117,6 +125,10 @@ export async function POST(request: NextRequest) {
         sortOrder,
         areaId,
         organizationId: ownerOrgIdForSection,
+        isTemplate: isTemplateSection,
+        sourceTemplateId: null,
+        sourceVersion: 1,
+        isCustomized: activeRole === "org_admin",
         modules: {
           create: [
             { type: "introduction", content: { readingText: "", readingTitle: "" } },
@@ -131,38 +143,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (area.scopeType === "global" && ownerOrgIdForSection) {
-      // Org-admin-created sections in global areas are private to that org.
-      const orgs = await prisma.organization.findMany({
-        select: { id: true },
-      });
-      if (orgs.length > 0) {
-        await prisma.organizationSectionConfig.createMany({
-          data: orgs.map((org) => ({
-            organizationId: org.id,
-            sectionId: section.id,
-            isVisible: org.id === ownerOrgIdForSection,
-            sortOrder,
-          })),
-          skipDuplicates: true,
-        });
-      }
-    } else if (area.organizationId) {
+    if (ownerOrgIdForSection) {
       await prisma.organizationSectionConfig.upsert({
         where: {
           organizationId_sectionId: {
-            organizationId: area.organizationId,
+            organizationId: ownerOrgIdForSection,
             sectionId: section.id,
           },
         },
         update: {},
         create: {
-          organizationId: area.organizationId,
+          organizationId: ownerOrgIdForSection,
           sectionId: section.id,
           isVisible: true,
           sortOrder,
         },
       });
+    }
+
+    if (isTemplateSection) {
+      await replicateTemplateSectionToAllOrgs(section.id);
     }
 
     return NextResponse.json(section, { status: 201 });

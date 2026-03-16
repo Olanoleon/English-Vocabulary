@@ -11,9 +11,9 @@ export async function GET() {
     const areas = await prisma.area.findMany({
       where: {
         isActive: true,
-        OR: orgId
-          ? [{ scopeType: "global" }, { scopeType: "org", organizationId: orgId }]
-          : [{ scopeType: "global" }],
+        ...(orgId
+          ? { scopeType: "org", organizationId: orgId }
+          : { scopeType: "global", organizationId: null }),
       },
       orderBy: { sortOrder: "asc" },
       include: {

@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
+import { replicateTemplateSectionToAllOrgs } from "@/lib/template-replication";
+
+function isTemplateSection(section: {
+  isTemplate: boolean;
+  organizationId: string | null;
+  area: {
+    isTemplate?: boolean;
+    scopeType: string;
+    organizationId: string | null;
+  };
+}) {
+  if (section.isTemplate) return true;
+  if (section.organizationId) return false;
+  return Boolean(section.area.isTemplate) || (section.area.scopeType === "global" && !section.area.organizationId);
+}
 
 export async function GET(
   _request: NextRequest,
@@ -9,6 +24,7 @@ export async function GET(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const section = await prisma.section.findUnique({
       where: { id },
@@ -29,6 +45,7 @@ export async function GET(
           select: {
             scopeType: true,
             organizationId: true,
+            isTemplate: true,
           },
         },
       },
@@ -37,13 +54,7 @@ export async function GET(
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
-    if (
-      session.role === "org_admin" &&
-      ((section.area.scopeType === "org" &&
-        section.area.organizationId !== session.organizationId) ||
-        (section.organizationId &&
-          section.organizationId !== session.organizationId))
-    ) {
+    if (activeRole === "org_admin" && section.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -63,6 +74,7 @@ export async function PUT(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
 
@@ -71,6 +83,8 @@ export async function PUT(
       select: {
         id: true,
         organizationId: true,
+        isTemplate: true,
+        sourceVersion: true,
         area: { select: { scopeType: true, organizationId: true } },
       },
     });
@@ -78,14 +92,7 @@ export async function PUT(
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
     // org_admin can only edit org-owned sections in their own org.
-    if (
-      session.role === "org_admin" &&
-      !(
-        existing.organizationId === session.organizationId ||
-        (existing.area.scopeType === "org" &&
-          existing.area.organizationId === session.organizationId)
-      )
-    ) {
+    if (activeRole === "org_admin" && existing.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -96,14 +103,40 @@ export async function PUT(
 
     const section = await prisma.section.update({
       where: { id },
-      data: {
-        title: body.title,
-        titleEs: body.titleEs,
-        description: body.description,
-        isActive: body.isActive,
-        ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
-      },
+      data:
+        activeRole === "org_admin"
+          ? {
+              title: body.title,
+              titleEs: body.titleEs,
+              description: body.description,
+              isActive: body.isActive,
+              isCustomized: true,
+              ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
+            }
+          : isTemplateSection(existing)
+            ? {
+                title: body.title,
+                titleEs: body.titleEs,
+                description: body.description,
+                isActive: body.isActive,
+                sourceVersion: existing.sourceVersion + 1,
+                ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
+              }
+            : {
+                title: body.title,
+                titleEs: body.titleEs,
+                description: body.description,
+                isActive: body.isActive,
+                ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
+              },
     });
+
+    if (activeRole !== "org_admin" && isTemplateSection(existing)) {
+      // Keep section updates fast (e.g., regenerate image) and replicate in background.
+      void replicateTemplateSectionToAllOrgs(id).catch((replicationError) => {
+        console.error("Template section replication failed:", replicationError);
+      });
+    }
 
     return NextResponse.json(section);
   } catch (error: unknown) {
@@ -122,6 +155,7 @@ export async function DELETE(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
 
     const existing = await prisma.section.findUnique({
@@ -129,21 +163,22 @@ export async function DELETE(
       select: {
         id: true,
         organizationId: true,
+        isTemplate: true,
         area: { select: { scopeType: true, organizationId: true } },
       },
     });
     if (!existing) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
-    if (
-      session.role === "org_admin" &&
-      !(
-        existing.organizationId === session.organizationId ||
-        (existing.area.scopeType === "org" &&
-          existing.area.organizationId === session.organizationId)
-      )
-    ) {
+    if (activeRole === "org_admin" && existing.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (activeRole !== "org_admin" && isTemplateSection(existing)) {
+      await prisma.section.updateMany({
+        where: { sourceTemplateId: id },
+        data: { sourceTemplateId: null, isCustomized: true },
+      });
     }
 
     await prisma.section.delete({ where: { id } });

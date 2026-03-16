@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireOrgAdminOrSuperAdmin } from "@/lib/auth";
 import { getUnitImageByTitle } from "@/lib/unit-image";
 import { SECTION_GENERATION_SYSTEM_PROMPT } from "@/lib/section-generation-prompt";
+import { replicateTemplateSectionToAllOrgs } from "@/lib/template-replication";
 
 /** Shuffle an array in place (Fisher-Yates) */
 function shuffleArray<T>(array: T[]): T[] {
@@ -84,6 +85,7 @@ const SYSTEM_PROMPT = SECTION_GENERATION_SYSTEM_PROMPT;
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
 
     const { topic, wordCount, areaId, introDifficulty } = await request.json();
 
@@ -96,19 +98,12 @@ export async function POST(request: NextRequest) {
 
     const area = await prisma.area.findUnique({
       where: { id: areaId },
-      select: { id: true, scopeType: true, organizationId: true },
+      select: { id: true, scopeType: true, organizationId: true, isTemplate: true },
     });
     if (!area) {
       return NextResponse.json({ error: "Area not found" }, { status: 404 });
     }
-    // org_admin can generate in:
-    // - own org-owned areas (shared org content)
-    // - global areas (private org-specific instance)
-    if (
-      session.role === "org_admin" &&
-      ((area.scopeType === "org" && area.organizationId !== session.organizationId) ||
-        (area.scopeType === "global" && !session.organizationId))
-    ) {
+    if (activeRole === "org_admin" && area.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -226,7 +221,10 @@ Return the JSON object now.`
     // Create everything in the database
     // 1. Create section with modules
     const ownerOrgIdForSection =
-      session.role === "org_admin" ? session.organizationId || null : area.organizationId;
+      activeRole === "org_admin" ? session.organizationId || null : null;
+    const isTemplateSection =
+      activeRole !== "org_admin" &&
+      (Boolean(area.isTemplate) || (area.scopeType === "global" && !area.organizationId));
     const section = await prisma.section.create({
       data: {
         title: generated.title,
@@ -236,6 +234,10 @@ Return the JSON object now.`
         sortOrder,
         areaId,
         organizationId: ownerOrgIdForSection,
+        isTemplate: isTemplateSection,
+        sourceTemplateId: null,
+        sourceVersion: 1,
+        isCustomized: activeRole === "org_admin",
         modules: {
           create: [
             {
@@ -254,33 +256,17 @@ Return the JSON object now.`
       include: { modules: true },
     });
 
-    if (area.scopeType === "global" && ownerOrgIdForSection) {
-      // Org-admin-generated units in global areas are org-private instances.
-      const orgs = await prisma.organization.findMany({
-        select: { id: true },
-      });
-      if (orgs.length > 0) {
-        await prisma.organizationSectionConfig.createMany({
-          data: orgs.map((org) => ({
-            organizationId: org.id,
-            sectionId: section.id,
-            isVisible: org.id === ownerOrgIdForSection,
-            sortOrder,
-          })),
-          skipDuplicates: true,
-        });
-      }
-    } else if (area.organizationId) {
+    if (ownerOrgIdForSection) {
       await prisma.organizationSectionConfig.upsert({
         where: {
           organizationId_sectionId: {
-            organizationId: area.organizationId,
+            organizationId: ownerOrgIdForSection,
             sectionId: section.id,
           },
         },
         update: {},
         create: {
-          organizationId: area.organizationId,
+          organizationId: ownerOrgIdForSection,
           sectionId: section.id,
           isVisible: true,
           sortOrder,
@@ -389,6 +375,10 @@ Return the JSON object now.`
           },
         });
       }
+    }
+
+    if (isTemplateSection) {
+      await replicateTemplateSectionToAllOrgs(section.id);
     }
 
     return NextResponse.json(
