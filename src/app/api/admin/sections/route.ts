@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const sections = await prisma.section.findMany({
       where,
-      orderBy: { sortOrder: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: {
         orgConfigs: {
           where: { organizationId: targetOrgId || "__no_org__" },
@@ -60,6 +60,13 @@ export async function GET(request: NextRequest) {
           select: { id: true, type: true },
         },
       },
+    });
+    const seenTemplateSectionIds = new Set<string>();
+    const dedupedSections = sections.filter((section) => {
+      if (!section.sourceTemplateId) return true;
+      if (seenTemplateSectionIds.has(section.sourceTemplateId)) return false;
+      seenTemplateSectionIds.add(section.sourceTemplateId);
+      return true;
     });
 
     if (activeRole === "org_admin" && targetOrgId && areaId) {
@@ -91,7 +98,7 @@ export async function GET(request: NextRequest) {
         });
 
         const copiedTemplateSectionIds = new Set(
-          sections
+          dedupedSections
             .map((section) => section.sourceTemplateId)
             .filter((id): id is string => typeof id === "string" && id.length > 0)
         );
@@ -125,7 +132,7 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        const mergedSections = [...sections, ...pendingSections].sort(
+        const mergedSections = [...dedupedSections, ...pendingSections].sort(
           (a, b) => a.sortOrder - b.sortOrder
         );
         return NextResponse.json(mergedSections);
@@ -133,12 +140,12 @@ export async function GET(request: NextRequest) {
     }
 
     const sortedSections = targetOrgId
-      ? [...sections].sort((a, b) => {
+      ? [...dedupedSections].sort((a, b) => {
           const aOrder = a.orgConfigs[0]?.sortOrder ?? a.sortOrder;
           const bOrder = b.orgConfigs[0]?.sortOrder ?? b.sortOrder;
           return aOrder - bOrder;
         })
-      : sections;
+      : dedupedSections;
 
     return NextResponse.json(sortedSections);
   } catch (error: unknown) {

@@ -81,10 +81,17 @@ export async function GET(request: NextRequest) {
     if (activeRole === "org_admin") {
       const orgAreas = await prisma.area.findMany({
         where: { scopeType: "org", organizationId: session.organizationId },
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         include: {
           _count: { select: { sections: true } },
         },
+      });
+      const seenTemplateAreaIds = new Set<string>();
+      const dedupedOrgAreas = orgAreas.filter((area) => {
+        if (!area.sourceTemplateId) return true;
+        if (seenTemplateAreaIds.has(area.sourceTemplateId)) return false;
+        seenTemplateAreaIds.add(area.sourceTemplateId);
+        return true;
       });
 
       const templateAreas = await prisma.area.findMany({
@@ -98,7 +105,7 @@ export async function GET(request: NextRequest) {
       });
 
       const copiedTemplateIds = new Set(
-        orgAreas
+        dedupedOrgAreas
           .map((area) => area.sourceTemplateId)
           .filter((id): id is string => typeof id === "string" && id.length > 0)
       );
@@ -123,7 +130,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json([...orgAreas, ...pendingTemplateCards]);
+      return NextResponse.json([...dedupedOrgAreas, ...pendingTemplateCards]);
     }
 
     const areas = await prisma.area.findMany({

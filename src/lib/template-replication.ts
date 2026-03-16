@@ -7,6 +7,8 @@ const TRANSACTION_OPTIONS = {
   maxWait: 10_000,
   timeout: 60_000,
 } as const;
+const orgBootstrapReplicationInFlight = new Map<string, Promise<void>>();
+const orgTemplateSectionEnsureInFlight = new Map<string, Promise<string | null>>();
 
 function isTemplateArea(area: {
   isTemplate?: boolean;
@@ -356,7 +358,11 @@ export async function ensureOrgSectionFromTemplateForOrg(
   templateSectionId: string,
   orgId: string
 ) {
-  return prisma.$transaction(async (tx) => {
+  const key = `${orgId}:${templateSectionId}`;
+  const existing = orgTemplateSectionEnsureInFlight.get(key);
+  if (existing) return existing;
+
+  const task = prisma.$transaction(async (tx) => {
     const templateSection = await loadTemplateSection(tx, templateSectionId);
     if (!templateSection || !isTemplateArea(templateSection.area)) {
       return null;
@@ -371,6 +377,15 @@ export async function ensureOrgSectionFromTemplateForOrg(
     );
     return result.sectionId;
   }, TRANSACTION_OPTIONS);
+
+  orgTemplateSectionEnsureInFlight.set(key, task);
+  try {
+    return await task;
+  } finally {
+    if (orgTemplateSectionEnsureInFlight.get(key) === task) {
+      orgTemplateSectionEnsureInFlight.delete(key);
+    }
+  }
 }
 
 export async function replicateTemplateAreaToAllOrgs(templateAreaId: string) {
@@ -431,29 +446,43 @@ export async function replicateTemplateSectionToAllOrgs(templateSectionId: strin
 }
 
 export async function replicateTemplatesToOrg(orgId: string) {
-  const templateAreas = await prisma.area.findMany({
-    where: {
-      OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
-    },
-    orderBy: { sortOrder: "asc" },
-    include: {
-      sections: {
-        select: { id: true },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
+  const existing = orgBootstrapReplicationInFlight.get(orgId);
+  if (existing) return existing;
 
-  await prisma.$transaction(async (tx) => {
-    for (const templateArea of templateAreas) {
-      if (!isTemplateArea(templateArea)) continue;
-      const { areaId } = await upsertOrgAreaFromTemplate(tx, templateArea, orgId);
-      for (const sectionRef of templateArea.sections) {
-        const templateSection = await loadTemplateSection(tx, sectionRef.id);
-        if (!templateSection) continue;
-        await upsertOrgSectionFromTemplate(tx, templateSection, areaId, orgId);
+  const task = (async () => {
+    const templateAreas = await prisma.area.findMany({
+      where: {
+        OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
+      },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        sections: {
+          select: { id: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      for (const templateArea of templateAreas) {
+        if (!isTemplateArea(templateArea)) continue;
+        const { areaId } = await upsertOrgAreaFromTemplate(tx, templateArea, orgId);
+        for (const sectionRef of templateArea.sections) {
+          const templateSection = await loadTemplateSection(tx, sectionRef.id);
+          if (!templateSection) continue;
+          await upsertOrgSectionFromTemplate(tx, templateSection, areaId, orgId);
+        }
       }
+    }, TRANSACTION_OPTIONS);
+  })();
+
+  orgBootstrapReplicationInFlight.set(orgId, task);
+  try {
+    await task;
+  } finally {
+    if (orgBootstrapReplicationInFlight.get(orgId) === task) {
+      orgBootstrapReplicationInFlight.delete(orgId);
     }
-  }, TRANSACTION_OPTIONS);
+  }
 }
 
