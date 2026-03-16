@@ -299,7 +299,7 @@ export default function SectionDetailPage({
           )}
           {showInfoTooltip && (
             <div className="absolute right-0 top-12 z-30 w-64 rounded-2xl border border-primary-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg">
-              Completa la unidad en este orden: <span className="font-semibold text-slate-900">Introduction</span> - <span className="font-semibold text-slate-900">Practice</span> - <span className="font-semibold text-slate-900">Unit Test</span>. Necesitas <span className="font-semibold text-slate-900">80% o mas</span> en <span className="font-semibold text-slate-900">Unit Test</span> para pasar.
+              Tip de campeones: primero la <span className="font-semibold text-slate-900">Introducción</span> para calentar motores, luego la <span className="font-semibold text-slate-900">Práctica</span> para ponerte turbo, y al final el <span className="font-semibold text-slate-900">Test</span> para romperla.
             </div>
           )}
         </div>

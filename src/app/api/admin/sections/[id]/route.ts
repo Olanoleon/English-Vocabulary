@@ -77,6 +77,10 @@ export async function PUT(
     const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
+    const requestedOrgId =
+      typeof body.organizationId === "string" && body.organizationId.trim()
+        ? body.organizationId.trim()
+        : null;
 
     const existing = await prisma.section.findUnique({
       where: { id },
@@ -100,6 +104,16 @@ export async function PUT(
     // org_admin can only edit org-owned sections in their own org.
     if (activeRole === "org_admin" && existing.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      activeRole !== "org_admin" &&
+      existing.organizationId &&
+      requestedOrgId !== existing.organizationId
+    ) {
+      return NextResponse.json(
+        { error: "Select the correct organization context to edit this unit." },
+        { status: 403 }
+      );
     }
 
     const nextImageUrl =
@@ -166,13 +180,15 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
     const activeRole = session.activeRole || session.role;
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const requestedOrgId = searchParams.get("organizationId");
 
     const existing = await prisma.section.findUnique({
       where: { id },
@@ -188,6 +204,16 @@ export async function DELETE(
     }
     if (activeRole === "org_admin" && existing.organizationId !== session.organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      activeRole !== "org_admin" &&
+      existing.organizationId &&
+      requestedOrgId !== existing.organizationId
+    ) {
+      return NextResponse.json(
+        { error: "Select the correct organization context to delete this unit." },
+        { status: 403 }
+      );
     }
 
     if (activeRole !== "org_admin" && isTemplateSection(existing)) {

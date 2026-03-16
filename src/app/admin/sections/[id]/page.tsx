@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -104,6 +104,10 @@ interface SectionDetail {
   description: string;
   isActive: boolean;
   areaId: string;
+  organizationId?: string | null;
+  sourceTemplateId?: string | null;
+  isCustomized?: boolean;
+  isTemplate?: boolean;
   modules: Module[];
   sectionVocabulary: { id: string; vocabulary: Vocabulary }[];
 }
@@ -208,6 +212,8 @@ export default function SectionEditorPage({
 
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const contextOrgId = searchParams.get("organizationId");
   const [section, setSection] = useState<SectionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"vocab" | "intro" | "questions">("vocab");
@@ -259,16 +265,43 @@ export default function SectionEditorPage({
   >("medium");
   const [recreateWordCountInput, setRecreateWordCountInput] = useState("");
   const [apiError, setApiError] = useState("");
+  const [role, setRole] = useState<string | null>(null);
+  const [editUnlocked, setEditUnlocked] = useState(false);
+
+  function canEditNow() {
+    const isSuperRole = role === "super_admin" || role === "admin";
+    const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
+    return !inOrgContext || editUnlocked;
+  }
 
   useEffect(() => {
     fetchSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, contextOrgId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (!res.ok) return;
+          const data = (await res.json()) as { role?: string; activeRole?: string };
+          setRole(data.activeRole || data.role || null);
+        } catch {
+          // Ignore role fetch failures.
+        }
+      })();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function fetchSection() {
     setApiError("");
     try {
-      const res = await fetch(`/api/admin/sections/${id}`);
+      const query = contextOrgId
+        ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+        : "";
+      const res = await fetch(`/api/admin/sections/${id}${query}`);
       if (res.ok) {
         const data: SectionDetail = await res.json();
         setSection(data);
@@ -320,12 +353,18 @@ export default function SectionEditorPage({
   }
 
   async function saveSection() {
+    if (!canEditNow()) return;
     setApiError("");
     setSaving(true);
     const res = await fetch(`/api/admin/sections/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, titleEs, description }),
+      body: JSON.stringify({
+        title,
+        titleEs,
+        description,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
+      }),
     });
     if (!res.ok) {
       setApiError(await readApiError(res, "Failed to save unit."));
@@ -334,12 +373,19 @@ export default function SectionEditorPage({
   }
 
   async function regenerateLogo() {
+    if (!canEditNow()) return;
     setApiError("");
     setSaving(true);
     const res = await fetch(`/api/admin/sections/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, titleEs, description, regenerateImage: true }),
+      body: JSON.stringify({
+        title,
+        titleEs,
+        description,
+        regenerateImage: true,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
+      }),
     });
     if (res.ok) {
       fetchSection();
@@ -350,6 +396,7 @@ export default function SectionEditorPage({
   }
 
   async function recreateUnit() {
+    if (!canEditNow()) return;
     const parsedWordCount = Number.parseInt(recreateWordCountInput, 10);
     if (
       !Number.isFinite(parsedWordCount) ||
@@ -388,6 +435,7 @@ export default function SectionEditorPage({
   }
 
   async function saveIntroContent() {
+    if (!canEditNow()) return;
     const introModule = section?.modules.find((m) => m.type === "introduction");
     if (!introModule) return;
     setApiError("");
@@ -397,6 +445,7 @@ export default function SectionEditorPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: { readingTitle, readingText },
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
       }),
     });
     if (!res.ok) {
@@ -407,6 +456,7 @@ export default function SectionEditorPage({
 
   async function addVocab(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEditNow()) return;
     setApiError("");
     const res = await fetch("/api/admin/vocabulary", {
       method: "POST",
@@ -420,6 +470,7 @@ export default function SectionEditorPage({
         exampleSentence: vocabExample,
         phoneticIpa: vocabIpa,
         stressedSyllable: vocabStress,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
       }),
     });
     if (res.ok) {
@@ -437,9 +488,13 @@ export default function SectionEditorPage({
   }
 
   async function deleteVocab(vocabId: string) {
+    if (!canEditNow()) return;
     if (!confirm("Delete this vocabulary word?")) return;
     setApiError("");
-    const res = await fetch(`/api/admin/vocabulary/${vocabId}`, { method: "DELETE" });
+    const query = contextOrgId
+      ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+      : "";
+    const res = await fetch(`/api/admin/vocabulary/${vocabId}${query}`, { method: "DELETE" });
     if (res.ok) {
       fetchSection();
     } else {
@@ -449,6 +504,7 @@ export default function SectionEditorPage({
 
   async function addQuestion(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEditNow()) return;
     const moduleObj = section?.modules.find((m) => m.type === qModuleType);
     if (!moduleObj) return;
     setApiError("");
@@ -458,6 +514,7 @@ export default function SectionEditorPage({
       type: qType,
       prompt: qPrompt,
       vocabularyId: qVocabId || null,
+      ...(contextOrgId ? { organizationId: contextOrgId } : {}),
     };
 
     if (qType === "fill_blank") {
@@ -490,9 +547,13 @@ export default function SectionEditorPage({
   }
 
   async function deleteQuestion(questionId: string) {
+    if (!canEditNow()) return;
     if (!confirm("Delete this question?")) return;
     setApiError("");
-    const res = await fetch(`/api/admin/questions/${questionId}`, { method: "DELETE" });
+    const query = contextOrgId
+      ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+      : "";
+    const res = await fetch(`/api/admin/questions/${questionId}${query}`, { method: "DELETE" });
     if (res.ok) {
       fetchSection();
     } else {
@@ -501,11 +562,19 @@ export default function SectionEditorPage({
   }
 
   async function deleteSection() {
+    if (!canEditNow()) return;
     if (!confirm("Delete this entire unit and all its content? This cannot be undone.")) return;
     setApiError("");
-    const res = await fetch(`/api/admin/sections/${id}`, { method: "DELETE" });
+    const query = contextOrgId
+      ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+      : "";
+    const res = await fetch(`/api/admin/sections/${id}${query}`, { method: "DELETE" });
     if (res.ok) {
-      router.push(`/admin/areas/${section?.areaId}`);
+      router.push(
+        contextOrgId
+          ? `/admin/areas/${section?.areaId}?organizationId=${encodeURIComponent(contextOrgId)}`
+          : `/admin/areas/${section?.areaId}`
+      );
     } else {
       setApiError(await readApiError(res, "Failed to delete unit."));
     }
@@ -528,18 +597,58 @@ export default function SectionEditorPage({
     { key: "intro" as const, label: "Introduction", icon: BookOpen },
     { key: "questions" as const, label: "Questions", icon: ClipboardCheck },
   ];
+  const isSuperRole = role === "super_admin" || role === "admin";
+  const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
+  const canEdit = !inOrgContext || editUnlocked;
+  const ownershipLabel =
+    section.organizationId
+      ? section.sourceTemplateId
+        ? "Org-owned template copy"
+        : "Org-owned custom"
+      : "Global template";
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-32">
       <header className="mb-5 flex items-center gap-3">
         <button
-          onClick={() => router.push(`/admin/areas/${section?.areaId}`)}
+          onClick={() =>
+            router.push(
+              contextOrgId
+                ? `/admin/areas/${section?.areaId}?organizationId=${encodeURIComponent(contextOrgId)}`
+                : `/admin/areas/${section?.areaId}`
+            )
+          }
           className="rounded-xl p-2 text-slate-700 hover:bg-slate-100"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">Edit Unit</h2>
       </header>
+
+      {inOrgContext && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Org context guardrail
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-600">
+              Editing is locked by default for org-level content.
+            </p>
+            <button
+              type="button"
+              onClick={() => setEditUnlocked((prev) => !prev)}
+              className={cn(
+                "h-9 rounded-lg px-3 text-xs font-semibold",
+                editUnlocked
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-slate-100 text-slate-700"
+              )}
+            >
+              {editUnlocked ? "Editing ON" : "Unlock edit"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="mb-5 rounded-[28px] border border-slate-100 bg-white p-6 text-center shadow-sm">
         <div className="relative mx-auto w-fit">
@@ -564,7 +673,7 @@ export default function SectionEditorPage({
           </div>
           <button
             onClick={regenerateLogo}
-            disabled={saving}
+            disabled={saving || !canEdit}
             className="absolute -bottom-2 -right-2 rounded-full bg-primary-600 p-2.5 text-white shadow-md disabled:opacity-50"
             title="Regenerate image"
           >
@@ -574,6 +683,9 @@ export default function SectionEditorPage({
         <h3 className="mt-4 text-2xl font-bold leading-tight text-slate-900">{section.title}</h3>
         <p className="text-base font-medium leading-tight text-primary-600">{section.titleEs}</p>
         <p className="text-sm text-slate-500">VocabPath Unit • {section.sectionVocabulary.length} Items</p>
+        <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          {ownershipLabel}
+        </p>
       </section>
 
       <div className="mb-4 space-y-3">
@@ -750,7 +862,8 @@ export default function SectionEditorPage({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
+                  disabled={!canEdit}
+                  className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Add Word
                 </button>
@@ -765,8 +878,12 @@ export default function SectionEditorPage({
             </form>
           ) : (
             <button
-              onClick={() => setShowVocabForm(true)}
-              className="mt-4 w-full bg-primary-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors text-sm"
+              onClick={() => {
+                if (!canEdit) return;
+                setShowVocabForm(true);
+              }}
+              disabled={!canEdit}
+              className="mt-4 w-full bg-primary-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus className="w-4 h-4" />
               Add Vocabulary Word
@@ -810,7 +927,7 @@ export default function SectionEditorPage({
           />
           <button
             onClick={saveIntroContent}
-            disabled={saving}
+            disabled={saving || !canEdit}
             className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center gap-1"
           >
             <Save className="w-4 h-4" />
@@ -1021,7 +1138,8 @@ export default function SectionEditorPage({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
+                  disabled={!canEdit}
+                  className="flex-1 bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Add Question
                 </button>
@@ -1036,8 +1154,12 @@ export default function SectionEditorPage({
             </form>
           ) : (
             <button
-              onClick={() => setShowQuestionForm(true)}
-              className="w-full bg-primary-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors text-sm"
+              onClick={() => {
+                if (!canEdit) return;
+                setShowQuestionForm(true);
+              }}
+              disabled={!canEdit}
+              className="w-full bg-primary-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus className="w-4 h-4" />
               Add Question
@@ -1056,8 +1178,12 @@ export default function SectionEditorPage({
             </p>
           </div>
           <button
-            onClick={() => setShowRecreateModal(true)}
-            className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-primary-700 shadow-sm"
+            onClick={() => {
+              if (!canEdit) return;
+              setShowRecreateModal(true);
+            }}
+            disabled={!canEdit}
+            className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-primary-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
             Start
@@ -1076,7 +1202,8 @@ export default function SectionEditorPage({
 
       <button
         onClick={deleteSection}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-red-200 py-4 text-base font-bold text-red-500 transition-colors hover:bg-red-50"
+        disabled={!canEdit}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-red-200 py-4 text-base font-bold text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
         title="Delete this unit"
       >
         <Trash2 className="h-4 w-4" />
@@ -1086,7 +1213,7 @@ export default function SectionEditorPage({
       <div className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 backdrop-blur">
         <button
           onClick={saveSection}
-          disabled={saving}
+          disabled={saving || !canEdit}
           className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
@@ -1094,10 +1221,12 @@ export default function SectionEditorPage({
         </button>
         <button
           onClick={() => {
+            if (!canEdit) return;
             setActiveTab("questions");
             setShowQuestionForm(true);
           }}
-          className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-xl bg-primary-600 text-sm font-bold text-white shadow-lg shadow-primary-300/40 transition hover:bg-primary-700"
+          disabled={!canEdit}
+          className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-xl bg-primary-600 text-sm font-bold text-white shadow-lg shadow-primary-300/40 transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="h-4 w-4" />
           Add Question

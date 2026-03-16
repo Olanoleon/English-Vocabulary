@@ -79,9 +79,27 @@ export function cancelSpeech() {
   }
 }
 
+function stripMarkdownForTts(input: string): string {
+  return input
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/(^|[^*])\*(?!\*)([^*]+)\*(?!\*)/g, "$1$2")
+    .replace(/(^|[^_])_([^_]+)_/g, "$1$2")
+    .replace(/^>\s?/gm, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function speakSmart(text: string) {
   if (!("speechSynthesis" in window)) return;
-  const clean = text.trim();
+  const clean = stripMarkdownForTts(text);
   if (!clean) return;
 
   const voice = await getBestVoice();

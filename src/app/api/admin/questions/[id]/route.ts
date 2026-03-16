@@ -8,9 +8,14 @@ export async function PUT(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
     const { type, prompt, correctAnswer, vocabularyId, options } = body;
+    const requestedOrgId =
+      typeof body.organizationId === "string" && body.organizationId.trim()
+        ? body.organizationId.trim()
+        : null;
 
     const existing = await prisma.question.findUnique({
       where: { id },
@@ -35,11 +40,21 @@ export async function PUT(
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
+      activeRole === "org_admin" &&
       (existing.module.section.area.scopeType !== "org" ||
         existing.module.section.area.organizationId !== session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      activeRole !== "org_admin" &&
+      existing.module.section.organizationId &&
+      requestedOrgId !== existing.module.section.organizationId
+    ) {
+      return NextResponse.json(
+        { error: "Select the correct organization context to edit this question." },
+        { status: 403 }
+      );
     }
 
     // Update question
@@ -84,12 +99,15 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const requestedOrgId = searchParams.get("organizationId");
 
     const existing = await prisma.question.findUnique({
       where: { id },
@@ -114,11 +132,21 @@ export async function DELETE(
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
+      activeRole === "org_admin" &&
       (existing.module.section.area.scopeType !== "org" ||
         existing.module.section.area.organizationId !== session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      activeRole !== "org_admin" &&
+      existing.module.section.organizationId &&
+      requestedOrgId !== existing.module.section.organizationId
+    ) {
+      return NextResponse.json(
+        { error: "Select the correct organization context to delete this question." },
+        { status: 403 }
+      );
     }
 
     await prisma.question.delete({ where: { id } });

@@ -5,6 +5,7 @@ import { SessionData, sessionOptions } from "@/lib/auth";
 import { createVerificationCode } from "@/lib/verification";
 import { sendVerificationCode } from "@/lib/email";
 import { isAdminRole } from "@/lib/roles";
+import { isDev2faBypassEnabled } from "@/lib/dev-2fa-bypass";
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,13 +72,15 @@ export async function POST(request: NextRequest) {
         membership.organizationId
       );
 
-      try {
-        await sendVerificationCode(code, user.email);
-      } catch {
-        return NextResponse.json(
-          { error: "Failed to send verification email. Try again." },
-          { status: 500 }
-        );
+      if (!isDev2faBypassEnabled()) {
+        try {
+          await sendVerificationCode(code, user.email);
+        } catch {
+          return NextResponse.json(
+            { error: "Failed to send verification email. Try again." },
+            { status: 500 }
+          );
+        }
       }
 
       return NextResponse.json({

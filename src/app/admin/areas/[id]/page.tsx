@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Pencil,
@@ -45,8 +45,11 @@ interface Area {
   description: string | null;
   imageUrl: string | null;
   isActive: boolean;
-  scopeType?: string;
+  scopeType?: "global" | "org";
   organizationId?: string | null;
+  sourceTemplateId?: string | null;
+  isCustomized?: boolean;
+  isTemplate?: boolean;
 }
 
 interface Section {
@@ -67,9 +70,11 @@ type ReadingDifficulty = "easy" | "medium" | "advanced";
 function SortableSectionCard({
   section,
   index,
+  orgContextId,
 }: {
   section: Section;
   index: number;
+  orgContextId: string | null;
 }) {
   const {
     attributes,
@@ -84,6 +89,9 @@ function SortableSectionCard({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const href = orgContextId
+    ? `/admin/sections/${section.id}?organizationId=${encodeURIComponent(orgContextId)}`
+    : `/admin/sections/${section.id}`;
 
   return (
     <div
@@ -131,14 +139,14 @@ function SortableSectionCard({
           </div>
         </div>
         <Link
-          href={`/admin/sections/${section.id}`}
+          href={href}
           className="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
           title="Edit"
         >
           <Pencil className="h-[18px] w-[18px]" />
         </Link>
         <Link
-          href={`/admin/sections/${section.id}`}
+          href={href}
           className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           title="Open"
         >
@@ -224,6 +232,8 @@ export default function AreaUnitsPage({
 }) {
   const { id: areaId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const contextOrgId = searchParams.get("organizationId");
   const [area, setArea] = useState<Area | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,6 +247,8 @@ export default function AreaUnitsPage({
   const [savingArea, setSavingArea] = useState(false);
   const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
   const [deletingArea, setDeletingArea] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  const [editUnlocked, setEditUnlocked] = useState(false);
 
   // AI generation form
   const [topic, setTopic] = useState("");
@@ -255,10 +267,32 @@ export default function AreaUnitsPage({
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
+  function canEditNow() {
+    const isSuperRole = role === "super_admin" || role === "admin";
+    const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
+    return !inOrgContext || editUnlocked;
+  }
+
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areaId]);
+  }, [areaId, contextOrgId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (!res.ok) return;
+          const data = (await res.json()) as { role?: string; activeRole?: string };
+          setRole(data.activeRole || data.role || null);
+        } catch {
+          // Ignore role fetch errors.
+        }
+      })();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!sections.some((section) => section.replicationPending)) return;
@@ -283,9 +317,12 @@ export default function AreaUnitsPage({
 
   async function fetchData() {
     setApiError("");
+    const query = contextOrgId
+      ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+      : "";
     const [areaRes, sectionsRes] = await Promise.all([
-      fetch(`/api/admin/areas/${areaId}`),
-      fetch(`/api/admin/sections?areaId=${areaId}`),
+      fetch(`/api/admin/areas/${areaId}${query}`),
+      fetch(`/api/admin/sections?areaId=${areaId}${contextOrgId ? `&organizationId=${encodeURIComponent(contextOrgId)}` : ""}`),
     ]);
 
     if (areaRes.ok) {
@@ -316,6 +353,7 @@ export default function AreaUnitsPage({
   }
 
   async function persistOrder(newSections: Section[]) {
+    if (!canEditNow()) return;
     setApiError("");
     const orderedIds = newSections
       .filter((section) => !section.replicationPending)
@@ -324,7 +362,10 @@ export default function AreaUnitsPage({
     const res = await fetch("/api/admin/sections/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds }),
+      body: JSON.stringify({
+        orderedIds,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
+      }),
     });
     if (!res.ok) {
       setApiError(await readApiError(res, "Failed to save unit order."));
@@ -335,6 +376,7 @@ export default function AreaUnitsPage({
   async function saveAreaEdits(e: React.FormEvent) {
     e.preventDefault();
     if (!area) return;
+    if (!canEditNow()) return;
     setSavingArea(true);
     setApiError("");
     const res = await fetch(`/api/admin/areas/${area.id}`, {
@@ -345,6 +387,7 @@ export default function AreaUnitsPage({
         nameEs: editNameEs,
         description: editDesc || null,
         isActive: area.isActive,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
       }),
     });
 
@@ -359,6 +402,7 @@ export default function AreaUnitsPage({
 
   async function regenerateAreaLogo() {
     if (!area) return;
+    if (!canEditNow()) return;
     setSavingArea(true);
     setApiError("");
     const res = await fetch(`/api/admin/areas/${area.id}`, {
@@ -370,6 +414,7 @@ export default function AreaUnitsPage({
         description: editDesc || null,
         isActive: area.isActive,
         regenerateImage: true,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
       }),
     });
 
@@ -384,6 +429,7 @@ export default function AreaUnitsPage({
 
   async function toggleAreaVisibility() {
     if (!area) return;
+    if (!canEditNow()) return;
     setApiError("");
     const res = await fetch(`/api/admin/areas/${area.id}`, {
       method: "PUT",
@@ -393,6 +439,7 @@ export default function AreaUnitsPage({
         nameEs: area.nameEs,
         description: area.description,
         isActive: !area.isActive,
+        ...(contextOrgId ? { organizationId: contextOrgId } : {}),
       }),
     });
     if (res.ok) {
@@ -404,11 +451,19 @@ export default function AreaUnitsPage({
 
   async function deleteArea() {
     if (!area) return;
+    if (!canEditNow()) return;
     setDeletingArea(true);
     setApiError("");
-    const res = await fetch(`/api/admin/areas/${area.id}`, { method: "DELETE" });
+    const query = contextOrgId
+      ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+      : "";
+    const res = await fetch(`/api/admin/areas/${area.id}${query}`, { method: "DELETE" });
     if (res.ok) {
-      router.push("/admin");
+      router.push(
+        contextOrgId
+          ? `/admin?organizationId=${encodeURIComponent(contextOrgId)}`
+          : "/admin"
+      );
     } else {
       setApiError(await readApiError(res, "Failed to delete area."));
     }
@@ -420,6 +475,7 @@ export default function AreaUnitsPage({
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    if (!canEditNow()) return;
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -437,6 +493,7 @@ export default function AreaUnitsPage({
 
   async function generateSection(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEditNow()) return;
     setGenerating(true);
     setGenError("");
     setApiError("");
@@ -460,6 +517,7 @@ export default function AreaUnitsPage({
           wordCount: parseInt(wordCount, 10) || 5,
           introDifficulty,
           areaId,
+          ...(contextOrgId ? { organizationId: contextOrgId } : {}),
         }),
       });
 
@@ -477,7 +535,11 @@ export default function AreaUnitsPage({
       setIntroDifficulty("medium");
       setShowCreate(false);
       setGenProgress("");
-      router.push(`/admin/sections/${data.sectionId}`);
+      router.push(
+        contextOrgId
+          ? `/admin/sections/${data.sectionId}?organizationId=${encodeURIComponent(contextOrgId)}`
+          : `/admin/sections/${data.sectionId}`
+      );
     } catch {
       setGenError("Connection error. Please try again.");
       setGenerating(false);
@@ -508,12 +570,27 @@ export default function AreaUnitsPage({
 
   const editableSections = sections.filter((section) => !section.replicationPending);
   const pendingSections = sections.filter((section) => section.replicationPending);
+  const isSuperRole = role === "super_admin" || role === "admin";
+  const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
+  const canEdit = !inOrgContext || editUnlocked;
+  const ownershipLabel =
+    area.scopeType === "org"
+      ? area.sourceTemplateId
+        ? "Org-owned template copy"
+        : "Org-owned custom"
+      : "Global template";
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-24">
       <header className="mb-5 flex items-center justify-between">
         <button
-          onClick={() => router.push("/admin")}
+          onClick={() =>
+            router.push(
+              contextOrgId
+                ? `/admin?organizationId=${encodeURIComponent(contextOrgId)}`
+                : "/admin"
+            )
+          }
           className="flex size-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"
           aria-label="Back"
         >
@@ -525,6 +602,7 @@ export default function AreaUnitsPage({
         <button
           className="flex size-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
           aria-label="More options"
+          disabled={!canEdit}
           onClick={() => setShowEditAreaModal(true)}
         >
           <MoreVertical className="h-5 w-5" />
@@ -533,6 +611,30 @@ export default function AreaUnitsPage({
       {apiError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {apiError}
+        </div>
+      )}
+      {inOrgContext && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Org context guardrail
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-600">
+              Viewing org-level content. Editing is locked by default.
+            </p>
+            <button
+              type="button"
+              onClick={() => setEditUnlocked((prev) => !prev)}
+              className={cn(
+                "h-9 rounded-lg px-3 text-xs font-semibold",
+                editUnlocked
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-slate-100 text-slate-700"
+              )}
+            >
+              {editUnlocked ? "Editing ON" : "Unlock edit"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -544,10 +646,14 @@ export default function AreaUnitsPage({
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
           {area.name}
         </p>
+        <p className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          {ownershipLabel}
+        </p>
         <div className="mt-4 flex items-center gap-2">
           <button
             type="button"
             onClick={toggleAreaVisibility}
+            disabled={!canEdit}
             className={cn(
               "inline-flex items-center gap-1 rounded-2xl px-5 py-3 text-sm font-semibold",
               area.isActive
@@ -570,7 +676,8 @@ export default function AreaUnitsPage({
           <button
             type="button"
             onClick={() => setShowEditAreaModal(true)}
-            className="inline-flex items-center gap-1 rounded-2xl bg-primary-50 px-5 py-3 text-sm font-semibold text-primary-700 hover:bg-primary-100"
+            disabled={!canEdit}
+            className="inline-flex items-center gap-1 rounded-2xl bg-primary-50 px-5 py-3 text-sm font-semibold text-primary-700 hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Pencil className="h-4 w-4" />
             Edit
@@ -578,7 +685,8 @@ export default function AreaUnitsPage({
           <button
             type="button"
             onClick={() => setShowDeleteAreaModal(true)}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 hover:bg-red-100"
+            disabled={!canEdit}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -629,6 +737,7 @@ export default function AreaUnitsPage({
                 key={section.id}
                 section={section}
                 index={index}
+                orgContextId={contextOrgId}
               />
             ))}
             {pendingSections.map((section, index) => (
@@ -793,8 +902,12 @@ export default function AreaUnitsPage({
             Uses Artificial intelligence to generate the vocabulary units for your students
           </p>
           <button
-            onClick={() => setShowCreate(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-base font-bold text-primary-700 transition hover:bg-primary-50 disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={() => {
+              if (!canEdit) return;
+              setShowCreate(true);
+            }}
+            disabled={!canEdit}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-3 text-base font-bold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
             Generate New Unit with AI

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 import { SessionData, sessionOptions } from "@/lib/auth";
-import { verifyCode, createVerificationCode, getPendingVerification } from "@/lib/verification";
+import {
+  verifyCode,
+  createVerificationCode,
+  getPendingVerification,
+  consumePendingVerification,
+} from "@/lib/verification";
 import { sendVerificationCode } from "@/lib/email";
 import { prisma } from "@/lib/db";
+import { getDev2faBypassCode } from "@/lib/dev-2fa-bypass";
 
 function isMissingEmailColumnError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -27,6 +33,7 @@ function isUnknownEmailFieldValidationError(error: unknown): boolean {
 export async function POST(request: NextRequest) {
   try {
     const { userId, code, resend } = await request.json();
+    const bypassCode = getDev2faBypassCode();
 
     if (!userId) {
       return NextResponse.json(
@@ -61,14 +68,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const recipientEmail = (user.email || "").trim();
-      if (!recipientEmail) {
-        return NextResponse.json(
-          { error: "Org admin account needs a valid email for verification." },
-          { status: 400 }
-        );
-      }
-
       const newCode = createVerificationCode(
         user.id,
         user.username,
@@ -77,13 +76,22 @@ export async function POST(request: NextRequest) {
         pending.organizationId || null
       );
 
-      try {
-        await sendVerificationCode(newCode, recipientEmail || undefined);
-      } catch {
-        return NextResponse.json(
-          { error: "Failed to send verification email" },
-          { status: 500 }
-        );
+      if (!bypassCode) {
+        const recipientEmail = (user.email || "").trim();
+        if (!recipientEmail) {
+          return NextResponse.json(
+            { error: "Org admin account needs a valid email for verification." },
+            { status: 400 }
+          );
+        }
+        try {
+          await sendVerificationCode(newCode, recipientEmail || undefined);
+        } catch {
+          return NextResponse.json(
+            { error: "Failed to send verification email" },
+            { status: 500 }
+          );
+        }
       }
 
       return NextResponse.json({ sent: true });
@@ -97,7 +105,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = verifyCode(userId, code);
+    let result = verifyCode(userId, code);
+    if (!result && bypassCode && code === bypassCode) {
+      result = consumePendingVerification(userId);
+    }
     if (!result) {
       return NextResponse.json(
         { error: "Invalid or expired code" },

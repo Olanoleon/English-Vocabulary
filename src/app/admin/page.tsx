@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -41,6 +41,15 @@ interface Area {
   isActive: boolean;
   _count: { sections: number };
   replicationPending?: boolean;
+  scopeType?: "global" | "org";
+  organizationId?: string | null;
+  sourceTemplateId?: string | null;
+  isCustomized?: boolean;
+}
+
+interface Organization {
+  id: string;
+  name: string;
 }
 
 // ─── Sortable Area Card ────────────────────────────────────────────────────────
@@ -49,10 +58,14 @@ function SortableAreaCard({
   area,
   regenerating,
   onRegenerate,
+  orgContextId,
+  canEdit,
 }: {
   area: Area;
   regenerating: boolean;
   onRegenerate: (area: Area) => void;
+  orgContextId: string | null;
+  canEdit: boolean;
 }) {
   const {
     attributes,
@@ -67,6 +80,15 @@ function SortableAreaCard({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const href = orgContextId
+    ? `/admin/areas/${area.id}?organizationId=${encodeURIComponent(orgContextId)}`
+    : `/admin/areas/${area.id}`;
+  const ownerLabel =
+    area.scopeType === "org"
+      ? area.sourceTemplateId
+        ? "Org template copy"
+        : "Org custom"
+      : "Global template";
 
   return (
     <div
@@ -90,6 +112,9 @@ function SortableAreaCard({
                   {area.name}
                 </p>
               </div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {ownerLabel}
+              </p>
               <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-slate-500">
                 {area._count.sections} {area._count.sections === 1 ? "unit" : "units"} learned
               </p>
@@ -98,7 +123,7 @@ function SortableAreaCard({
               </p>
             </div>
             <Link
-              href={`/admin/areas/${area.id}`}
+              href={href}
               className="mt-4 inline-flex h-11 w-fit shrink-0 items-center justify-center rounded-full bg-primary-50 px-5 text-base font-bold text-primary-600 transition-colors hover:bg-primary-100"
             >
               View Details
@@ -126,7 +151,7 @@ function SortableAreaCard({
                 e.stopPropagation();
                 onRegenerate(area);
               }}
-              disabled={regenerating}
+              disabled={regenerating || !canEdit}
               className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-md transition hover:bg-primary-700 disabled:opacity-60"
               title="Refresh area image"
               aria-label="Refresh area image"
@@ -213,6 +238,8 @@ function PendingAreaCard({ area }: { area: Area }) {
 
 export default function AdminAreasPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orgFromQuery = searchParams.get("organizationId");
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState("");
@@ -225,6 +252,10 @@ export default function AdminAreasPage() {
   const [regeneratingAreaId, setRegeneratingAreaId] = useState<string | null>(
     null
   );
+  const [role, setRole] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgFromQuery);
+  const [editUnlocked, setEditUnlocked] = useState(false);
 
   // Create form
   const [name, setName] = useState("");
@@ -249,10 +280,25 @@ export default function AdminAreasPage() {
     return fallback;
   }
 
+  function canEditNow() {
+    const isSuperRole = role === "super_admin" || role === "admin";
+    const inOrgContext = Boolean(selectedOrgId) && (isSuperRole || role === null);
+    return !inOrgContext || editUnlocked;
+  }
+
+  function canCreateNow() {
+    const isSuperRole = role === "super_admin" || role === "admin";
+    const inOrgContext = Boolean(selectedOrgId) && (isSuperRole || role === null);
+    return !inOrgContext;
+  }
+
   async function fetchAreas() {
     setApiError("");
     try {
-      const res = await fetch("/api/admin/areas");
+      const query = selectedOrgId
+        ? `?organizationId=${encodeURIComponent(selectedOrgId)}`
+        : "";
+      const res = await fetch(`/api/admin/areas${query}`);
       if (res.ok) {
         setAreas(await res.json());
       } else {
@@ -273,7 +319,28 @@ export default function AdminAreasPage() {
     setLoading(false);
   }
 
+  async function fetchOrgContext() {
+    try {
+      const [meRes, orgRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/admin/organizations"),
+      ]);
+      if (meRes.ok) {
+        const data = (await meRes.json()) as { role?: string; activeRole?: string };
+        const nextRole = data.activeRole || data.role || null;
+        setRole(nextRole);
+      }
+      if (orgRes.ok) {
+        const orgData = (await orgRes.json()) as Organization[];
+        setOrganizations(orgData);
+      }
+    } catch {
+      // Ignore context fetch errors and keep default behavior.
+    }
+  }
+
   async function persistOrder(newAreas: Area[]) {
+    if (!canEditNow()) return;
     setApiError("");
     const orderedIds = newAreas
       .filter((area) => !area.replicationPending)
@@ -282,7 +349,10 @@ export default function AdminAreasPage() {
     const res = await fetch("/api/admin/areas/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds }),
+      body: JSON.stringify({
+        orderedIds,
+        ...(selectedOrgId ? { organizationId: selectedOrgId } : {}),
+      }),
     });
     if (!res.ok) {
       setApiError(await readApiError(res, "Failed to save area order."));
@@ -291,12 +361,17 @@ export default function AdminAreasPage() {
   }
 
   useEffect(() => {
+    setSelectedOrgId(orgFromQuery);
+  }, [orgFromQuery]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
+      void fetchOrgContext();
       void fetchAreas();
     }, 0);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedOrgId]);
 
   useEffect(() => {
     if (!areas.some((area) => area.replicationPending)) return;
@@ -312,6 +387,7 @@ export default function AdminAreasPage() {
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    if (!canEditNow()) return;
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -329,6 +405,7 @@ export default function AdminAreasPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEditNow() || !canCreateNow()) return;
     setCreating(true);
     setCreateError("");
     setApiError("");
@@ -362,6 +439,7 @@ export default function AdminAreasPage() {
   }
 
   async function handleRegenerateAreaImage(area: Area) {
+    if (!canEditNow()) return;
     setApiError("");
     setRegeneratingAreaId(area.id);
     try {
@@ -374,6 +452,7 @@ export default function AdminAreasPage() {
           description: area.description,
           isActive: area.isActive,
           regenerateImage: true,
+          ...(selectedOrgId ? { organizationId: selectedOrgId } : {}),
         }),
       });
 
@@ -416,6 +495,10 @@ export default function AdminAreasPage() {
       (area.description || "").toLowerCase().includes(q)
     );
   });
+  const isSuperRole = role === "super_admin" || role === "admin";
+  const inOrgContext = Boolean(selectedOrgId) && (isSuperRole || role === null);
+  const canEdit = !inOrgContext || editUnlocked;
+  const canCreateArea = canCreateNow();
   const editableAreas = filteredAreas.filter((area) => !area.replicationPending);
   const pendingAreas = filteredAreas.filter((area) => area.replicationPending);
 
@@ -434,6 +517,61 @@ export default function AdminAreasPage() {
         </h2>
         <div className="size-10" />
       </header>
+
+      {isSuperRole && (
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Organization context
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedOrgId || ""}
+              onChange={(e) => {
+                const nextOrgId = e.target.value || null;
+                setSelectedOrgId(nextOrgId);
+                setEditUnlocked(false);
+                router.replace(
+                  nextOrgId
+                    ? `/admin?organizationId=${encodeURIComponent(nextOrgId)}`
+                    : "/admin"
+                );
+              }}
+              className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700"
+            >
+              <option value="">Global templates</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+            {inOrgContext && (
+              <button
+                type="button"
+                onClick={() => setEditUnlocked((prev) => !prev)}
+                className={cn(
+                  "h-10 rounded-xl px-3 text-xs font-semibold",
+                  editUnlocked
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-slate-100 text-slate-700"
+                )}
+              >
+                {editUnlocked ? "Editing ON" : "Unlock edit"}
+              </button>
+            )}
+          </div>
+          {inOrgContext && !editUnlocked && (
+            <p className="mt-2 text-xs text-slate-500">
+              Read-only guardrail active. Unlock edit to change org-owned content.
+            </p>
+          )}
+          {inOrgContext && (
+            <p className="mt-1 text-xs text-slate-500">
+              Creation is disabled in org context to avoid accidental global template creation.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mb-5 rounded-full bg-slate-100 px-4 py-3">
         <div className="flex items-center gap-2 text-slate-500">
@@ -479,6 +617,8 @@ export default function AdminAreasPage() {
                   area={area}
                   regenerating={regeneratingAreaId === area.id}
                   onRegenerate={handleRegenerateAreaImage}
+                  orgContextId={selectedOrgId}
+                  canEdit={canEdit}
                 />
               </div>
             ))}
@@ -589,8 +729,12 @@ export default function AdminAreasPage() {
         </form>
       ) : areas.length > 0 ? (
         <button
-          onClick={() => setShowCreate(true)}
-          className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-center gap-2 rounded-2xl bg-primary-600 px-4 py-3.5 text-lg font-bold tracking-tight text-white shadow-lg shadow-primary-300/40 transition-all hover:bg-primary-700"
+          onClick={() => {
+            if (!canCreateArea) return;
+            setShowCreate(true);
+          }}
+          disabled={!canCreateArea}
+          className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-center gap-2 rounded-2xl bg-primary-600 px-4 py-3.5 text-lg font-bold tracking-tight text-white shadow-lg shadow-primary-300/40 transition-all hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-6 w-6" />
           Create New Area

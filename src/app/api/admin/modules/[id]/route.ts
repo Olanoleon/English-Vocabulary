@@ -8,14 +8,20 @@ export async function PUT(
 ) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
+    const activeRole = session.activeRole || session.role;
     const { id } = await params;
     const body = await request.json();
+    const requestedOrgId =
+      typeof body.organizationId === "string" && body.organizationId.trim()
+        ? body.organizationId.trim()
+        : null;
 
     const existing = await prisma.module.findUnique({
       where: { id },
       include: {
         section: {
-          include: {
+          select: {
+            organizationId: true,
             area: {
               select: {
                 scopeType: true,
@@ -30,11 +36,21 @@ export async function PUT(
       return NextResponse.json({ error: "Module not found" }, { status: 404 });
     }
     if (
-      session.role === "org_admin" &&
+      activeRole === "org_admin" &&
       (existing.section.area.scopeType !== "org" ||
-        existing.section.area.organizationId !== session.organizationId)
+        existing.section.organizationId !== session.organizationId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      activeRole !== "org_admin" &&
+      existing.section.organizationId &&
+      requestedOrgId !== existing.section.organizationId
+    ) {
+      return NextResponse.json(
+        { error: "Select the correct organization context to edit this module." },
+        { status: 403 }
+      );
     }
 
     const updatedModule = await prisma.module.update({
