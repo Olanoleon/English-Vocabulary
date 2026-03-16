@@ -57,6 +57,7 @@ interface Section {
   isActive: boolean;
   imageUrl: string | null;
   _count: { sectionVocabulary: number };
+  replicationPending?: boolean;
 }
 
 type ReadingDifficulty = "easy" | "medium" | "advanced";
@@ -173,6 +174,47 @@ function DragOverlayCard({
   );
 }
 
+function PendingSectionCard({ section, index }: { section: Section; index: number }) {
+  return (
+    <div className="relative min-h-[116px] overflow-hidden rounded-[24px] border border-primary-100 bg-primary-50/15 p-4 shadow-sm">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="h-20 w-24 shrink-0 overflow-hidden rounded-2xl bg-primary-50">
+          {section.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={section.imageUrl}
+              alt={section.title}
+              className="h-full w-full object-cover object-center"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <LogoBadge
+                logo={null}
+                fallback={String(index + 1).padStart(2, "0")}
+                size="md"
+                tone="primary"
+              />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[17px] font-bold leading-tight tracking-tight text-slate-900">
+            {section.title}
+          </p>
+          <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-slate-500">
+            {section._count.sectionVocabulary} terms syncing
+          </p>
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[24px] bg-white/40 backdrop-blur-[1px]">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary-100/90 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-primary-700" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AreaUnitsPage({
@@ -266,10 +308,14 @@ export default function AreaUnitsPage({
 
   async function persistOrder(newSections: Section[]) {
     setApiError("");
+    const orderedIds = newSections
+      .filter((section) => !section.replicationPending)
+      .map((section) => section.id);
+    if (orderedIds.length === 0) return;
     const res = await fetch("/api/admin/sections/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds: newSections.map((s) => s.id) }),
+      body: JSON.stringify({ orderedIds }),
     });
     if (!res.ok) {
       setApiError(await readApiError(res, "Failed to save unit order."));
@@ -369,11 +415,15 @@ export default function AreaUnitsPage({
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = sections.findIndex((s) => s.id === active.id);
-    const newIndex = sections.findIndex((s) => s.id === over.id);
-    const reordered = arrayMove(sections, oldIndex, newIndex);
-    setSections(reordered);
-    persistOrder(reordered);
+    const editable = sections.filter((section) => !section.replicationPending);
+    const pending = sections.filter((section) => section.replicationPending);
+    const oldIndex = editable.findIndex((s) => s.id === active.id);
+    const newIndex = editable.findIndex((s) => s.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reorderedEditable = arrayMove(editable, oldIndex, newIndex);
+    const merged = [...reorderedEditable, ...pending];
+    setSections(merged);
+    persistOrder(reorderedEditable);
   }
 
   async function generateSection(e: React.FormEvent) {
@@ -446,6 +496,9 @@ export default function AreaUnitsPage({
   const activeIndex = activeId
     ? sections.findIndex((s) => s.id === activeId)
     : -1;
+
+  const editableSections = sections.filter((section) => !section.replicationPending);
+  const pendingSections = sections.filter((section) => section.replicationPending);
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-24">
@@ -558,16 +611,19 @@ export default function AreaUnitsPage({
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={sections.map((s) => s.id)}
+          items={editableSections.map((s) => s.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-4">
-            {sections.map((section, index) => (
+            {editableSections.map((section, index) => (
               <SortableSectionCard
                 key={section.id}
                 section={section}
                 index={index}
               />
+            ))}
+            {pendingSections.map((section, index) => (
+              <PendingSectionCard key={section.id} section={section} index={index} />
             ))}
           </div>
         </SortableContext>

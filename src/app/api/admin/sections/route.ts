@@ -59,6 +59,63 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    if (activeRole === "org_admin" && targetOrgId && areaId) {
+      const area = await prisma.area.findUnique({
+        where: { id: areaId },
+        select: {
+          id: true,
+          organizationId: true,
+          sourceTemplateId: true,
+        },
+      });
+
+      if (area && area.organizationId === targetOrgId && area.sourceTemplateId) {
+        const templateSections = await prisma.section.findMany({
+          where: {
+            areaId: area.sourceTemplateId,
+            organizationId: null,
+          },
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            title: true,
+            titleEs: true,
+            sortOrder: true,
+            isActive: true,
+            imageUrl: true,
+            _count: { select: { sectionVocabulary: true } },
+          },
+        });
+
+        const copiedTemplateSectionIds = new Set(
+          sections
+            .map((section) => section.sourceTemplateId)
+            .filter((id): id is string => typeof id === "string" && id.length > 0)
+        );
+
+        const pendingSections = templateSections
+          .filter((templateSection) => !copiedTemplateSectionIds.has(templateSection.id))
+          .map((templateSection) => ({
+            id: `pending-${templateSection.id}`,
+            title: templateSection.title,
+            titleEs: templateSection.titleEs,
+            sortOrder: templateSection.sortOrder,
+            isActive: true,
+            imageUrl: templateSection.imageUrl,
+            _count: templateSection._count,
+            modules: [],
+            orgConfigs: [],
+            replicationPending: true,
+            sourceTemplateId: templateSection.id,
+          }));
+
+        const mergedSections = [...sections, ...pendingSections].sort(
+          (a, b) => a.sortOrder - b.sortOrder
+        );
+        return NextResponse.json(mergedSections);
+      }
+    }
+
     const sortedSections = targetOrgId
       ? [...sections].sort((a, b) => {
           const aOrder = a.orgConfigs[0]?.sortOrder ?? a.sortOrder;

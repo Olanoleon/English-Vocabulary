@@ -40,6 +40,7 @@ interface Area {
   imageUrl: string | null;
   isActive: boolean;
   _count: { sections: number };
+  replicationPending?: boolean;
 }
 
 // ─── Sortable Area Card ────────────────────────────────────────────────────────
@@ -164,6 +165,50 @@ function AreaDragOverlayCard({ area }: { area: Area }) {
   );
 }
 
+function PendingAreaCard({ area }: { area: Area }) {
+  return (
+    <div className="relative overflow-hidden rounded-[28px] border border-primary-100 bg-primary-50/15 p-4 shadow-sm">
+      <div className="flex min-w-0 items-stretch justify-between gap-4">
+        <div className="flex min-w-0 flex-[2_2_0px] flex-col justify-between py-1">
+          <div>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[20px] font-bold leading-[1.2] tracking-tight text-slate-900">
+              {area.name}
+            </p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-slate-500">
+              {area._count.sections} {area._count.sections === 1 ? "unit" : "units"} syncing
+            </p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-primary-700">
+              {area.nameEs}
+            </p>
+          </div>
+          <span className="mt-4 inline-flex h-11 w-fit shrink-0 items-center justify-center rounded-full bg-primary-100 px-5 text-base font-bold text-primary-700">
+            Replicating...
+          </span>
+        </div>
+        <div className="relative h-32 w-36 shrink-0 overflow-hidden rounded-3xl bg-primary-50">
+          {area.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={area.imageUrl}
+              alt={area.name}
+              className="h-full w-full object-cover object-center"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <LogoBadge logo={null} fallback={area.name.slice(0, 1)} size="md" tone="primary" />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[28px] bg-white/40 backdrop-blur-[1px]">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary-100/90 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-primary-700" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminAreasPage() {
@@ -230,10 +275,14 @@ export default function AdminAreasPage() {
 
   async function persistOrder(newAreas: Area[]) {
     setApiError("");
+    const orderedIds = newAreas
+      .filter((area) => !area.replicationPending)
+      .map((area) => area.id);
+    if (orderedIds.length === 0) return;
     const res = await fetch("/api/admin/areas/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds: newAreas.map((a) => a.id) }),
+      body: JSON.stringify({ orderedIds }),
     });
     if (!res.ok) {
       setApiError(await readApiError(res, "Failed to save area order."));
@@ -258,11 +307,15 @@ export default function AdminAreasPage() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = areas.findIndex((a) => a.id === active.id);
-    const newIndex = areas.findIndex((a) => a.id === over.id);
-    const reordered = arrayMove(areas, oldIndex, newIndex);
-    setAreas(reordered);
-    persistOrder(reordered);
+    const editable = areas.filter((area) => !area.replicationPending);
+    const pending = areas.filter((area) => area.replicationPending);
+    const oldIndex = editable.findIndex((a) => a.id === active.id);
+    const newIndex = editable.findIndex((a) => a.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reorderedEditable = arrayMove(editable, oldIndex, newIndex);
+    const merged = [...reorderedEditable, ...pending];
+    setAreas(merged);
+    persistOrder(reorderedEditable);
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -354,6 +407,8 @@ export default function AdminAreasPage() {
       (area.description || "").toLowerCase().includes(q)
     );
   });
+  const editableAreas = filteredAreas.filter((area) => !area.replicationPending);
+  const pendingAreas = filteredAreas.filter((area) => area.replicationPending);
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-32">
@@ -390,7 +445,7 @@ export default function AdminAreasPage() {
         </div>
       )}
 
-      {areas.length > 1 && search.trim() === "" && (
+      {editableAreas.length > 1 && search.trim() === "" && (
         <div className="mb-2 mt-4 flex items-center justify-end">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider">
             Drag to reorder
@@ -405,11 +460,11 @@ export default function AdminAreasPage() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={filteredAreas.map((a) => a.id)}
+          items={editableAreas.map((a) => a.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="mb-4 space-y-4">
-            {filteredAreas.map((area) => (
+            {editableAreas.map((area) => (
               <div key={area.id} className="relative">
                 <SortableAreaCard
                   area={area}
@@ -417,6 +472,9 @@ export default function AdminAreasPage() {
                   onRegenerate={handleRegenerateAreaImage}
                 />
               </div>
+            ))}
+            {pendingAreas.map((area) => (
+              <PendingAreaCard key={area.id} area={area} />
             ))}
           </div>
         </SortableContext>

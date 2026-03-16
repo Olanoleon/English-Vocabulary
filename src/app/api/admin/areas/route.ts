@@ -75,18 +75,54 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
     }
 
+    if (activeRole === "org_admin") {
+      const orgAreas = await prisma.area.findMany({
+        where: { scopeType: "org", organizationId: session.organizationId },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          _count: { select: { sections: true } },
+        },
+      });
+
+      const templateAreas = await prisma.area.findMany({
+        where: {
+          OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
+        },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          _count: { select: { sections: true } },
+        },
+      });
+
+      const copiedTemplateIds = new Set(
+        orgAreas
+          .map((area) => area.sourceTemplateId)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      );
+
+      const pendingTemplateCards = templateAreas
+        .filter((templateArea) => !copiedTemplateIds.has(templateArea.id))
+        .map((templateArea) => ({
+          id: `pending-${templateArea.id}`,
+          name: templateArea.name,
+          nameEs: templateArea.nameEs,
+          description: templateArea.description,
+          imageUrl: templateArea.imageUrl,
+          isActive: true,
+          _count: templateArea._count,
+          replicationPending: true,
+          templateAreaId: templateArea.id,
+        }));
+
+      return NextResponse.json([...orgAreas, ...pendingTemplateCards]);
+    }
+
     const areas = await prisma.area.findMany({
-      where:
-        activeRole === "org_admin"
-          ? { scopeType: "org", organizationId: session.organizationId }
-          : requestedOrgId
-            ? { scopeType: "org", organizationId: requestedOrgId }
-            : {
-                OR: [
-                  { isTemplate: true },
-                  { scopeType: "global", organizationId: null },
-                ],
-              },
+      where: requestedOrgId
+        ? { scopeType: "org", organizationId: requestedOrgId }
+        : {
+            OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
+          },
       orderBy: { sortOrder: "asc" },
       include: {
         _count: { select: { sections: true } },
