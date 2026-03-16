@@ -50,8 +50,9 @@ Use this file as the first read in new sessions. It is a fast map of how the app
   - Session helpers and auth guards using `activeRole`.
 - `src/lib/roles.ts`
   - Shared role predicates + email normalization/validation.
-- `src/lib/login-challenge.ts`
-  - Temporary login challenge token store for role-selection step.
+- `src/lib/template-replication.ts`
+  - Template-to-org replication helpers for areas/sections.
+  - Includes in-flight replication coalescing guards.
 - `src/lib/user-memberships.ts`
   - Membership query helper for auth and role selection.
 - `src/lib/verification.ts`
@@ -168,6 +169,35 @@ Use this file as the first read in new sessions. It is a fast map of how the app
 ## Deployment Notes
 - Production deploys run on Railway.
 - For destructive schema cutovers, run Prisma commands from Railway service shell (with production `DATABASE_URL` loaded), not from Neon SQL editor.
+- Cost control preference: do not auto-push to `origin`. User runs push manually to control Railway deploy triggers.
+
+## Recent Updates (Mar 2026)
+- Multi-role login challenge is session-backed:
+  - `POST /api/auth/login` writes `loginChallenge*` fields into iron-session.
+  - `POST /api/auth/select-role` validates challenge from session (not in-memory token map).
+  - `POST /api/auth/verify` clears pending challenge fields after successful verification.
+  - Files: `src/app/api/auth/login/route.ts`, `src/app/api/auth/select-role/route.ts`, `src/app/api/auth/verify/route.ts`, `src/lib/auth.ts`.
+- Org admin can belong to multiple orgs under one email:
+  - Org admin creation now preserves existing org memberships and only adds missing `(user, role=org_admin, organizationId)` entries.
+  - File: `src/app/api/admin/org-admins/route.ts`.
+- Replication bootstrap + UI pending-state improvements:
+  - Org-admin area/section reads trigger background bootstrap replication when pending template copies are detected.
+  - Admin area lists auto-refresh every ~2.5s while pending replication cards exist.
+  - Files: `src/app/api/admin/areas/route.ts`, `src/app/api/admin/sections/route.ts`, `src/app/admin/page.tsx`, `src/app/admin/areas/[id]/page.tsx`.
+- Duplicate template-copy protection:
+  - In-process replication coalescing prevents duplicate concurrent jobs per org/per template-section.
+  - API responses dedupe by `sourceTemplateId` to avoid repeated cards when old duplicate rows exist.
+  - Files: `src/lib/template-replication.ts`, `src/app/api/admin/areas/route.ts`, `src/app/api/admin/sections/route.ts`.
+- DB hard guard + cleanup for duplicate template copies:
+  - Migration adds one-time dedupe cleanup for org template areas/sections.
+  - Migration adds partial unique indexes enforcing one org copy per source template.
+  - File: `prisma/migrations/20260316093000_dedupe_template_copies_and_add_unique_indexes/migration.sql`.
+- Org-admin visibility toggles no longer detach template sync:
+  - `isCustomized` is now set only when content fields change (name/title/description/image), not for visibility-only updates.
+  - Files: `src/app/api/admin/areas/[id]/route.ts`, `src/app/api/admin/sections/[id]/route.ts`.
+
+## Current Risk / Follow-up
+- Local Prisma migrate may show `P3005` on non-baselined databases. If needed, baseline or run migration SQL manually in controlled environments before relying on `prisma migrate deploy`.
 
 ## Session Handoff Rule
 When finishing a substantial task, update this file with:

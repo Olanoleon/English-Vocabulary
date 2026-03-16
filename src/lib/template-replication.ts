@@ -109,7 +109,6 @@ async function upsertOrgAreaFromTemplate(
             organizationId: orgId,
             sourceTemplateId: templateArea.id,
             // Preserve org-controlled visibility state unless an org admin customizes.
-            isActive: existing.isActive,
             isCustomized: false,
           },
           select: { id: true },
@@ -309,7 +308,6 @@ async function upsertOrgSectionFromTemplate(
             sourceVersion: templateSection.sourceVersion,
             isCustomized: false,
             // Keep org-level visibility unless customized.
-            isActive: existing.isActive,
           },
           select: { id: true },
         })

@@ -15,10 +15,10 @@
   { "id": "food-vegetables", "path": "/images/library/food_vegetables.png", "kind": "any", "title": "Food Vegetables", "aliases": ["vegetables", "vegetable"], "tags": ["food", "vegetables", "grocery"], "priority": 18, "enabled": true },
   { "id": "food-meat", "path": "/images/library/food_meat.png", "kind": "any", "title": "Food Meat", "aliases": ["meat", "protein foods"], "tags": ["food", "meat", "restaurant"], "priority": 18, "enabled": true },
 
-  { "id": "school-teacher", "path": "/images/library/school_teacher.png", "kind": "any", "title": "School Teacher", "aliases": ["teacher", "classroom teacher"], "tags": ["school", "teacher", "education", "classroom"], "priority": 18, "enabled": true },
+  { "id": "school-teacher", "path": "/images/library/school_teacher.png", "kind": "any", "title": "School Teacher", "aliases": ["teacher", "instructor", "professor"], "tags": ["school", "teacher", "education"], "priority": 18, "enabled": true },
   { "id": "school-items", "path": "/images/library/school_items.png", "kind": "any", "title": "School Items", "aliases": ["school supplies", "classroom objects"], "tags": ["school", "items", "supplies", "classroom"], "priority": 18, "enabled": true },
   { "id": "school-subjects", "path": "/images/library/school_subjects.png", "kind": "any", "title": "School Subjects", "aliases": ["subjects", "school subjects"], "tags": ["school", "subjects", "education"], "priority": 18, "enabled": true },
-  { "id": "school-campus", "path": "/images/library/school_campus.png", "kind": "any", "title": "School Campus", "aliases": ["campus", "school buildings"], "tags": ["school", "campus", "education"], "priority": 18, "enabled": true },
+  { "id": "school-campus", "path": "/images/library/school_campus.png", "kind": "any", "title": "School Campus", "aliases": ["campus", "school buildings", "school", "classroom", "classrooms"], "tags": ["school", "campus", "education", "classroom", "building"], "priority": 22, "enabled": true },
 
   { "id": "house-kitchen", "path": "/images/library/house_kitchen.png", "kind": "any", "title": "House Kitchen", "aliases": ["kitchen", "home kitchen"], "tags": ["house", "home", "kitchen", "rooms"], "priority": 15, "enabled": true },
   { "id": "house-bathroom", "path": "/images/library/house_bathroom.png", "kind": "any", "title": "House Bathroom", "aliases": ["bathroom", "home bathroom"], "tags": ["house", "home", "bathroom", "rooms"], "priority": 15, "enabled": true },
