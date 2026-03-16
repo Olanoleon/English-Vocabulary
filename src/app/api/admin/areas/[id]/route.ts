@@ -59,6 +59,12 @@ export async function PUT(
       where: { id },
       select: {
         id: true,
+        name: true,
+        nameEs: true,
+        description: true,
+        imageUrl: true,
+        isActive: true,
+        isCustomized: true,
         scopeType: true,
         organizationId: true,
         isTemplate: true,
@@ -77,11 +83,22 @@ export async function PUT(
         ? await getUnitImageByTitle(body.name, { strict: true, kind: "area" })
         : undefined;
 
+    const nextName = body.name ?? existing.name;
+    const nextNameEs = body.nameEs ?? existing.nameEs;
+    const nextDescription = body.description ?? existing.description;
+    const nextIsActive =
+      typeof body.isActive === "boolean" ? body.isActive : existing.isActive;
+    const hasContentChange =
+      nextName !== existing.name ||
+      nextNameEs !== existing.nameEs ||
+      nextDescription !== existing.description ||
+      (typeof nextImageUrl === "string" && nextImageUrl !== existing.imageUrl);
+
     const data = {
-      name: body.name,
-      nameEs: body.nameEs,
-      description: body.description,
-      isActive: body.isActive,
+      name: nextName,
+      nameEs: nextNameEs,
+      description: nextDescription,
+      isActive: nextIsActive,
       ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
     };
 
@@ -89,7 +106,7 @@ export async function PUT(
       where: { id },
       data:
         activeRole === "org_admin"
-          ? { ...data, isCustomized: true }
+          ? { ...data, isCustomized: existing.isCustomized || hasContentChange }
           : isTemplateArea(existing)
             ? { ...data, sourceVersion: existing.sourceVersion + 1 }
             : data,

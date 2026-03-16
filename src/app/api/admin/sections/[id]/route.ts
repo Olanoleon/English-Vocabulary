@@ -82,6 +82,12 @@ export async function PUT(
       where: { id },
       select: {
         id: true,
+        title: true,
+        titleEs: true,
+        description: true,
+        imageUrl: true,
+        isActive: true,
+        isCustomized: true,
         organizationId: true,
         isTemplate: true,
         sourceVersion: true,
@@ -100,33 +106,43 @@ export async function PUT(
       body.regenerateImage && body.title
         ? await getUnitImageByTitle(body.title, { strict: true, kind: "section" })
         : undefined;
+    const nextTitle = body.title ?? existing.title;
+    const nextTitleEs = body.titleEs ?? existing.titleEs;
+    const nextDescription = body.description ?? existing.description;
+    const nextIsActive =
+      typeof body.isActive === "boolean" ? body.isActive : existing.isActive;
+    const hasContentChange =
+      nextTitle !== existing.title ||
+      nextTitleEs !== existing.titleEs ||
+      nextDescription !== existing.description ||
+      (typeof nextImageUrl === "string" && nextImageUrl !== existing.imageUrl);
 
     const section = await prisma.section.update({
       where: { id },
       data:
         activeRole === "org_admin"
           ? {
-              title: body.title,
-              titleEs: body.titleEs,
-              description: body.description,
-              isActive: body.isActive,
-              isCustomized: true,
+              title: nextTitle,
+              titleEs: nextTitleEs,
+              description: nextDescription,
+              isActive: nextIsActive,
+              isCustomized: existing.isCustomized || hasContentChange,
               ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
             }
           : isTemplateSection(existing)
             ? {
-                title: body.title,
-                titleEs: body.titleEs,
-                description: body.description,
-                isActive: body.isActive,
+                title: nextTitle,
+                titleEs: nextTitleEs,
+                description: nextDescription,
+                isActive: nextIsActive,
                 sourceVersion: existing.sourceVersion + 1,
                 ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
               }
             : {
-                title: body.title,
-                titleEs: body.titleEs,
-                description: body.description,
-                isActive: body.isActive,
+                title: nextTitle,
+                titleEs: nextTitleEs,
+                description: nextDescription,
+                isActive: nextIsActive,
                 ...(nextImageUrl ? { imageUrl: nextImageUrl } : {}),
               },
     });
