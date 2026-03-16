@@ -100,7 +100,7 @@ function SortableAreaCard({
         {...attributes}
         {...listeners}
         className={cn(
-          "flex-1 cursor-grab overflow-hidden rounded-[28px] border bg-white p-4 active:cursor-grabbing",
+          "flex-1 cursor-grab touch-none overflow-hidden rounded-[28px] border bg-white p-4 active:cursor-grabbing",
           area.isActive ? "border-slate-100 shadow-sm" : "border-slate-100 opacity-60"
         )}
       >
@@ -262,7 +262,7 @@ export default function AdminAreasPage() {
     activationConstraint: { distance: 8 },
   });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 200, tolerance: 6 },
+    activationConstraint: { distance: 6 },
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 

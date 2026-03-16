@@ -103,7 +103,7 @@ function SortableSectionCard({
         {...attributes}
         {...listeners}
         className={cn(
-          "flex flex-1 cursor-grab items-center gap-3 overflow-hidden rounded-[24px] border bg-white p-4 shadow-sm active:cursor-grabbing",
+          "flex flex-1 cursor-grab touch-none items-center gap-3 overflow-hidden rounded-[24px] border bg-white p-4 shadow-sm active:cursor-grabbing",
           section.isActive ? "border-slate-100" : "border-slate-100 opacity-60"
         )}
       >
@@ -263,7 +263,7 @@ export default function AreaUnitsPage({
     activationConstraint: { distance: 8 },
   });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 200, tolerance: 6 },
+    activationConstraint: { distance: 6 },
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
