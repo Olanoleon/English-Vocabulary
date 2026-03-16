@@ -19,4 +19,4 @@ RUN npm run build
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD timeout 35 npx prisma db push --accept-data-loss || echo "db push skipped" ; npm start
+CMD npx prisma migrate deploy && npm start
