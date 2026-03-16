@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -238,8 +238,6 @@ function PendingAreaCard({ area }: { area: Area }) {
 
 export default function AdminAreasPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const orgFromQuery = searchParams.get("organizationId");
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState("");
@@ -254,7 +252,7 @@ export default function AdminAreasPage() {
   );
   const [role, setRole] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(orgFromQuery);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [editUnlocked, setEditUnlocked] = useState(false);
 
   // Create form
@@ -361,8 +359,13 @@ export default function AdminAreasPage() {
   }
 
   useEffect(() => {
-    setSelectedOrgId(orgFromQuery);
-  }, [orgFromQuery]);
+    const timer = window.setTimeout(() => {
+      const nextOrgId =
+        new URLSearchParams(window.location.search).get("organizationId") || null;
+      setSelectedOrgId(nextOrgId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
