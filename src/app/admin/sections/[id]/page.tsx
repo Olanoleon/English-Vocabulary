@@ -282,6 +282,8 @@ export default function SectionEditorPage({
   const [recreateError, setRecreateError] = useState("");
   const [recreateReplicationQueued, setRecreateReplicationQueued] = useState(false);
   const [recreateQueued, setRecreateQueued] = useState(false);
+  const [recreateProgressPercent, setRecreateProgressPercent] = useState(0);
+  const [recreateProgressLabel, setRecreateProgressLabel] = useState("");
   const [recreateIntroDifficulty, setRecreateIntroDifficulty] = useState<
     "easy" | "medium" | "advanced"
   >("medium");
@@ -311,6 +313,39 @@ export default function SectionEditorPage({
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generationPending, id, contextOrgId]);
+
+  useEffect(() => {
+    if (!showRecreateModal || !recreateQueued || !generationPending) return;
+    const timer = window.setTimeout(() => {
+      setRecreateProgressPercent((prev) => {
+        if (prev >= 94) return 94;
+        const step = prev < 35 ? 10 : prev < 70 ? 6 : 3;
+        return Math.min(94, prev + step);
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [showRecreateModal, recreateQueued, generationPending, recreateProgressPercent]);
+
+  useEffect(() => {
+    if (!showRecreateModal || !recreateQueued || generationPending) return;
+    if (generationError) {
+      setRecreateError(generationError);
+      setRecreateQueued(false);
+      setRecreating(false);
+      setRecreateProgressLabel("");
+      return;
+    }
+    setRecreateProgressPercent(100);
+    setRecreateProgressLabel("Generation complete.");
+    const timer = window.setTimeout(() => {
+      setShowRecreateModal(false);
+      setShowRecreateSuccessModal(true);
+      setRecreateQueued(false);
+      setRecreating(false);
+      setRecreateProgressLabel("");
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [showRecreateModal, recreateQueued, generationPending, generationError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -447,7 +482,10 @@ export default function SectionEditorPage({
       return;
     }
     setRecreating(true);
+    setRecreateQueued(false);
     setRecreateError("");
+    setRecreateProgressPercent(8);
+    setRecreateProgressLabel("Preparing AI generation...");
     try {
       const res = await fetch(`/api/admin/sections/${id}/recreate`, {
         method: "POST",
@@ -462,8 +500,14 @@ export default function SectionEditorPage({
         const data = (await res.json()) as { queued?: boolean; replicationQueued?: boolean };
         setRecreateQueued(Boolean(data.queued));
         setRecreateReplicationQueued(Boolean(data.replicationQueued));
-        setShowRecreateModal(false);
         await fetchSection();
+        if (Boolean(data.queued)) {
+          setRecreateProgressPercent(14);
+          setRecreateProgressLabel("Generating with AI...");
+          setRecreating(false);
+          return;
+        }
+        setShowRecreateModal(false);
         setShowRecreateSuccessModal(true);
       } else {
         const data = (await res.json()) as { error?: string };
@@ -730,11 +774,6 @@ export default function SectionEditorPage({
       </section>
 
       <div className="mb-4 space-y-3">
-        {generationPending && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-            This unit is generating in the background. You can leave this page and come back later.
-          </div>
-        )}
         {!generationPending && generationError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             Last generation attempt failed: {generationError}
@@ -1289,110 +1328,146 @@ export default function SectionEditorPage({
         <AppModal
           open={showRecreateModal}
           onClose={() => {
-            if (recreating) return;
+            if (recreating || recreateQueued) return;
             setShowRecreateModal(false);
             setRecreateError("");
+            setRecreateQueued(false);
+            setRecreateProgressPercent(0);
+            setRecreateProgressLabel("");
           }}
           maxWidthClassName="max-w-sm"
-          showCloseButton={!recreating}
+          showCloseButton={!recreating && !recreateQueued}
           closeLabel="Close smart regenerate modal"
         >
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+            {recreateQueued ? (
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-purple-100">
+                    <Loader2 className="h-5 w-5 animate-spin text-purple-700" />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Generating with AI</h3>
+                </div>
+                <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
+                  <div className="mb-2 flex items-center justify-between text-purple-700">
+                    <span className="text-sm font-semibold">Rebuilding unit content</span>
+                    <span className="text-xs font-semibold">{recreateProgressPercent}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-purple-100">
+                    <div
+                      className="h-full rounded-full bg-purple-600 transition-all duration-700 ease-out"
+                      style={{ width: `${recreateProgressPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-purple-700">
+                    {recreateProgressLabel || "Generating with AI..."}
+                  </p>
+                </div>
+                {recreateReplicationQueued && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Org-level replication may continue briefly after generation completes.
+                  </p>
+                )}
               </div>
-              <h3 className="font-bold text-gray-900">Recreate Entire Unit?</h3>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Recreate Entire Unit?</h3>
+                </div>
 
-            <p className="text-sm text-gray-600 mb-1">
-              This will regenerate the full unit with current AI logic: vocabulary, intro reading, practice questions, and test questions.
-            </p>
-            <p className="text-xs text-red-600 mb-4">
-              Existing learner attempts/progress for this unit will be reset. This action is intended for content migrations and cannot be undone.
-            </p>
+                <p className="text-sm text-gray-600 mb-1">
+                  This will regenerate the full unit with current AI logic: vocabulary, intro reading, practice questions, and test questions.
+                </p>
+                <p className="text-xs text-red-600 mb-4">
+                  Existing learner attempts/progress for this unit will be reset. This action is intended for content migrations and cannot be undone.
+                </p>
 
-            <label className="mb-4 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Number of vocabulary words
-              </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={60}
-                value={recreateWordCountInput}
-                onChange={(e) => setRecreateWordCountInput(e.target.value)}
-                disabled={recreating}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </label>
+                <label className="mb-4 block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Number of vocabulary words
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={60}
+                    value={recreateWordCountInput}
+                    onChange={(e) => setRecreateWordCountInput(e.target.value)}
+                    disabled={recreating}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </label>
 
-            <label className="mb-4 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Intro text difficulty
-              </span>
-              <AppSelect
-                value={recreateIntroDifficulty}
-                onChange={(value) => {
-                  if (
-                    value === "easy" ||
-                    value === "medium" ||
-                    value === "advanced"
-                  ) {
-                    setRecreateIntroDifficulty(value);
-                  }
-                }}
-                placeholder="Select difficulty"
-                options={[
-                  { value: "easy", label: "Easy" },
-                  { value: "medium", label: "Medium" },
-                  { value: "advanced", label: "Advanced" },
-                ]}
-                className="h-11 rounded-xl border-slate-200 px-3 font-medium text-slate-700"
-                menuClassName="z-[80]"
-              />
-            </label>
+                <label className="mb-4 block">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Intro text difficulty
+                  </span>
+                  <AppSelect
+                    value={recreateIntroDifficulty}
+                    onChange={(value) => {
+                      if (
+                        value === "easy" ||
+                        value === "medium" ||
+                        value === "advanced"
+                      ) {
+                        setRecreateIntroDifficulty(value);
+                      }
+                    }}
+                    placeholder="Select difficulty"
+                    options={[
+                      { value: "easy", label: "Easy" },
+                      { value: "medium", label: "Medium" },
+                      { value: "advanced", label: "Advanced" },
+                    ]}
+                    className="h-11 rounded-xl border-slate-200 px-3 font-medium text-slate-700"
+                    menuClassName="z-[80]"
+                  />
+                </label>
 
-            {recreateError && (
-              <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs mb-3">
-                {recreateError}
-              </div>
+                {recreateError && (
+                  <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs mb-3">
+                    {recreateError}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={recreateUnit}
+                    disabled={recreating}
+                    className={cn(
+                      modalActionButtonClass.danger,
+                      "flex flex-1 items-center justify-center gap-2"
+                    )}
+                  >
+                    {recreating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Recreating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Recreate Unit
+                      </>
+                    )}
+                  </button>
+                  {!recreating && (
+                    <button
+                      onClick={() => {
+                        setShowRecreateModal(false);
+                        setRecreateError("");
+                      }}
+                      className={modalActionButtonClass.secondary}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </>
             )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={recreateUnit}
-                disabled={recreating}
-                className={cn(
-                  modalActionButtonClass.danger,
-                  "flex flex-1 items-center justify-center gap-2"
-                )}
-              >
-                {recreating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Recreating...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Recreate Unit
-                  </>
-                )}
-              </button>
-              {!recreating && (
-                <button
-                  onClick={() => {
-                    setShowRecreateModal(false);
-                    setRecreateError("");
-                  }}
-                  className={modalActionButtonClass.secondary}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
           </div>
         </AppModal>
       )}

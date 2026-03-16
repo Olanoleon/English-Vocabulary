@@ -257,6 +257,8 @@ export default function AreaUnitsPage({
     useState<ReadingDifficulty>("medium");
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState("");
+  const [genProgressPercent, setGenProgressPercent] = useState(0);
+  const [queuedSectionId, setQueuedSectionId] = useState<string | null>(null);
   const [genError, setGenError] = useState("");
 
   const pointerSensor = useSensor(PointerSensor, {
@@ -302,6 +304,71 @@ export default function AreaUnitsPage({
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, areaId]);
+
+  useEffect(() => {
+    if (!generating || !queuedSectionId) return;
+    const timer = window.setTimeout(() => {
+      setGenProgressPercent((prev) => {
+        if (prev >= 94) return 94;
+        const step = prev < 30 ? 10 : prev < 65 ? 6 : 3;
+        return Math.min(94, prev + step);
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [generating, queuedSectionId, genProgressPercent]);
+
+  useEffect(() => {
+    if (!generating || !queuedSectionId) return;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const query = contextOrgId
+            ? `?organizationId=${encodeURIComponent(contextOrgId)}`
+            : "";
+          const res = await fetch(`/api/admin/sections/${queuedSectionId}${query}`);
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            modules?: Array<{
+              type: string;
+              content?: { generationPending?: unknown; generationError?: unknown } | null;
+            }>;
+          };
+          const introModule = data.modules?.find((module) => module.type === "introduction");
+          const content = introModule?.content || null;
+          const pending = Boolean(content?.generationPending);
+          const generationError =
+            typeof content?.generationError === "string" && content.generationError.trim()
+              ? content.generationError.trim()
+              : "";
+
+          if (generationError) {
+            setGenError(generationError);
+            setGenerating(false);
+            setQueuedSectionId(null);
+            setGenProgress("");
+            setGenProgressPercent(0);
+            return;
+          }
+
+          if (pending) return;
+
+          setGenProgressPercent(100);
+          setGenProgress("Generation complete. Opening unit...");
+          const targetSectionId = queuedSectionId;
+          setGenerating(false);
+          setQueuedSectionId(null);
+          router.push(
+            contextOrgId
+              ? `/admin/sections/${targetSectionId}?organizationId=${encodeURIComponent(contextOrgId)}`
+              : `/admin/sections/${targetSectionId}`
+          );
+        } catch {
+          // Ignore transient poll errors and retry on next cycle.
+        }
+      })();
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [generating, queuedSectionId, contextOrgId, router]);
 
   async function readApiError(res: Response, fallback: string) {
     try {
@@ -497,18 +564,11 @@ export default function AreaUnitsPage({
     setGenerating(true);
     setGenError("");
     setApiError("");
-    setGenProgress("Sending topic to AI...");
+    setGenProgress("Generating with AI...");
+    setGenProgressPercent(12);
+    setQueuedSectionId(null);
 
     try {
-      setTimeout(() => {
-        if (generating)
-          setGenProgress("AI is crafting vocabulary and questions...");
-      }, 2000);
-      setTimeout(() => {
-        if (generating)
-          setGenProgress("Almost done — saving to database...");
-      }, 8000);
-
       const res = await fetch("/api/admin/sections/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -527,6 +587,7 @@ export default function AreaUnitsPage({
         setGenError(data.error || "Generation failed. Please try again.");
         setGenerating(false);
         setGenProgress("");
+        setGenProgressPercent(0);
         return;
       }
 
@@ -534,16 +595,31 @@ export default function AreaUnitsPage({
       setWordCount("5");
       setIntroDifficulty("medium");
       setShowCreate(false);
+
+      if (data?.queued && typeof data.sectionId === "string" && data.sectionId.trim()) {
+        setQueuedSectionId(data.sectionId);
+        setGenProgress("Generating with AI...");
+        return;
+      }
+
+      setGenerating(false);
       setGenProgress("");
-      router.push(
-        contextOrgId
-          ? `/admin/sections/${data.sectionId}?organizationId=${encodeURIComponent(contextOrgId)}`
-          : `/admin/sections/${data.sectionId}`
-      );
+      setGenProgressPercent(0);
+      if (typeof data?.sectionId === "string" && data.sectionId.trim()) {
+        router.push(
+          contextOrgId
+            ? `/admin/sections/${data.sectionId}?organizationId=${encodeURIComponent(contextOrgId)}`
+            : `/admin/sections/${data.sectionId}`
+        );
+      } else {
+        await fetchData();
+      }
     } catch {
       setGenError("Connection error. Please try again.");
       setGenerating(false);
       setGenProgress("");
+      setGenProgressPercent(0);
+      setQueuedSectionId(null);
     }
   }
 
@@ -855,9 +931,18 @@ export default function AreaUnitsPage({
             )}
 
             {generating && genProgress && (
-              <div className="bg-purple-100 text-purple-700 px-3 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
-                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                <span>{genProgress}</span>
+              <div className="animate-fade-in rounded-xl border border-purple-200 bg-purple-50 px-3 py-3">
+                <div className="mb-2 flex items-center justify-between text-purple-700">
+                  <span className="text-sm font-semibold">Generating with AI</span>
+                  <span className="text-xs font-semibold">{genProgressPercent}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-purple-100">
+                  <div
+                    className="h-full rounded-full bg-purple-600 transition-all duration-700 ease-out"
+                    style={{ width: `${genProgressPercent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-purple-700">{genProgress}</p>
               </div>
             )}
 
