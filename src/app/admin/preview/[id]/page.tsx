@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoBadge } from "@/components/logo-badge";
 import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
+import { speakSmart } from "@/lib/browser-tts";
 
 interface QuestionOption {
   id: string;
@@ -282,13 +283,7 @@ export default function UnitPreviewPage({
   }
 
   function speak(text: string) {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-    }
+    void speakSmart(text);
   }
 
   function renderReadingText(text: string) {

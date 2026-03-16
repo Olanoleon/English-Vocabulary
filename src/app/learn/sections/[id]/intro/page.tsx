@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Volume2, ChevronRight } from "lucide-react";
 import { LogoBadge } from "@/components/logo-badge";
 import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
+import { cancelSpeech, speakSmart } from "@/lib/browser-tts";
 
 interface VocabWord {
   id: string;
@@ -63,13 +64,7 @@ export default function IntroductionPage({
   }
 
   function speak(text: string) {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-    }
+    void speakSmart(text);
   }
 
   function normalizeLookupWord(value: string) {
@@ -170,11 +165,13 @@ export default function IntroductionPage({
       if (wordToastTimerRef.current) {
         window.clearTimeout(wordToastTimerRef.current);
       }
+      cancelSpeech();
     };
   }, []);
 
   async function markCompleted() {
     setMarking(true);
+    cancelSpeech();
     await fetch("/api/learn/progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -206,7 +203,10 @@ export default function IntroductionPage({
       {/* Header */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur-md">
         <button
-          onClick={() => router.push(`/learn/sections/${id}`)}
+          onClick={() => {
+            cancelSpeech();
+            router.push(`/learn/sections/${id}`);
+          }}
           className="p-1 -ml-1 text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-5 h-5" />
