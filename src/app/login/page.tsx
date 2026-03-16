@@ -95,6 +95,7 @@ function CodeInput({
 
 export default function LoginPage() {
   const router = useRouter();
+  const [uiReady, setUiReady] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -119,6 +120,21 @@ export default function LoginPage() {
     const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setUiReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  if (!uiReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-b from-primary-50 to-white">
+        <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary-600" />
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

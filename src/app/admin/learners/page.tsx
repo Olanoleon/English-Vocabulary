@@ -186,7 +186,7 @@ export default function LearnersPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
-  const [newAvatarGender, setNewAvatarGender] = useState<"female" | "male">("female");
+  const [newAvatarGender, setNewAvatarGender] = useState<"female" | "male" | null>(null);
   const [createOrgId, setCreateOrgId] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -318,7 +318,7 @@ export default function LearnersPage() {
       setNewEmail("");
       setNewPassword("");
       setNewDisplayName("");
-      setNewAvatarGender("female");
+      setNewAvatarGender(null);
       setShowCreate(false);
       void fetchLearners(selectedOrgId || undefined);
     } else {
@@ -507,14 +507,55 @@ export default function LearnersPage() {
             required
             minLength={4}
           />
-          <select
-            value={newAvatarGender}
-            onChange={(e) => setNewAvatarGender(e.target.value as "female" | "male")}
-            className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="female">Female avatar</option>
-            <option value="male">Male avatar</option>
-          </select>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+              Avatar Gender
+            </p>
+            <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 p-1">
+              <button
+                type="button"
+                onClick={() => setNewAvatarGender("male")}
+                className={cn(
+                  "h-10 rounded-xl text-2xl font-semibold leading-none transition-colors",
+                  newAvatarGender === "male"
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-500 hover:bg-gray-100"
+                )}
+                title="Male avatar"
+                aria-pressed={newAvatarGender === "male"}
+              >
+                ♂
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewAvatarGender(null)}
+                className={cn(
+                  "h-10 rounded-xl text-2xl font-semibold leading-none transition-colors",
+                  newAvatarGender === null
+                    ? "bg-gray-200 text-gray-700"
+                    : "text-gray-500 hover:bg-gray-100"
+                )}
+                title="No gender preference"
+                aria-pressed={newAvatarGender === null}
+              >
+                ○
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewAvatarGender("female")}
+                className={cn(
+                  "h-10 rounded-xl text-2xl font-semibold leading-none transition-colors",
+                  newAvatarGender === "female"
+                    ? "bg-pink-100 text-pink-700"
+                    : "text-gray-500 hover:bg-gray-100"
+                )}
+                title="Female avatar"
+                aria-pressed={newAvatarGender === "female"}
+              >
+                ♀
+              </button>
+            </div>
+          </div>
           {error && <p className="text-sm text-danger-500">{error}</p>}
           <div className="flex gap-2 pt-1">
             <button
@@ -529,7 +570,7 @@ export default function LearnersPage() {
               onClick={() => {
                 setShowCreate(false);
                 setError("");
-                setNewAvatarGender("female");
+                setNewAvatarGender(null);
               }}
               className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600"
             >

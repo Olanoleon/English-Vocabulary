@@ -45,6 +45,7 @@ interface Module {
 interface VocabWord {
   id: string;
   word: string;
+  wordEs: string | null;
   partOfSpeech: string;
   definitionEs: string;
   exampleSentence: string;

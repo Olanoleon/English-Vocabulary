@@ -9,6 +9,7 @@ import { ReadingDifficultyBadge } from "@/components/reading-difficulty-badge";
 interface VocabWord {
   id: string;
   word: string;
+  wordEs: string | null;
   partOfSpeech: string;
   definitionEs: string;
   exampleSentence: string;
@@ -80,6 +81,19 @@ export default function IntroductionPage({
   }
 
   function getWordTranslation(word: string) {
+    function extractSpanishWord(value: string | null | undefined) {
+      const raw = String(value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!raw) return null;
+      const firstClause = raw.split(/[.;:]/)[0].split(",")[0].trim();
+      const articleStripped = firstClause
+        .replace(/^(el|la|los|las|un|una|unos|unas)\s+/i, "")
+        .trim();
+      const compact = (articleStripped || firstClause).split(/\s+/).slice(0, 3).join(" ");
+      return compact || null;
+    }
+
     if (!section) return null;
     const normalizedWord = normalizeLookupWord(word);
     if (!normalizedWord) return null;
@@ -88,7 +102,8 @@ export default function IntroductionPage({
     const exact = vocabulary.find(
       (entry) => normalizeLookupWord(entry.word) === normalizedWord
     );
-    if (exact?.definitionEs) return exact.definitionEs;
+    if (exact?.wordEs && exact.wordEs.trim()) return exact.wordEs.trim();
+    if (exact?.definitionEs) return extractSpanishWord(exact.definitionEs);
 
     const fuzzy = vocabulary.find((entry) => {
       const normalizedEntry = normalizeLookupWord(entry.word);
@@ -97,7 +112,8 @@ export default function IntroductionPage({
         normalizedEntry.includes(normalizedWord)
       );
     });
-    return fuzzy?.definitionEs || null;
+    if (fuzzy?.wordEs && fuzzy.wordEs.trim()) return fuzzy.wordEs.trim();
+    return extractSpanishWord(fuzzy?.definitionEs);
   }
 
   function hideWordToast(key: number) {

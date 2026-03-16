@@ -48,6 +48,10 @@ export async function PUT(
       where: { id },
       data: {
         word: body.word,
+        wordEs:
+          typeof body.wordEs === "string" && body.wordEs.trim()
+            ? body.wordEs.trim()
+            : null,
         partOfSpeech: body.partOfSpeech,
         definitionEs: body.definitionEs,
         exampleSentence: body.exampleSentence,

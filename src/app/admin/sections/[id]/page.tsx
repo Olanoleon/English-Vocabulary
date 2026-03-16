@@ -26,6 +26,7 @@ import { AppSelect } from "@/components/app-select";
 interface Vocabulary {
   id: string;
   word: string;
+  wordEs: string | null;
   partOfSpeech: string;
   definitionEs: string;
   exampleSentence: string;
@@ -225,6 +226,7 @@ export default function SectionEditorPage({
   const [showVocabForm, setShowVocabForm] = useState(false);
   const [vocabWord, setVocabWord] = useState("");
   const [vocabPos, setVocabPos] = useState("noun");
+  const [vocabWordEs, setVocabWordEs] = useState("");
   const [vocabDef, setVocabDef] = useState("");
   const [vocabExample, setVocabExample] = useState("");
   const [vocabIpa, setVocabIpa] = useState("");
@@ -412,6 +414,7 @@ export default function SectionEditorPage({
       body: JSON.stringify({
         sectionId: id,
         word: vocabWord,
+        wordEs: vocabWordEs,
         partOfSpeech: vocabPos,
         definitionEs: vocabDef,
         exampleSentence: vocabExample,
@@ -421,6 +424,7 @@ export default function SectionEditorPage({
     });
     if (res.ok) {
       setVocabWord("");
+      setVocabWordEs("");
       setVocabDef("");
       setVocabExample("");
       setVocabIpa("");
@@ -642,6 +646,11 @@ export default function SectionEditorPage({
                       <span className="font-bold text-primary-600">
                         {sv.vocabulary.word}
                       </span>
+                      {sv.vocabulary.wordEs ? (
+                        <span className="text-xs font-medium text-gray-500">
+                          ({sv.vocabulary.wordEs})
+                        </span>
+                      ) : null}
                       <span className="text-xs text-gray-400 italic">
                         {sv.vocabulary.partOfSpeech}
                       </span>
@@ -706,6 +715,13 @@ export default function SectionEditorPage({
                 onChange={(e) => setVocabDef(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
                 required
+              />
+              <input
+                type="text"
+                placeholder="Spanish translation(s) (e.g. amigo, colega)"
+                value={vocabWordEs}
+                onChange={(e) => setVocabWordEs(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
               />
               <input
                 type="text"

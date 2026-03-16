@@ -280,9 +280,14 @@ Return the JSON object now.`
     // 2. Create vocabulary words
     for (let i = 0; i < generated.vocabulary.length; i++) {
       const v = generated.vocabulary[i];
+      const wordEs =
+        typeof v.wordEs === "string" && v.wordEs.trim().length > 0
+          ? v.wordEs.trim()
+          : null;
       await prisma.vocabulary.create({
         data: {
           word: v.word,
+          wordEs,
           partOfSpeech: v.partOfSpeech || "noun",
           definitionEs: v.definitionEs,
           exampleSentence: v.exampleSentence,

@@ -168,6 +168,7 @@ model Module {
 model Vocabulary {
   id                String              @id @default(cuid())
   word              String
+  wordEs            String?             @map("word_es")
   partOfSpeech      String              @map("part_of_speech")
   definitionEs      String              @map("definition_es")
   exampleSentence   String              @map("example_sentence")

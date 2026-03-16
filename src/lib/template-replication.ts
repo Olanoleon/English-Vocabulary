@@ -226,6 +226,7 @@ async function overwriteSectionContentFromTemplate(
     await tx.vocabulary.create({
       data: {
         word: source.vocabulary.word,
+        wordEs: source.vocabulary.wordEs || null,
         partOfSpeech: source.vocabulary.partOfSpeech,
         definitionEs: source.vocabulary.definitionEs,
         exampleSentence: source.vocabulary.exampleSentence,

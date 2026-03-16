@@ -6,7 +6,16 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
     const body = await request.json();
-    const { sectionId, word, partOfSpeech, definitionEs, exampleSentence, phoneticIpa, stressedSyllable } = body;
+    const {
+      sectionId,
+      word,
+      wordEs,
+      partOfSpeech,
+      definitionEs,
+      exampleSentence,
+      phoneticIpa,
+      stressedSyllable,
+    } = body;
 
     if (!sectionId || !word || !partOfSpeech || !definitionEs || !exampleSentence) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
     const vocab = await prisma.vocabulary.create({
       data: {
         word,
+        wordEs: typeof wordEs === "string" && wordEs.trim() ? wordEs.trim() : null,
         partOfSpeech,
         definitionEs,
         exampleSentence,

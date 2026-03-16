@@ -9,6 +9,10 @@ VOCABULARY RULES:
   - medium: mostly B1, practical and moderately rich vocabulary
   - advanced: B2-C1, including less frequent and more nuanced topic-appropriate words
 - Spanish definitions must be natural and accurate, as a Spanish teacher would explain them — never machine-translated
+- Include "wordEs" for each vocabulary item:
+  - It must contain the most common Spanish translation(s) for the English word
+  - Use 1 translation when there is a clear dominant option
+  - Use at most 2 translations when both are very common (format: "traduccion1, traduccion2")
 - Example sentences must clearly demonstrate the word's meaning in context
 - IPA transcription must be accurate American English
 - stressed_syllable should be the syllable that carries primary stress, written in lowercase
@@ -79,6 +83,7 @@ JSON STRUCTURE (follow exactly):
   "vocabulary": [
     {
       "word": "example",
+      "wordEs": "ejemplo",
       "partOfSpeech": "noun",
       "definitionEs": "Definición natural en español",
       "exampleSentence": "Here is an example of the word in context.",

@@ -144,6 +144,7 @@ function normalizeGeneratedPayload(
       if (!word || !definitionEs || !exampleSentence) return null;
       return {
         word,
+        wordEs: pickString(row, ["wordEs", "word_es", "translationEs", "translation_es"]),
         partOfSpeech: pickString(row, ["partOfSpeech", "part_of_speech"]) || "noun",
         definitionEs,
         exampleSentence,
@@ -156,6 +157,7 @@ function normalizeGeneratedPayload(
         v
       ): v is {
         word: string;
+        wordEs: string | null;
         partOfSpeech: string;
         definitionEs: string;
         exampleSentence: string;
@@ -479,6 +481,7 @@ Return the JSON object now.`
           await tx.vocabulary.create({
             data: {
               word: v.word,
+              wordEs: v.wordEs,
               partOfSpeech: v.partOfSpeech || "noun",
               definitionEs: v.definitionEs,
               exampleSentence: v.exampleSentence,
