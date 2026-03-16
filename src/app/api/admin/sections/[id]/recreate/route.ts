@@ -85,6 +85,21 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
 
 const SYSTEM_PROMPT = SECTION_GENERATION_SYSTEM_PROMPT;
 
+type IntroContentState = {
+  readingTitle?: string;
+  readingText?: string;
+  readingDifficulty?: string;
+  generationPending?: boolean;
+  generationError?: string | null;
+  generationStartedAt?: string;
+  generationCompletedAt?: string;
+};
+
+function asIntroContent(value: unknown): IntroContentState {
+  if (!value || typeof value !== "object") return {};
+  return value as IntroContentState;
+}
+
 function pickString(
   source: Record<string, unknown>,
   keys: string[]
@@ -376,9 +391,27 @@ export async function POST(
         ? `\nMatching pairs: ${matchingPairs} word pairs per matching question (generate 1 matching question for practice + 1 for test)`
         : "";
 
-    const content = await callOpenAI(
-      SYSTEM_PROMPT,
-      `Generate a complete vocabulary section for the topic: "${promptSectionTitle}"
+    const replicationQueued = activeRole !== "org_admin" && isTemplate;
+    const currentIntroContent = asIntroContent(introModule.content);
+    await prisma.module.update({
+      where: { id: introModule.id },
+      data: {
+        content: {
+          ...currentIntroContent,
+          readingDifficulty: introDifficulty,
+          generationPending: true,
+          generationError: null,
+          generationStartedAt: new Date().toISOString(),
+          generationCompletedAt: undefined,
+        },
+      },
+    });
+
+    void (async () => {
+      try {
+        const content = await callOpenAI(
+          SYSTEM_PROMPT,
+          `Generate a complete vocabulary section for the topic: "${promptSectionTitle}"
 Number of vocabulary words: ${currentWordCount}
 Required regular practice questions: exactly ${practiceRegularCount}
 Required regular test questions: exactly ${testRegularCount}${matchingInstruction}
@@ -388,205 +421,218 @@ Apply this same difficulty level to vocabulary selection as well.
 ${vocabularyDifficultyGuidance}
 
 Return the JSON object now.`
-    );
+        );
 
-    if (!content) {
-      return NextResponse.json(
-        { error: "OpenAI returned an empty response" },
-        { status: 502 }
-      );
-    }
+        if (!content) {
+          throw new Error("OpenAI returned an empty response");
+        }
 
-    let generated: ReturnType<typeof normalizeGeneratedPayload>;
+        let generated: ReturnType<typeof normalizeGeneratedPayload>;
+        try {
+          const parsed = JSON.parse(content);
+          generated = normalizeGeneratedPayload(
+            parsed,
+            effectiveSection.title,
+            effectiveSection.titleEs
+          );
+        } catch {
+          throw new Error("AI returned invalid JSON. Please try again.");
+        }
 
-    try {
-      const parsed = JSON.parse(content);
-      generated = normalizeGeneratedPayload(
-        parsed,
-        effectiveSection.title,
-        effectiveSection.titleEs
-      );
-    } catch {
-      return NextResponse.json(
-        { error: "AI returned invalid JSON. Please try again." },
-        { status: 502 }
-      );
-    }
+        if (!Array.isArray(generated.vocabulary) || generated.vocabulary.length === 0) {
+          throw new Error("AI response did not include valid vocabulary items. Please try again.");
+        }
 
-    if (!Array.isArray(generated.vocabulary) || generated.vocabulary.length === 0) {
-      return NextResponse.json(
-        { error: "AI response did not include valid vocabulary items. Please try again." },
-        { status: 502 }
-      );
-    }
-
-    const oldVocabularyIds = effectiveSection.sectionVocabulary.map(
-      (sv) => sv.vocabulary.id
-    );
-    const imageUrl = await getUnitImageByTitle(generated.title, {
-      kind: "section",
-    });
-
-    await prisma.$transaction(
-      async (tx) => {
-        await tx.learnerAttempt.deleteMany({
-          where: { moduleId: { in: sectionModuleIds } },
+        const oldVocabularyIds = effectiveSection.sectionVocabulary.map(
+          (sv) => sv.vocabulary.id
+        );
+        const imageUrl = await getUnitImageByTitle(generated.title, {
+          kind: "section",
         });
-        await tx.question.deleteMany({
-          where: { moduleId: { in: sectionModuleIds } },
-        });
-        await tx.learnerSectionProgress.updateMany({
-          where: { sectionId: targetSectionId },
-          data: {
-            introCompleted: false,
-            practiceCompleted: false,
-            testPassed: false,
-            testScore: null,
+
+        await prisma.$transaction(
+          async (tx) => {
+            await tx.learnerAttempt.deleteMany({
+              where: { moduleId: { in: sectionModuleIds } },
+            });
+            await tx.question.deleteMany({
+              where: { moduleId: { in: sectionModuleIds } },
+            });
+            await tx.learnerSectionProgress.updateMany({
+              where: { sectionId: targetSectionId },
+              data: {
+                introCompleted: false,
+                practiceCompleted: false,
+                testPassed: false,
+                testScore: null,
+              },
+            });
+
+            await tx.section.update({
+              where: { id: targetSectionId },
+              data: {
+                title: generated.title,
+                titleEs: generated.titleEs,
+                description: generated.description || "",
+                imageUrl,
+                ...(activeRole === "org_admin"
+                  ? { isCustomized: true }
+                  : isTemplate
+                    ? { sourceVersion: { increment: 1 } }
+                    : {}),
+              },
+            });
+
+            await tx.module.update({
+              where: { id: introModule.id },
+              data: {
+                content: {
+                  readingTitle: generated.readingTitle || generated.title,
+                  readingText: generated.readingText || "",
+                  readingDifficulty: introDifficulty,
+                  generationPending: false,
+                  generationError: null,
+                  generationCompletedAt: new Date().toISOString(),
+                },
+              },
+            });
+
+            await tx.sectionVocabulary.deleteMany({ where: { sectionId: targetSectionId } });
+            if (oldVocabularyIds.length > 0) {
+              await tx.vocabulary.deleteMany({ where: { id: { in: oldVocabularyIds } } });
+            }
+
+            for (let i = 0; i < generated.vocabulary.length; i++) {
+              const v = generated.vocabulary[i];
+              await tx.vocabulary.create({
+                data: {
+                  word: v.word,
+                  wordEs: v.wordEs,
+                  partOfSpeech: v.partOfSpeech || "noun",
+                  definitionEs: v.definitionEs,
+                  exampleSentence: v.exampleSentence,
+                  phoneticIpa: v.phoneticIpa || null,
+                  stressedSyllable: v.stressedSyllable || null,
+                  sectionVocabulary: {
+                    create: {
+                      sectionId: targetSectionId,
+                      sortOrder: i + 1,
+                    },
+                  },
+                },
+              });
+            }
+
+            if (Array.isArray(generated.practiceQuestions)) {
+              for (let i = 0; i < generated.practiceQuestions.length; i++) {
+                const q = generated.practiceQuestions[i];
+                const correctAnswer =
+                  q.type === "matching" && Array.isArray(q.pairs)
+                    ? JSON.stringify(q.pairs)
+                    : q.correctAnswer || null;
+                const shuffledOptions =
+                  Array.isArray(q.options) && q.options.length > 0
+                    ? shuffleArray(q.options)
+                    : [];
+
+                await tx.question.create({
+                  data: {
+                    moduleId: practiceModule.id,
+                    type: q.type || "multiple_choice",
+                    prompt: q.prompt,
+                    correctAnswer,
+                    sortOrder: i + 1,
+                    options:
+                      shuffledOptions.length > 0
+                        ? {
+                            create: shuffledOptions.map((o, idx) => ({
+                              optionText: o.optionText,
+                              isCorrect: o.isCorrect || false,
+                              sortOrder: idx + 1,
+                            })),
+                          }
+                        : undefined,
+                  },
+                });
+              }
+            }
+
+            if (Array.isArray(generated.testQuestions)) {
+              for (let i = 0; i < generated.testQuestions.length; i++) {
+                const q = generated.testQuestions[i];
+                const correctAnswer =
+                  q.type === "matching" && Array.isArray(q.pairs)
+                    ? JSON.stringify(q.pairs)
+                    : q.correctAnswer || null;
+                const shuffledOptions =
+                  Array.isArray(q.options) && q.options.length > 0
+                    ? shuffleArray(q.options)
+                    : [];
+
+                await tx.question.create({
+                  data: {
+                    moduleId: testModule.id,
+                    type: q.type || "multiple_choice",
+                    prompt: q.prompt,
+                    correctAnswer,
+                    sortOrder: i + 1,
+                    options:
+                      shuffledOptions.length > 0
+                        ? {
+                            create: shuffledOptions.map((o, idx) => ({
+                              optionText: o.optionText,
+                              isCorrect: o.isCorrect || false,
+                              sortOrder: idx + 1,
+                            })),
+                          }
+                        : undefined,
+                  },
+                });
+              }
+            }
           },
-        });
+          {
+            maxWait: 10_000,
+            timeout: 30_000,
+          }
+        );
 
-        await tx.section.update({
-          where: { id: targetSectionId },
-          data: {
-            title: generated.title,
-            titleEs: generated.titleEs,
-            description: generated.description || "",
-            imageUrl,
-            ...(activeRole === "org_admin"
-              ? { isCustomized: true }
-              : isTemplate
-                ? { sourceVersion: { increment: 1 } }
-                : {}),
-          },
-        });
-
-        await tx.module.update({
+        if (replicationQueued) {
+          void replicateTemplateSectionToAllOrgs(targetSectionId).catch((replicationError) => {
+            console.error("Template replication after recreate failed:", replicationError);
+          });
+        }
+      } catch (backgroundError: unknown) {
+        console.error("Recreate unit background job failed:", backgroundError);
+        const message =
+          backgroundError instanceof Error
+            ? backgroundError.message
+            : "Failed to recreate unit";
+        const fallbackIntro = asIntroContent(introModule.content);
+        await prisma.module.update({
           where: { id: introModule.id },
           data: {
             content: {
-              readingTitle: generated.readingTitle || generated.title,
-              readingText: generated.readingText || "",
+              ...fallbackIntro,
               readingDifficulty: introDifficulty,
+              generationPending: false,
+              generationError: message,
+              generationCompletedAt: new Date().toISOString(),
             },
           },
         });
-
-        await tx.sectionVocabulary.deleteMany({ where: { sectionId: targetSectionId } });
-        if (oldVocabularyIds.length > 0) {
-          await tx.vocabulary.deleteMany({ where: { id: { in: oldVocabularyIds } } });
-        }
-
-        for (let i = 0; i < generated.vocabulary.length; i++) {
-          const v = generated.vocabulary[i];
-          await tx.vocabulary.create({
-            data: {
-              word: v.word,
-              wordEs: v.wordEs,
-              partOfSpeech: v.partOfSpeech || "noun",
-              definitionEs: v.definitionEs,
-              exampleSentence: v.exampleSentence,
-              phoneticIpa: v.phoneticIpa || null,
-              stressedSyllable: v.stressedSyllable || null,
-              sectionVocabulary: {
-                create: {
-                  sectionId: targetSectionId,
-                  sortOrder: i + 1,
-                },
-              },
-            },
-          });
-        }
-
-        if (Array.isArray(generated.practiceQuestions)) {
-          for (let i = 0; i < generated.practiceQuestions.length; i++) {
-            const q = generated.practiceQuestions[i];
-            const correctAnswer =
-              q.type === "matching" && Array.isArray(q.pairs)
-                ? JSON.stringify(q.pairs)
-                : q.correctAnswer || null;
-            const shuffledOptions =
-              Array.isArray(q.options) && q.options.length > 0
-                ? shuffleArray(q.options)
-                : [];
-
-            await tx.question.create({
-              data: {
-                moduleId: practiceModule.id,
-                type: q.type || "multiple_choice",
-                prompt: q.prompt,
-                correctAnswer,
-                sortOrder: i + 1,
-                options:
-                  shuffledOptions.length > 0
-                    ? {
-                        create: shuffledOptions.map((o, idx) => ({
-                          optionText: o.optionText,
-                          isCorrect: o.isCorrect || false,
-                          sortOrder: idx + 1,
-                        })),
-                      }
-                    : undefined,
-              },
-            });
-          }
-        }
-
-        if (Array.isArray(generated.testQuestions)) {
-          for (let i = 0; i < generated.testQuestions.length; i++) {
-            const q = generated.testQuestions[i];
-            const correctAnswer =
-              q.type === "matching" && Array.isArray(q.pairs)
-                ? JSON.stringify(q.pairs)
-                : q.correctAnswer || null;
-            const shuffledOptions =
-              Array.isArray(q.options) && q.options.length > 0
-                ? shuffleArray(q.options)
-                : [];
-
-            await tx.question.create({
-              data: {
-                moduleId: testModule.id,
-                type: q.type || "multiple_choice",
-                prompt: q.prompt,
-                correctAnswer,
-                sortOrder: i + 1,
-                options:
-                  shuffledOptions.length > 0
-                    ? {
-                        create: shuffledOptions.map((o, idx) => ({
-                          optionText: o.optionText,
-                          isCorrect: o.isCorrect || false,
-                          sortOrder: idx + 1,
-                        })),
-                      }
-                    : undefined,
-              },
-            });
-          }
-        }
-      },
-      {
-        maxWait: 10_000,
-        timeout: 30_000,
       }
+    })();
+
+    return NextResponse.json(
+      {
+        success: true,
+        queued: true,
+        sectionId: targetSectionId,
+        replicationQueued,
+      },
+      { status: 202 }
     );
-
-    const replicationQueued = activeRole !== "org_admin" && isTemplate;
-    if (replicationQueued) {
-      // Fire-and-forget so recreate returns immediately.
-      void replicateTemplateSectionToAllOrgs(targetSectionId).catch((replicationError) => {
-        console.error("Template replication after recreate failed:", replicationError);
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      sectionId: targetSectionId,
-      wordCount: generated.vocabulary.length,
-      practiceQuestionCount: generated.practiceQuestions?.length || 0,
-      testQuestionCount: generated.testQuestions?.length || 0,
-      replicationQueued,
-    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
     if (message === "Unauthorized" || message === "Forbidden") {

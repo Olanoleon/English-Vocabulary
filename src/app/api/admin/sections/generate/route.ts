@@ -82,6 +82,48 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
 
 const SYSTEM_PROMPT = SECTION_GENERATION_SYSTEM_PROMPT;
 
+type IntroContentState = {
+  readingTitle?: string;
+  readingText?: string;
+  readingDifficulty?: string;
+  generationPending?: boolean;
+  generationError?: string | null;
+  generationStartedAt?: string;
+  generationCompletedAt?: string;
+};
+
+function buildPendingIntroContent(difficulty: string): IntroContentState {
+  return {
+    readingTitle: "",
+    readingText: "",
+    readingDifficulty: difficulty,
+    generationPending: true,
+    generationError: null,
+    generationStartedAt: new Date().toISOString(),
+    generationCompletedAt: undefined,
+  };
+}
+
+async function markGenerationFailed(
+  moduleId: string,
+  errorMessage: string,
+  difficulty: string
+) {
+  await prisma.module.update({
+    where: { id: moduleId },
+    data: {
+      content: {
+        readingTitle: "",
+        readingText: "",
+        readingDifficulty: difficulty,
+        generationPending: false,
+        generationError: errorMessage,
+        generationCompletedAt: new Date().toISOString(),
+      },
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
@@ -141,71 +183,6 @@ export async function POST(request: NextRequest) {
     const practiceRegularCount = Math.max(1, practiceCount - matchingPairs);
     const testRegularCount = Math.max(1, testCount - matchingPairs);
 
-    // Call OpenAI (using fetch directly to avoid IDE proxy interception)
-    const matchingInstruction = matchingPairs > 0
-      ? `\nMatching pairs: ${matchingPairs} word pairs per matching question (generate 1 matching question for practice + 1 for test)`
-      : "";
-    const content = await callOpenAI(
-      SYSTEM_PROMPT,
-      `Generate a complete vocabulary section for the topic: "${topic}"
-Number of vocabulary words: ${wordCount}
-Required regular practice questions: exactly ${practiceRegularCount} (this is mandatory — every word must appear in at least one question)
-Required regular test questions: exactly ${testRegularCount} (this is mandatory)${matchingInstruction}
-Introduction reading difficulty: ${normalizedDifficulty}
-Difficulty style guidance: ${difficultyGuidance}
-
-Return the JSON object now.`
-    );
-
-    if (!content) {
-      return NextResponse.json(
-        { error: "OpenAI returned an empty response" },
-        { status: 502 }
-      );
-    }
-
-    let generated;
-    try {
-      generated = JSON.parse(content);
-    } catch {
-      console.error("Failed to parse OpenAI response:", content);
-      return NextResponse.json(
-        { error: "AI returned invalid JSON. Please try again." },
-        { status: 502 }
-      );
-    }
-
-    // Validate required fields
-    if (
-      !generated.title ||
-      !generated.titleEs ||
-      !generated.vocabulary ||
-      !Array.isArray(generated.vocabulary) ||
-      generated.vocabulary.length === 0
-    ) {
-      return NextResponse.json(
-        { error: "AI response is missing required fields. Please try again." },
-        { status: 502 }
-      );
-    }
-
-    // Log if OpenAI under-generated (helps debugging)
-    // Expected total includes regular questions plus one matching question (when enabled).
-    const expectedPracticeTotal = practiceRegularCount + (matchingPairs > 0 ? 1 : 0);
-    const expectedTestTotal = testRegularCount + (matchingPairs > 0 ? 1 : 0);
-    const actualPractice = generated.practiceQuestions?.length || 0;
-    const actualTest = generated.testQuestions?.length || 0;
-    if (actualPractice < expectedPracticeTotal) {
-      console.warn(
-        `OpenAI under-generated practice questions: got ${actualPractice}, expected ${expectedPracticeTotal}`
-      );
-    }
-    if (actualTest < expectedTestTotal) {
-      console.warn(
-        `OpenAI under-generated test questions: got ${actualTest}, expected ${expectedTestTotal}`
-      );
-    }
-
     // Get next sort order within area
     const lastSection = await prisma.section.findFirst({
       where: { areaId },
@@ -213,13 +190,8 @@ Return the JSON object now.`
     });
     const sortOrder = (lastSection?.sortOrder ?? 0) + 1;
 
-    // Fetch provider illustration by title (fallback to app logo)
-    const imageUrl = await getUnitImageByTitle(generated.title, {
-      kind: "section",
-    });
-
     // Create everything in the database
-    // 1. Create section with modules
+    // 1. Create placeholder section and return quickly so mobile backgrounding does not cancel work.
     const ownerOrgIdForSection =
       activeRole === "org_admin" ? session.organizationId || null : null;
     const isTemplateSection =
@@ -227,10 +199,10 @@ Return the JSON object now.`
       (Boolean(area.isTemplate) || (area.scopeType === "global" && !area.organizationId));
     const section = await prisma.section.create({
       data: {
-        title: generated.title,
-        titleEs: generated.titleEs,
-        description: generated.description || "",
-        imageUrl,
+        title: String(topic).trim(),
+        titleEs: String(topic).trim(),
+        description: "",
+        imageUrl: null,
         sortOrder,
         areaId,
         organizationId: ownerOrgIdForSection,
@@ -242,11 +214,7 @@ Return the JSON object now.`
           create: [
             {
               type: "introduction",
-              content: {
-                readingTitle: generated.readingTitle || generated.title,
-                readingText: generated.readingText || "",
-                readingDifficulty: normalizedDifficulty,
-              },
+              content: buildPendingIntroContent(normalizedDifficulty),
             },
             { type: "practice" },
             { type: "test" },
@@ -274,128 +242,219 @@ Return the JSON object now.`
       });
     }
 
-    const practiceModule = section.modules.find((m) => m.type === "practice")!;
-    const testModule = section.modules.find((m) => m.type === "test")!;
+    const introModule = section.modules.find((m) => m.type === "introduction");
+    const practiceModule = section.modules.find((m) => m.type === "practice");
+    const testModule = section.modules.find((m) => m.type === "test");
+    if (!introModule || !practiceModule || !testModule) {
+      return NextResponse.json(
+        { error: "Section is missing introduction/practice/test modules" },
+        { status: 500 }
+      );
+    }
 
-    // 2. Create vocabulary words
-    for (let i = 0; i < generated.vocabulary.length; i++) {
-      const v = generated.vocabulary[i];
-      const wordEs =
-        typeof v.wordEs === "string" && v.wordEs.trim().length > 0
-          ? v.wordEs.trim()
-          : null;
-      await prisma.vocabulary.create({
-        data: {
-          word: v.word,
-          wordEs,
-          partOfSpeech: v.partOfSpeech || "noun",
-          definitionEs: v.definitionEs,
-          exampleSentence: v.exampleSentence,
-          phoneticIpa: v.phoneticIpa || null,
-          stressedSyllable: v.stressedSyllable || null,
-          sectionVocabulary: {
-            create: {
-              sectionId: section.id,
-              sortOrder: i + 1,
+    void (async () => {
+      try {
+        const matchingInstruction = matchingPairs > 0
+          ? `\nMatching pairs: ${matchingPairs} word pairs per matching question (generate 1 matching question for practice + 1 for test)`
+          : "";
+        const content = await callOpenAI(
+          SYSTEM_PROMPT,
+          `Generate a complete vocabulary section for the topic: "${topic}"
+Number of vocabulary words: ${wordCount}
+Required regular practice questions: exactly ${practiceRegularCount} (this is mandatory — every word must appear in at least one question)
+Required regular test questions: exactly ${testRegularCount} (this is mandatory)${matchingInstruction}
+Introduction reading difficulty: ${normalizedDifficulty}
+Difficulty style guidance: ${difficultyGuidance}
+
+Return the JSON object now.`
+        );
+
+        if (!content) {
+          throw new Error("OpenAI returned an empty response");
+        }
+
+        let generated;
+        try {
+          generated = JSON.parse(content);
+        } catch {
+          console.error("Failed to parse OpenAI response:", content);
+          throw new Error("AI returned invalid JSON. Please try again.");
+        }
+
+        if (
+          !generated.title ||
+          !generated.titleEs ||
+          !generated.vocabulary ||
+          !Array.isArray(generated.vocabulary) ||
+          generated.vocabulary.length === 0
+        ) {
+          throw new Error("AI response is missing required fields. Please try again.");
+        }
+
+        const expectedPracticeTotal = practiceRegularCount + (matchingPairs > 0 ? 1 : 0);
+        const expectedTestTotal = testRegularCount + (matchingPairs > 0 ? 1 : 0);
+        const actualPractice = generated.practiceQuestions?.length || 0;
+        const actualTest = generated.testQuestions?.length || 0;
+        if (actualPractice < expectedPracticeTotal) {
+          console.warn(
+            `OpenAI under-generated practice questions: got ${actualPractice}, expected ${expectedPracticeTotal}`
+          );
+        }
+        if (actualTest < expectedTestTotal) {
+          console.warn(
+            `OpenAI under-generated test questions: got ${actualTest}, expected ${expectedTestTotal}`
+          );
+        }
+
+        const imageUrl = await getUnitImageByTitle(generated.title, {
+          kind: "section",
+        });
+
+        await prisma.section.update({
+          where: { id: section.id },
+          data: {
+            title: generated.title,
+            titleEs: generated.titleEs,
+            description: generated.description || "",
+            imageUrl,
+          },
+        });
+
+        await prisma.module.update({
+          where: { id: introModule.id },
+          data: {
+            content: {
+              readingTitle: generated.readingTitle || generated.title,
+              readingText: generated.readingText || "",
+              readingDifficulty: normalizedDifficulty,
+              generationPending: false,
+              generationError: null,
+              generationCompletedAt: new Date().toISOString(),
             },
           },
-        },
-      });
-    }
-
-    // 3. Create practice questions
-    if (Array.isArray(generated.practiceQuestions)) {
-      for (let i = 0; i < generated.practiceQuestions.length; i++) {
-        const q = generated.practiceQuestions[i];
-        // For matching questions, store pairs as JSON in correctAnswer
-        const correctAnswer =
-          q.type === "matching" && Array.isArray(q.pairs)
-            ? JSON.stringify(q.pairs)
-            : q.correctAnswer || null;
-        const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
-          Array.isArray(q.options) && q.options.length > 0
-            ? shuffleArray(q.options)
-            : [];
-        await prisma.question.create({
-          data: {
-            moduleId: practiceModule.id,
-            type: q.type || "multiple_choice",
-            prompt: q.prompt,
-            correctAnswer,
-            sortOrder: i + 1,
-            options:
-              shuffledOptions.length > 0
-                ? {
-                    create: shuffledOptions.map(
-                      (
-                        o: { optionText: string; isCorrect: boolean },
-                        idx: number
-                      ) => ({
-                        optionText: o.optionText,
-                        isCorrect: o.isCorrect || false,
-                        sortOrder: idx + 1,
-                      })
-                    ),
-                  }
-                : undefined,
-          },
         });
-      }
-    }
 
-    // 4. Create test questions
-    if (Array.isArray(generated.testQuestions)) {
-      for (let i = 0; i < generated.testQuestions.length; i++) {
-        const q = generated.testQuestions[i];
-        const correctAnswer =
-          q.type === "matching" && Array.isArray(q.pairs)
-            ? JSON.stringify(q.pairs)
-            : q.correctAnswer || null;
-        const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
-          Array.isArray(q.options) && q.options.length > 0
-            ? shuffleArray(q.options)
-            : [];
-        await prisma.question.create({
-          data: {
-            moduleId: testModule.id,
-            type: q.type || "multiple_choice",
-            prompt: q.prompt,
-            correctAnswer,
-            sortOrder: i + 1,
-            options:
-              shuffledOptions.length > 0
-                ? {
-                    create: shuffledOptions.map(
-                      (
-                        o: { optionText: string; isCorrect: boolean },
-                        idx: number
-                      ) => ({
-                        optionText: o.optionText,
-                        isCorrect: o.isCorrect || false,
-                        sortOrder: idx + 1,
-                      })
-                    ),
-                  }
-                : undefined,
-          },
-        });
-      }
-    }
+        for (let i = 0; i < generated.vocabulary.length; i++) {
+          const v = generated.vocabulary[i];
+          const wordEs =
+            typeof v.wordEs === "string" && v.wordEs.trim().length > 0
+              ? v.wordEs.trim()
+              : null;
+          await prisma.vocabulary.create({
+            data: {
+              word: v.word,
+              wordEs,
+              partOfSpeech: v.partOfSpeech || "noun",
+              definitionEs: v.definitionEs,
+              exampleSentence: v.exampleSentence,
+              phoneticIpa: v.phoneticIpa || null,
+              stressedSyllable: v.stressedSyllable || null,
+              sectionVocabulary: {
+                create: {
+                  sectionId: section.id,
+                  sortOrder: i + 1,
+                },
+              },
+            },
+          });
+        }
 
-    if (isTemplateSection) {
-      await replicateTemplateSectionToAllOrgs(section.id);
-    }
+        if (Array.isArray(generated.practiceQuestions)) {
+          for (let i = 0; i < generated.practiceQuestions.length; i++) {
+            const q = generated.practiceQuestions[i];
+            const correctAnswer =
+              q.type === "matching" && Array.isArray(q.pairs)
+                ? JSON.stringify(q.pairs)
+                : q.correctAnswer || null;
+            const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
+              Array.isArray(q.options) && q.options.length > 0
+                ? shuffleArray(q.options)
+                : [];
+            await prisma.question.create({
+              data: {
+                moduleId: practiceModule.id,
+                type: q.type || "multiple_choice",
+                prompt: q.prompt,
+                correctAnswer,
+                sortOrder: i + 1,
+                options:
+                  shuffledOptions.length > 0
+                    ? {
+                        create: shuffledOptions.map(
+                          (
+                            o: { optionText: string; isCorrect: boolean },
+                            idx: number
+                          ) => ({
+                            optionText: o.optionText,
+                            isCorrect: o.isCorrect || false,
+                            sortOrder: idx + 1,
+                          })
+                        ),
+                      }
+                    : undefined,
+              },
+            });
+          }
+        }
+
+        if (Array.isArray(generated.testQuestions)) {
+          for (let i = 0; i < generated.testQuestions.length; i++) {
+            const q = generated.testQuestions[i];
+            const correctAnswer =
+              q.type === "matching" && Array.isArray(q.pairs)
+                ? JSON.stringify(q.pairs)
+                : q.correctAnswer || null;
+            const shuffledOptions: { optionText: string; isCorrect: boolean }[] =
+              Array.isArray(q.options) && q.options.length > 0
+                ? shuffleArray(q.options)
+                : [];
+            await prisma.question.create({
+              data: {
+                moduleId: testModule.id,
+                type: q.type || "multiple_choice",
+                prompt: q.prompt,
+                correctAnswer,
+                sortOrder: i + 1,
+                options:
+                  shuffledOptions.length > 0
+                    ? {
+                        create: shuffledOptions.map(
+                          (
+                            o: { optionText: string; isCorrect: boolean },
+                            idx: number
+                          ) => ({
+                            optionText: o.optionText,
+                            isCorrect: o.isCorrect || false,
+                            sortOrder: idx + 1,
+                          })
+                        ),
+                      }
+                    : undefined,
+              },
+            });
+          }
+        }
+
+        if (isTemplateSection) {
+          await replicateTemplateSectionToAllOrgs(section.id);
+        }
+      } catch (backgroundError: unknown) {
+        console.error("Generate section background job failed:", backgroundError);
+        const errMsg =
+          backgroundError instanceof Error
+            ? backgroundError.message
+            : "Failed to generate section. Please try again.";
+        await markGenerationFailed(introModule.id, errMsg, normalizedDifficulty);
+      }
+    })();
 
     return NextResponse.json(
       {
         success: true,
         sectionId: section.id,
-        title: generated.title,
-        wordCount: generated.vocabulary.length,
-        practiceQuestionCount: generated.practiceQuestions?.length || 0,
-        testQuestionCount: generated.testQuestions?.length || 0,
+        queued: true,
       },
-      { status: 201 }
+      { status: 202 }
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";

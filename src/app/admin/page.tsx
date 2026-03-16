@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Plus,
   Loader2,
   BookOpen,
@@ -507,18 +506,10 @@ export default function AdminAreasPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-4 pb-32">
-      <header className="mb-6 flex items-center justify-between">
-        <button
-          onClick={() => router.back()}
-          className="flex size-10 items-center justify-center rounded-xl text-primary-600 hover:bg-primary-50"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+      <header className="mb-6">
         <h2 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900">
           Areas of Knowledge
         </h2>
-        <div className="size-10" />
       </header>
 
       {isSuperRole && (

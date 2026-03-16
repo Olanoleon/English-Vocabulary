@@ -112,11 +112,32 @@ interface SectionDetail {
   sectionVocabulary: { id: string; vocabulary: Vocabulary }[];
 }
 
+type IntroGenerationMeta = {
+  pending: boolean;
+  error: string;
+};
+
 export default function SectionEditorPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  function readIntroGenerationMeta(data: SectionDetail): IntroGenerationMeta {
+    const introModule = data.modules.find((m) => m.type === "introduction");
+    const content = (introModule?.content || null) as
+      | {
+          generationPending?: unknown;
+          generationError?: unknown;
+        }
+      | null;
+    const pending = Boolean(content?.generationPending);
+    const error =
+      typeof content?.generationError === "string" && content.generationError.trim()
+        ? content.generationError.trim()
+        : "";
+    return { pending, error };
+  }
+
   function parseMatchingPairs(correctAnswer: string | null): MatchingPairPreview[] {
     if (!correctAnswer) return [];
     try {
@@ -260,24 +281,36 @@ export default function SectionEditorPage({
   const [recreating, setRecreating] = useState(false);
   const [recreateError, setRecreateError] = useState("");
   const [recreateReplicationQueued, setRecreateReplicationQueued] = useState(false);
+  const [recreateQueued, setRecreateQueued] = useState(false);
   const [recreateIntroDifficulty, setRecreateIntroDifficulty] = useState<
     "easy" | "medium" | "advanced"
   >("medium");
   const [recreateWordCountInput, setRecreateWordCountInput] = useState("");
   const [apiError, setApiError] = useState("");
+  const [generationPending, setGenerationPending] = useState(false);
+  const [generationError, setGenerationError] = useState("");
   const [role, setRole] = useState<string | null>(null);
   const [editUnlocked, setEditUnlocked] = useState(false);
 
   function canEditNow() {
     const isSuperRole = role === "super_admin" || role === "admin";
     const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
-    return !inOrgContext || editUnlocked;
+    return (!inOrgContext || editUnlocked) && !generationPending;
   }
 
   useEffect(() => {
     fetchSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, contextOrgId]);
+
+  useEffect(() => {
+    if (!generationPending) return;
+    const timer = window.setTimeout(() => {
+      void fetchSection();
+    }, 3000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generationPending, id, contextOrgId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -304,7 +337,10 @@ export default function SectionEditorPage({
       const res = await fetch(`/api/admin/sections/${id}${query}`);
       if (res.ok) {
         const data: SectionDetail = await res.json();
+        const generationMeta = readIntroGenerationMeta(data);
         setSection(data);
+        setGenerationPending(generationMeta.pending);
+        setGenerationError(generationMeta.error);
         setTitle(data.title);
         setTitleEs(data.titleEs);
         setDescription(data.description || "");
@@ -332,10 +368,14 @@ export default function SectionEditorPage({
         );
         setApiError(message);
         setSection(null);
+        setGenerationPending(false);
+        setGenerationError("");
       }
     } catch {
       setApiError("Connection error. Please try again.");
       setSection(null);
+      setGenerationPending(false);
+      setGenerationError("");
     }
     setLoading(false);
   }
@@ -419,7 +459,8 @@ export default function SectionEditorPage({
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as { replicationQueued?: boolean };
+        const data = (await res.json()) as { queued?: boolean; replicationQueued?: boolean };
+        setRecreateQueued(Boolean(data.queued));
         setRecreateReplicationQueued(Boolean(data.replicationQueued));
         setShowRecreateModal(false);
         await fetchSection();
@@ -599,7 +640,7 @@ export default function SectionEditorPage({
   ];
   const isSuperRole = role === "super_admin" || role === "admin";
   const inOrgContext = Boolean(contextOrgId) && (isSuperRole || role === null);
-  const canEdit = !inOrgContext || editUnlocked;
+  const canEdit = (!inOrgContext || editUnlocked) && !generationPending;
   const ownershipLabel =
     section.organizationId
       ? section.sourceTemplateId
@@ -689,6 +730,16 @@ export default function SectionEditorPage({
       </section>
 
       <div className="mb-4 space-y-3">
+        {generationPending && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            This unit is generating in the background. You can leave this page and come back later.
+          </div>
+        )}
+        {!generationPending && generationError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Last generation attempt failed: {generationError}
+          </div>
+        )}
         {apiError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {apiError}
@@ -1213,7 +1264,7 @@ export default function SectionEditorPage({
       <div className="fixed bottom-[88px] left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 backdrop-blur">
         <button
           onClick={saveSection}
-          disabled={saving || !canEdit}
+          disabled={saving || !canEdit || generationPending}
           className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
@@ -1225,7 +1276,7 @@ export default function SectionEditorPage({
             setActiveTab("questions");
             setShowQuestionForm(true);
           }}
-          disabled={!canEdit}
+          disabled={!canEdit || generationPending}
           className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-xl bg-primary-600 text-sm font-bold text-white shadow-lg shadow-primary-300/40 transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="h-4 w-4" />
@@ -1362,7 +1413,9 @@ export default function SectionEditorPage({
               <h3 className="font-bold text-gray-900">Unit Recreation Successful!</h3>
             </div>
             <p className="mb-4 text-sm text-gray-600">
-              Your unit was regenerated successfully.
+              {recreateQueued
+                ? "Recreation started. The unit will keep updating in the background, even if you close the browser."
+                : "Your unit was regenerated successfully."}
               {recreateReplicationQueued
                 ? " Changes at org level may take some time to be reflected."
                 : ""}
