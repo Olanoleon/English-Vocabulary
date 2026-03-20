@@ -11,6 +11,8 @@ import {
   ShieldOff,
   ChevronDown,
   Search,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ToastMessage } from "@/components/toast-message";
@@ -52,6 +54,22 @@ interface ToastState {
   open: boolean;
   status: "success" | "failed";
   message: string;
+}
+
+interface ImportRowResult {
+  rowNumber: number;
+  email: string;
+  displayName: string;
+  status: "created" | "skipped" | "error";
+  reason: string;
+}
+
+interface ImportSummary {
+  createdCount: number;
+  skippedCount: number;
+  errorCount: number;
+  totalProcessed: number;
+  results: ImportRowResult[];
 }
 
 // ─── Access Control Dropdown ──────────────────────────────────────────────────
@@ -197,6 +215,11 @@ export default function LearnersPage() {
   const [reassignTarget, setReassignTarget] = useState<Learner | null>(null);
   const [reassignOrgId, setReassignOrgId] = useState("");
   const [reassigning, setReassigning] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [toast, setToast] = useState<ToastState>({
     open: false,
     status: "success",
@@ -393,6 +416,61 @@ export default function LearnersPage() {
     setReassigning(false);
   }
 
+  async function handleImportLearners(e: React.FormEvent) {
+    e.preventDefault();
+    setImporting(true);
+    setImportError("");
+    setImportSummary(null);
+    setApiError("");
+
+    if (!importFile) {
+      setImportError("Please select a CSV or Excel file.");
+      setImporting(false);
+      return;
+    }
+
+    if (
+      ((sessionMe?.activeRole || sessionMe?.role) === "super_admin" ||
+        (sessionMe?.activeRole || sessionMe?.role) === "admin") &&
+      !selectedOrgId
+    ) {
+      setImportError("Choose an organization scope before importing learners.");
+      setImporting(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", importFile);
+    if (selectedOrgId) {
+      formData.append("organizationId", selectedOrgId);
+    }
+
+    try {
+      const res = await fetch("/api/admin/learners/import", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        setImportError(await readApiError(res, "Failed to import learners."));
+        setImporting(false);
+        return;
+      }
+
+      const data = (await res.json()) as ImportSummary;
+      setImportSummary(data);
+      await fetchLearners(selectedOrgId || undefined);
+      setToast({
+        open: true,
+        status: "success",
+        message: `Import complete: ${data.createdCount} created, ${data.skippedCount} skipped, ${data.errorCount} errors.`,
+      });
+    } catch {
+      setImportError("Connection error while importing learners.");
+    }
+
+    setImporting(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -442,16 +520,31 @@ export default function LearnersPage() {
           </p>
         </div>
         {!showCreate && (
-          <button
-            onClick={() => {
-              setCreateOrgId(selectedOrgId || "");
-              setShowCreate(true);
-            }}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-600 text-white transition-colors hover:bg-primary-700"
-            title="Add New Learner"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setImportFile(null);
+                setImportError("");
+                setImportSummary(null);
+                setShowImportModal(true);
+              }}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 px-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+              title="Import Learners"
+            >
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
+            <button
+              onClick={() => {
+                setCreateOrgId(selectedOrgId || "");
+                setShowCreate(true);
+              }}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-600 text-white transition-colors hover:bg-primary-700"
+              title="Add New Learner"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         )}
       </div>
       {apiError && (
@@ -892,6 +985,107 @@ export default function LearnersPage() {
               >
                 Cancel
               </button>
+            </div>
+          </form>
+        </AppModal>
+      )}
+
+      {showImportModal && (
+        <AppModal
+          open={showImportModal}
+          onClose={() => {
+            if (importing) return;
+            setShowImportModal(false);
+            setImportFile(null);
+            setImportError("");
+            setImportSummary(null);
+          }}
+          maxWidthClassName="max-w-lg"
+          showCloseButton={!importing}
+          closeLabel="Close learner import modal"
+        >
+          <form onSubmit={handleImportLearners} className="w-full space-y-3">
+            <h3 className="font-bold text-gray-900">Bulk Import Learners</h3>
+            <p className="text-xs text-gray-500">
+              Upload CSV/XLS/XLSX with required columns <span className="font-semibold">Display Name</span> and <span className="font-semibold">Email</span>, and optional <span className="font-semibold">Gender</span>. Initial password is set to each learner&apos;s email.
+            </p>
+
+            <input
+              type="file"
+              accept=".csv,.xls,.xlsx"
+              onChange={(e) => {
+                const nextFile = e.target.files?.[0] || null;
+                setImportFile(nextFile);
+                setImportError("");
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-primary-700"
+              disabled={importing}
+            />
+
+            {importError && (
+              <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                {importError}
+              </div>
+            )}
+
+            {importSummary && (
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-semibold text-slate-800">
+                  Import results
+                </p>
+                <p className="text-xs text-slate-600">
+                  {importSummary.createdCount} created, {importSummary.skippedCount} skipped, {importSummary.errorCount} errors
+                  {" "}({importSummary.totalProcessed} processed rows)
+                </p>
+                <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg bg-white p-2">
+                  {importSummary.results.slice(0, 20).map((row) => (
+                    <p key={`${row.rowNumber}-${row.email}-${row.status}`} className="text-xs text-slate-600">
+                      Row {row.rowNumber}:{" "}
+                      <span className="font-medium">{row.email || "(no email)"}</span>
+                      {" "}- {row.status} ({row.reason})
+                    </p>
+                  ))}
+                  {importSummary.results.length > 20 && (
+                    <p className="text-xs text-slate-500">
+                      Showing first 20 row results.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={importing}
+                className={cn(modalActionButtonClass.primary, "flex flex-1 items-center justify-center gap-2")}
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Start Import
+                  </>
+                )}
+              </button>
+              {!importing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportFile(null);
+                    setImportError("");
+                    setImportSummary(null);
+                  }}
+                  className={modalActionButtonClass.secondary}
+                >
+                  Close
+                </button>
+              )}
             </div>
           </form>
         </AppModal>

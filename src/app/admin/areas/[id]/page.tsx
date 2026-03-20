@@ -265,7 +265,7 @@ export default function AreaUnitsPage({
     activationConstraint: { distance: 8 },
   });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 250, tolerance: 8 },
+    activationConstraint: { delay: 500, tolerance: 8 },
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
