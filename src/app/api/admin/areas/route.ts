@@ -68,6 +68,61 @@ function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
   });
 }
 
+async function listOrgAreasWithTemplateBootstrap(orgId: string) {
+  const orgAreas = await prisma.area.findMany({
+    where: { scopeType: "org", organizationId: orgId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    include: {
+      _count: { select: { sections: true } },
+    },
+  });
+  const seenTemplateAreaIds = new Set<string>();
+  const dedupedOrgAreas = orgAreas.filter((area) => {
+    if (!area.sourceTemplateId) return true;
+    if (seenTemplateAreaIds.has(area.sourceTemplateId)) return false;
+    seenTemplateAreaIds.add(area.sourceTemplateId);
+    return true;
+  });
+
+  const templateAreas = await prisma.area.findMany({
+    where: {
+      OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
+    },
+    orderBy: { sortOrder: "asc" },
+    include: {
+      _count: { select: { sections: true } },
+    },
+  });
+
+  const copiedTemplateIds = new Set(
+    dedupedOrgAreas
+      .map((area) => area.sourceTemplateId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+  );
+
+  const pendingTemplateCards = templateAreas
+    .filter((templateArea) => !copiedTemplateIds.has(templateArea.id))
+    .map((templateArea) => ({
+      id: `pending-${templateArea.id}`,
+      name: templateArea.name,
+      nameEs: templateArea.nameEs,
+      description: templateArea.description,
+      imageUrl: templateArea.imageUrl,
+      isActive: true,
+      _count: templateArea._count,
+      replicationPending: true,
+      templateAreaId: templateArea.id,
+    }));
+
+  if (pendingTemplateCards.length > 0) {
+    void replicateTemplatesToOrg(orgId).catch((replicationError) => {
+      console.error("Org template bootstrap replication failed:", replicationError);
+    });
+  }
+
+  return [...dedupedOrgAreas, ...pendingTemplateCards];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireOrgAdminOrSuperAdmin();
@@ -79,66 +134,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (activeRole === "org_admin") {
-      const orgAreas = await prisma.area.findMany({
-        where: { scopeType: "org", organizationId: session.organizationId },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-        include: {
-          _count: { select: { sections: true } },
-        },
-      });
-      const seenTemplateAreaIds = new Set<string>();
-      const dedupedOrgAreas = orgAreas.filter((area) => {
-        if (!area.sourceTemplateId) return true;
-        if (seenTemplateAreaIds.has(area.sourceTemplateId)) return false;
-        seenTemplateAreaIds.add(area.sourceTemplateId);
-        return true;
-      });
-
-      const templateAreas = await prisma.area.findMany({
-        where: {
-          OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
-        },
-        orderBy: { sortOrder: "asc" },
-        include: {
-          _count: { select: { sections: true } },
-        },
-      });
-
-      const copiedTemplateIds = new Set(
-        dedupedOrgAreas
-          .map((area) => area.sourceTemplateId)
-          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      return NextResponse.json(
+        await listOrgAreasWithTemplateBootstrap(session.organizationId as string)
       );
+    }
 
-      const pendingTemplateCards = templateAreas
-        .filter((templateArea) => !copiedTemplateIds.has(templateArea.id))
-        .map((templateArea) => ({
-          id: `pending-${templateArea.id}`,
-          name: templateArea.name,
-          nameEs: templateArea.nameEs,
-          description: templateArea.description,
-          imageUrl: templateArea.imageUrl,
-          isActive: true,
-          _count: templateArea._count,
-          replicationPending: true,
-          templateAreaId: templateArea.id,
-        }));
-
-      if (pendingTemplateCards.length > 0 && session.organizationId) {
-        void replicateTemplatesToOrg(session.organizationId).catch((replicationError) => {
-          console.error("Org template bootstrap replication failed:", replicationError);
-        });
-      }
-
-      return NextResponse.json([...dedupedOrgAreas, ...pendingTemplateCards]);
+    if (requestedOrgId) {
+      return NextResponse.json(await listOrgAreasWithTemplateBootstrap(requestedOrgId));
     }
 
     const areas = await prisma.area.findMany({
-      where: requestedOrgId
-        ? { scopeType: "org", organizationId: requestedOrgId }
-        : {
-            OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
-          },
+      where: {
+        OR: [{ isTemplate: true }, { scopeType: "global", organizationId: null }],
+      },
       orderBy: { sortOrder: "asc" },
       include: {
         _count: { select: { sections: true } },

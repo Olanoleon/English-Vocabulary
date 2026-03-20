@@ -253,6 +253,8 @@ export default function AdminAreasPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [editUnlocked, setEditUnlocked] = useState(false);
+  const [syncingTemplates, setSyncingTemplates] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   // Create form
   const [name, setName] = useState("");
@@ -261,7 +263,7 @@ export default function AdminAreasPage() {
     activationConstraint: { distance: 8 },
   });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { distance: 6 },
+    activationConstraint: { delay: 250, tolerance: 8 },
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
@@ -376,6 +378,12 @@ export default function AdminAreasPage() {
   }, [selectedOrgId]);
 
   useEffect(() => {
+    if (!syncMessage) return;
+    const timer = window.setTimeout(() => setSyncMessage(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [syncMessage]);
+
+  useEffect(() => {
     if (!areas.some((area) => area.replicationPending)) return;
     const timer = window.setTimeout(() => {
       void fetchAreas();
@@ -480,6 +488,31 @@ export default function AdminAreasPage() {
     }
   }
 
+  async function handleSyncTemplatesForOrg() {
+    if (!selectedOrgId) return;
+    setSyncingTemplates(true);
+    setSyncMessage("");
+    setApiError("");
+    try {
+      const res = await fetch(`/api/admin/areas?organizationId=${encodeURIComponent(selectedOrgId)}`);
+      if (!res.ok) {
+        setApiError(await readApiError(res, "Failed to sync templates for this org."));
+        setSyncingTemplates(false);
+        return;
+      }
+      const data = (await res.json()) as Area[];
+      setAreas(data);
+      setSyncMessage("Template sync started. Missing areas/units should appear shortly.");
+      const refreshTimer = window.setTimeout(() => {
+        void fetchAreas();
+      }, 1800);
+      window.setTimeout(() => window.clearTimeout(refreshTimer), 2200);
+    } catch {
+      setApiError("Connection error while syncing templates.");
+    }
+    setSyncingTemplates(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -563,6 +596,31 @@ export default function AdminAreasPage() {
             <p className="mt-1 text-xs text-slate-500">
               Creation is disabled in org context to avoid accidental global template creation.
             </p>
+          )}
+          {inOrgContext && (
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSyncTemplatesForOrg}
+                disabled={syncingTemplates}
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary-50 px-3 text-xs font-semibold text-primary-700 hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {syncingTemplates ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Sync Templates
+                  </>
+                )}
+              </button>
+              {syncMessage && (
+                <p className="text-xs text-primary-700">{syncMessage}</p>
+              )}
+            </div>
           )}
         </div>
       )}
