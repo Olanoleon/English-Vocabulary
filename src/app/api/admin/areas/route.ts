@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     const session = await requireOrgAdminOrSuperAdmin();
     const activeRole = session.activeRole || session.role;
     const body = await request.json();
-    const { name } = body;
+    const { name, organizationId: requestedOrganizationId } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -196,7 +196,15 @@ export async function POST(request: NextRequest) {
     }
 
     const isOrgAdmin = activeRole === "org_admin";
-    const scopeType: "global" | "org" = isOrgAdmin ? "org" : "global";
+    const canCreateForOrg = activeRole === "super_admin" || activeRole === "admin";
+    const targetOrgIdFromRequest =
+      typeof requestedOrganizationId === "string" && requestedOrganizationId.trim()
+        ? requestedOrganizationId.trim()
+        : null;
+    const scopeType: "global" | "org" =
+      isOrgAdmin || (canCreateForOrg && Boolean(targetOrgIdFromRequest))
+        ? "org"
+        : "global";
     let organizationId: string | null = null;
 
     if (isOrgAdmin) {
@@ -204,6 +212,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Org admin missing organization" }, { status: 403 });
       }
       organizationId = session.organizationId;
+    } else if (scopeType === "org") {
+      organizationId = targetOrgIdFromRequest;
+      if (!organizationId) {
+        return NextResponse.json({ error: "Organization is required in org context" }, { status: 400 });
+      }
     }
 
     // Get next sort order in scope
@@ -228,10 +241,10 @@ export async function POST(request: NextRequest) {
         sortOrder,
         scopeType,
         organizationId,
-        isTemplate: !isOrgAdmin,
+        isTemplate: scopeType === "global",
         sourceTemplateId: null,
         sourceVersion: 1,
-        isCustomized: isOrgAdmin,
+        isCustomized: scopeType === "org",
         isActive: true,
       },
       include: {
@@ -239,7 +252,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (isOrgAdmin && organizationId) {
+    if (scopeType === "org" && organizationId) {
       await prisma.organizationAreaConfig.upsert({
         where: {
           organizationId_areaId: {
@@ -257,7 +270,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!isOrgAdmin) {
+    if (scopeType === "global") {
       await replicateTemplateAreaToAllOrgs(area.id);
     }
 

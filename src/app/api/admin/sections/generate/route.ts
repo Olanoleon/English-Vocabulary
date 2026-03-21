@@ -193,9 +193,13 @@ export async function POST(request: NextRequest) {
     // Create everything in the database
     // 1. Create placeholder section and return quickly so mobile backgrounding does not cancel work.
     const ownerOrgIdForSection =
-      activeRole === "org_admin" ? session.organizationId || null : null;
+      activeRole === "org_admin"
+        ? session.organizationId || null
+        : area.scopeType === "org" && area.organizationId
+          ? area.organizationId
+          : null;
     const isTemplateSection =
-      activeRole !== "org_admin" &&
+      !ownerOrgIdForSection &&
       (Boolean(area.isTemplate) || (area.scopeType === "global" && !area.organizationId));
     const section = await prisma.section.create({
       data: {
@@ -209,7 +213,7 @@ export async function POST(request: NextRequest) {
         isTemplate: isTemplateSection,
         sourceTemplateId: null,
         sourceVersion: 1,
-        isCustomized: activeRole === "org_admin",
+        isCustomized: Boolean(ownerOrgIdForSection),
         modules: {
           create: [
             {

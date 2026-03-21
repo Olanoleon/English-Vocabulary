@@ -288,6 +288,8 @@ export default function AdminAreasPage() {
   function canCreateNow() {
     const isSuperRole = role === "super_admin" || role === "admin";
     const inOrgContext = Boolean(selectedOrgId) && (isSuperRole || role === null);
+    if (role === "org_admin") return true;
+    if (isSuperRole && inOrgContext) return true;
     return !inOrgContext;
   }
 
@@ -425,7 +427,10 @@ export default function AdminAreasPage() {
       const res = await fetch("/api/admin/areas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          ...(selectedOrgId ? { organizationId: selectedOrgId } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -594,7 +599,7 @@ export default function AdminAreasPage() {
           )}
           {inOrgContext && (
             <p className="mt-1 text-xs text-slate-500">
-              Creation is disabled in org context to avoid accidental global template creation.
+              New areas created in this context will be org-owned custom areas.
             </p>
           )}
           {inOrgContext && (

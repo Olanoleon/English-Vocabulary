@@ -594,7 +594,6 @@ export default function AreaUnitsPage({
       setTopic("");
       setWordCount("5");
       setIntroDifficulty("medium");
-      setShowCreate(false);
 
       if (data?.queued && typeof data.sectionId === "string" && data.sectionId.trim()) {
         setQueuedSectionId(data.sectionId);
@@ -606,6 +605,7 @@ export default function AreaUnitsPage({
       setGenProgress("");
       setGenProgressPercent(0);
       if (typeof data?.sectionId === "string" && data.sectionId.trim()) {
+        setShowCreate(false);
         router.push(
           contextOrgId
             ? `/admin/sections/${data.sectionId}?organizationId=${encodeURIComponent(contextOrgId)}`

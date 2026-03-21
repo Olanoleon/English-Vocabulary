@@ -194,8 +194,12 @@ export async function POST(request: NextRequest) {
 
     // Create section with 3 modules
     const ownerOrgIdForSection =
-      activeRole === "org_admin" ? session.organizationId || null : null;
-    const isTemplateSection = activeRole !== "org_admin" && isTemplateArea(area);
+      activeRole === "org_admin"
+        ? session.organizationId || null
+        : area.scopeType === "org" && area.organizationId
+          ? area.organizationId
+          : null;
+    const isTemplateSection = !ownerOrgIdForSection && isTemplateArea(area);
     const section = await prisma.section.create({
       data: {
         title,
@@ -208,7 +212,7 @@ export async function POST(request: NextRequest) {
         isTemplate: isTemplateSection,
         sourceTemplateId: null,
         sourceVersion: 1,
-        isCustomized: activeRole === "org_admin",
+        isCustomized: Boolean(ownerOrgIdForSection),
         modules: {
           create: [
             { type: "introduction", content: { readingText: "", readingTitle: "" } },
